@@ -1,0 +1,376 @@
+diff -ruN rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/README.md /mnt/data/work_direct_ota/rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/README.md
+--- rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/README.md	2026-06-24 14:22:46.000000000 +0000
++++ /mnt/data/work_direct_ota/rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/README.md	2026-06-24 14:30:32.374160492 +0000
+@@ -92,15 +92,15 @@
+ SYST:STAT?
+ ```
+ 
+-The new **Firmware** web tab opens `/firmware`, which accepts Arduino-Pico compiled `.bin` firmware files.
+-Before staging the update, the firmware requests all resistor outputs OFF through the existing safe Core 1 command path.
+-The upload is staged into LittleFS and then passed to the Arduino-Pico `Update` stream API using the exact staged file size.
++The new **Firmware** web tab opens `/firmware`, which accepts Arduino-Pico compiled `.bin` and compressed `.bin.gz` firmware files.
++Before writing the update, the firmware requests all resistor outputs OFF through the existing safe Core 1 command path.
++The upload is streamed directly into the Arduino-Pico `Update` API. Arduino-Pico still stores the OTA image as `firmware.bin` in LittleFS internally, but this firmware no longer creates a second temporary staging copy.
+ 
+ Important requirements:
+ 
+ - The first firmware must still be installed by USB/serial.
+-- Select an Arduino-Pico flash layout with enough LittleFS space for the staged `.bin` file.
+-- Use `.bin` for web update. Use `.uf2` only for USB BOOTSEL drag-and-drop flashing.
++- Select an Arduino-Pico flash layout with enough LittleFS space for the uploaded `.bin` or compressed `.bin.gz` file.
++- Use `.bin` or `.bin.gz` for web update. Use `.uf2` only for USB BOOTSEL drag-and-drop flashing.
+ - Do not start a firmware update during calibration or external test operation.
+ 
+ 
+@@ -151,7 +151,7 @@
+ 
+ ## Web firmware update LittleFS note
+ 
+-If the Firmware tab reports `LittleFS staging short write: 0/1436` or a similar short-write message, the uploaded `.bin` file is usually not the problem. The number after the slash is only one HTTP upload chunk. The usual cause is that the board was compiled/flashed with a Flash Size option that has no LittleFS partition, or the LittleFS partition is too small/full.
++If the Firmware tab reports `LittleFS staging short write: 0/1436` or a similar short-write message on older builds, the uploaded `.bin` file is usually not the problem. The number after the slash is only one HTTP upload chunk. The usual cause is that the board was compiled/flashed with a Flash Size option that has no LittleFS partition, or the LittleFS partition is too small/full. This build streams directly into Arduino-Pico `Update` and avoids the extra staging copy, but the uploaded image still must fit in LittleFS because Arduino-Pico stores `firmware.bin` there internally. Use `.bin.gz` if the normal `.bin` is slightly larger than the filesystem.
+ 
+ For web `.bin` update, select an Arduino-Pico **Tools > Flash Size** option that includes enough filesystem space, then flash once by USB. Example: a layout with about 1 MB FS is enough for typical ~300 kB firmware binaries.
+ 
+diff -ruN rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/app.h /mnt/data/work_direct_ota/rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/app.h
+--- rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/app.h	2026-06-24 14:21:57.000000000 +0000
++++ /mnt/data/work_direct_ota/rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/app.h	2026-06-24 14:29:48.403839059 +0000
+@@ -228,7 +228,7 @@
+ extern char lastScpiCommand[96];
+ extern bool firmwareUpdateInProgress;
+ extern bool firmwareUpdateSucceeded;
+-extern char firmwareUpdateStatus[160];
++extern char firmwareUpdateStatus[384];
+ 
+ 
+ // Utility
+diff -ruN rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/app_globals.cpp /mnt/data/work_direct_ota/rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/app_globals.cpp
+--- rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/app_globals.cpp	2026-06-24 14:21:57.000000000 +0000
++++ /mnt/data/work_direct_ota/rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/app_globals.cpp	2026-06-24 14:29:48.404681423 +0000
+@@ -74,7 +74,7 @@
+ char lastScpiCommand[96] = "";
+ bool firmwareUpdateInProgress = false;
+ bool firmwareUpdateSucceeded = false;
+-char firmwareUpdateStatus[160] = "No firmware update has been attempted";
++char firmwareUpdateStatus[384] = "No firmware update has been attempted";
+ 
+ // ============================================================
+ // Dual-core hardware engine state
+diff -ruN rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/docs/firmware_description.md /mnt/data/work_direct_ota/rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/docs/firmware_description.md
+--- rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/docs/firmware_description.md	2026-06-24 13:45:41.000000000 +0000
++++ /mnt/data/work_direct_ota/rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/docs/firmware_description.md	2026-06-24 14:30:18.293662649 +0000
+@@ -96,7 +96,7 @@
+ 
+ The browser firmware update page is available at `/firmware`.
+ It accepts an Arduino-Pico compiled `.bin` image and stages the upload into LittleFS before invoking the Arduino-Pico `Update` stream API.
+-The update flow requests all resistor outputs OFF before staging and writing the firmware update.
++The update flow requests all resistor outputs OFF before streaming the uploaded `.bin`/`.bin.gz` into the Arduino-Pico `Update` API. Arduino-Pico still stores the OTA image in LittleFS internally as `firmware.bin`, so the uploaded file must fit in LittleFS.
+ 
+ This page intentionally does not use UF2 as the web-update input format. UF2 remains the recommended USB BOOTSEL drag-and-drop format; `.bin` is used for browser OTA-style updates.
+ 
+diff -ruN rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/http_handlers.cpp /mnt/data/work_direct_ota/rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/http_handlers.cpp
+--- rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/http_handlers.cpp	2026-06-24 14:21:57.000000000 +0000
++++ /mnt/data/work_direct_ota/rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen/http_handlers.cpp	2026-06-24 14:29:48.405843530 +0000
+@@ -5,8 +5,9 @@
+ 
+ #include "app.h"
+ 
+-static File s_firmwareUploadFile;
+ static constexpr const char* FIRMWARE_UPLOAD_TMP_PATH = "/fw_update.bin.tmp";
++static size_t s_firmwareUploadBytes = 0;
++
+ 
+ /**
+  * @brief Return LittleFS capacity information for firmware-update diagnostics.
+@@ -37,14 +38,14 @@
+   uint64_t freeBytes = 0;
+   if (getLittleFsCapacity(totalBytes, usedBytes, freeBytes)) {
+     snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
+-             "%s LittleFS total=%llu used=%llu free=%llu bytes. OTA .bin staging requires free space larger than the uploaded firmware file. Select an Arduino Flash Size option with FS, for example 2MB Sketch/1MB FS or similar.",
++             "%s LittleFS total=%llu used=%llu free=%llu bytes. Arduino-Pico web update writes the uploaded image into LittleFS internally. Free/available FS must be larger than the uploaded .bin or .bin.gz. Delete files, upload a .bin.gz, or select a larger Flash Size with FS.",
+              prefix,
+              (unsigned long long)totalBytes,
+              (unsigned long long)usedBytes,
+              (unsigned long long)freeBytes);
+   } else {
+     snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
+-             "%s LittleFS capacity unavailable. OTA .bin staging requires a mounted LittleFS partition. Select an Arduino Flash Size option with FS; No-FS layouts cannot do web firmware update.",
++             "%s LittleFS capacity unavailable. Arduino-Pico web update requires a mounted LittleFS partition. Select a Flash Size option with FS; No-FS layouts cannot do web firmware update.",
+              prefix);
+   }
+ }
+@@ -682,9 +683,9 @@
+ 
+   html += "<div class='card'>";
+   html += "<h2>Firmware update by .bin upload</h2>";
+-  html += "<p class='small'>Upload an Arduino-Pico compiled <code>.bin</code> firmware image. ";
+-  html += "The firmware will first request all resistor outputs OFF, then write the image and reboot if the update is successful. ";
+-  html += "Use <code>.uf2</code> only for USB BOOTSEL drag-and-drop flashing; this web page expects <code>.bin</code>.</p>";
++  html += "<p class='small'>Upload an Arduino-Pico compiled <code>.bin</code> or <code>.bin.gz</code> firmware image. ";
++  html += "The firmware will first request all resistor outputs OFF, then stream the image to the Arduino-Pico updater and reboot if the update is successful. ";
++  html += "Use <code>.uf2</code> only for USB BOOTSEL drag-and-drop flashing; this web page expects <code>.bin</code> or <code>.bin.gz</code>.</p>";
+ 
+   html += "<div class='notice'><b>Safety:</b> Do not update while a calibration run or external test is active. ";
+   html += "After pressing Update, the board may stop responding while flash is written and then reboot.</div>";
+@@ -697,16 +698,16 @@
+     html += "LittleFS total <code>"; html += formatBytesHuman(otaTotalBytes); html += "</code>, used <code>";
+     html += formatBytesHuman(otaUsedBytes); html += "</code>, free <code>";
+     html += formatBytesHuman(otaFreeBytes); html += "</code>. ";
+-    html += "The free space must be larger than the uploaded <code>.bin</code> file.";
++    html += "Arduino-Pico stores the uploaded OTA image in LittleFS internally. The file must fit in LittleFS; if your <code>.bin</code> is too large, upload <code>.bin.gz</code> or choose a larger FS layout.";
+   } else {
+     html += "LittleFS capacity is unavailable. Web firmware update will fail unless the board is compiled with a Flash Size option that includes FS.";
+   }
+   html += "</div>";
+ 
+   html += "<form method='POST' action='/firmware_update' enctype='multipart/form-data'>";
+-  html += "<p><input type='file' name='firmware' accept='.bin,application/octet-stream' required></p>";
++  html += "<p><input type='file' name='firmware' accept='.bin,.gz,.signed,application/octet-stream,application/gzip' required></p>";
+   html += "<p><label><input type='checkbox' name='confirm' value='1' required> I confirm outputs may be forced OFF and the board may reboot.</label></p>";
+-  html += "<p><button class='apply' type='submit'>Upload .bin and update firmware</button></p>";
++  html += "<p><button class='apply' type='submit'>Upload firmware and update</button></p>";
+   html += "</form>";
+   html += "</div>";
+ 
+@@ -756,12 +757,16 @@
+ }
+ 
+ /**
+- * @brief Stream firmware binary upload chunks into a temporary LittleFS file.
++ * @brief Stream firmware upload chunks directly into the Arduino-Pico Updater.
++ *
++ * The Arduino-Pico Updater still uses LittleFS internally (it creates
++ * firmware.bin and an OTA command file), but this handler no longer stages a
++ * second temporary copy of the uploaded firmware. This roughly halves the
++ * LittleFS space required compared with the previous web updater.
+  *
+- * Arduino-Pico's stream OTA path expects an exact firmware length.  Browser
+- * multipart uploads do not expose the raw firmware length at UPLOAD_FILE_START,
+- * so the safest approach is to stage the uploaded .bin into LittleFS first and
+- * then call Update.begin(file.size()), Update.writeStream(file), Update.end().
++ * The browser upload callback does not provide the final raw firmware size at
++ * UPLOAD_FILE_START, so Update.begin() is started with the full LittleFS
++ * capacity and Update.end(true) commits only the bytes actually received.
+  */
+ void handleFirmwareUpdateUpload() {
+   HTTPUpload& upload = server.upload();
+@@ -769,12 +774,24 @@
+   if (upload.status == UPLOAD_FILE_START) {
+     firmwareUpdateInProgress = true;
+     firmwareUpdateSucceeded = false;
+-    snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Starting firmware upload: %s", upload.filename.c_str());
+-    appendLogEvent("Firmware update: upload started");
++    s_firmwareUploadBytes = 0;
++    snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
++             "Starting direct firmware upload: %s", upload.filename.c_str());
++    appendLogEvent("Firmware update: direct upload started");
+ 
+     forceAllOff();
+     delay(100);
+ 
++    String lowerName = upload.filename;
++    lowerName.toLowerCase();
++    if (!lowerName.endsWith(".bin") && !lowerName.endsWith(".bin.gz") && !lowerName.endsWith(".bin.signed") && !lowerName.endsWith(".bin.gz.signed")) {
++      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
++               "Rejected: firmware update requires .bin/.bin.gz/.bin.signed/.bin.gz.signed, got %s",
++               upload.filename.c_str());
++      firmwareUpdateInProgress = false;
++      return;
++    }
++
+     if (!littleFsReady) {
+       setFirmwareUpdateFsStatus("Rejected: LittleFS is not ready.");
+       firmwareUpdateInProgress = false;
+@@ -784,136 +801,116 @@
+     uint64_t otaTotalBytes = 0;
+     uint64_t otaUsedBytes = 0;
+     uint64_t otaFreeBytes = 0;
+-    if (!getLittleFsCapacity(otaTotalBytes, otaUsedBytes, otaFreeBytes) || otaTotalBytes == 0 || otaFreeBytes < 4096ULL) {
+-      setFirmwareUpdateFsStatus("Rejected: not enough LittleFS space for OTA staging.");
++    if (!getLittleFsCapacity(otaTotalBytes, otaUsedBytes, otaFreeBytes) || otaTotalBytes == 0) {
++      setFirmwareUpdateFsStatus("Rejected: LittleFS capacity unavailable.");
+       firmwareUpdateInProgress = false;
+       return;
+     }
+ 
+-    String lowerName = upload.filename;
+-    lowerName.toLowerCase();
+-    if (!lowerName.endsWith(".bin") && !lowerName.endsWith(".bin.gz") && !lowerName.endsWith(".bin.signed") && !lowerName.endsWith(".bin.gz.signed")) {
+-      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Rejected: firmware update requires .bin/.bin.gz/.bin.signed, got %s", upload.filename.c_str());
++    // Remove leftovers from old failed attempts.  Arduino-Pico Update.begin()
++    // itself writes firmware.bin to LittleFS, while older versions of this
++    // application also used /fw_update.bin.tmp as an external staging file.
++    LittleFS.remove(FIRMWARE_UPLOAD_TMP_PATH);
++    LittleFS.remove("fw_update.bin.tmp");
++    LittleFS.remove("/firmware.bin");
++    LittleFS.remove("firmware.bin");
++
++    // Give LittleFS one moment after deleting large files before opening the
++    // updater output file.
++    delay(20);
++
++    size_t updateCapacity = (otaTotalBytes > size_t(-1)) ? size_t(-1) : size_t(otaTotalBytes);
++    if (updateCapacity < 65536U) {
++      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
++               "Rejected: LittleFS OTA capacity too small: total=%llu used=%llu free=%llu bytes",
++               (unsigned long long)otaTotalBytes,
++               (unsigned long long)otaUsedBytes,
++               (unsigned long long)otaFreeBytes);
+       firmwareUpdateInProgress = false;
+       return;
+     }
+ 
+-    if (s_firmwareUploadFile) {
+-      s_firmwareUploadFile.close();
+-    }
+-    LittleFS.remove(FIRMWARE_UPLOAD_TMP_PATH);
+-    s_firmwareUploadFile = LittleFS.open(FIRMWARE_UPLOAD_TMP_PATH, "w");
+-    if (!s_firmwareUploadFile) {
+-      setFirmwareUpdateFsStatus("Rejected: cannot create temporary firmware file in LittleFS.");
++    if (!Update.begin(updateCapacity)) {
++      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
++               "Update.begin(max=%u) failed. LittleFS total=%llu used=%llu free=%llu bytes. The uploaded .bin/.bin.gz must fit in LittleFS.",
++               unsigned(updateCapacity),
++               (unsigned long long)otaTotalBytes,
++               (unsigned long long)otaUsedBytes,
++               (unsigned long long)otaFreeBytes);
++      Update.printError(Serial);
+       firmwareUpdateInProgress = false;
++      firmwareUpdateSucceeded = false;
++      appendLogEvent("Firmware update: Update.begin failed");
+       return;
+     }
++
++    snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
++             "Direct OTA write started. LittleFS total=%llu used=%llu free=%llu bytes",
++             (unsigned long long)otaTotalBytes,
++             (unsigned long long)otaUsedBytes,
++             (unsigned long long)otaFreeBytes);
+   } else if (upload.status == UPLOAD_FILE_WRITE) {
+-    if (!firmwareUpdateInProgress || !s_firmwareUploadFile) {
++    if (!firmwareUpdateInProgress) {
+       return;
+     }
+ 
+-    size_t written = s_firmwareUploadFile.write(upload.buf, upload.currentSize);
++    size_t written = Update.write(upload.buf, upload.currentSize);
++    s_firmwareUploadBytes += written;
+     if (written != upload.currentSize) {
+       uint64_t otaTotalBytes = 0;
+       uint64_t otaUsedBytes = 0;
+       uint64_t otaFreeBytes = 0;
+       if (getLittleFsCapacity(otaTotalBytes, otaUsedBytes, otaFreeBytes)) {
+         snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
+-                 "LittleFS staging short write: %u/%u. LittleFS total=%llu used=%llu free=%llu bytes. The uploaded .bin must fit in FS; select a Flash Size with enough FS, then flash once by USB.",
+-                 unsigned(written), unsigned(upload.currentSize),
++                 "Direct OTA short write: %u/%u at total %u bytes. LittleFS total=%llu used=%llu free=%llu bytes. Use a smaller .bin.gz or select a larger FS layout.",
++                 unsigned(written), unsigned(upload.currentSize), unsigned(s_firmwareUploadBytes),
+                  (unsigned long long)otaTotalBytes,
+                  (unsigned long long)otaUsedBytes,
+                  (unsigned long long)otaFreeBytes);
+       } else {
+         snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
+-                 "LittleFS staging short write: %u/%u. LittleFS capacity unavailable; select a Flash Size with FS. No-FS layouts cannot use web .bin update.",
+-                 unsigned(written), unsigned(upload.currentSize));
++                 "Direct OTA short write: %u/%u at total %u bytes. LittleFS capacity unavailable.",
++                 unsigned(written), unsigned(upload.currentSize), unsigned(s_firmwareUploadBytes));
+       }
+-      s_firmwareUploadFile.close();
+-      LittleFS.remove(FIRMWARE_UPLOAD_TMP_PATH);
++      Update.printError(Serial);
+       firmwareUpdateInProgress = false;
+       firmwareUpdateSucceeded = false;
++      appendLogEvent("Firmware update: direct write failed");
+     }
+   } else if (upload.status == UPLOAD_FILE_END) {
+-    if (s_firmwareUploadFile) {
+-      s_firmwareUploadFile.close();
+-    }
+-
+     if (!firmwareUpdateInProgress) {
+       return;
+     }
+ 
+-    File fw = LittleFS.open(FIRMWARE_UPLOAD_TMP_PATH, "r");
+-    if (!fw) {
+-      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Update failed: cannot reopen staged firmware file");
+-      firmwareUpdateSucceeded = false;
+-      firmwareUpdateInProgress = false;
+-      appendLogEvent("Firmware update: failed opening staged file");
+-      return;
+-    }
+-
+-    size_t firmwareSize = fw.size();
+-    if (firmwareSize == 0) {
+-      fw.close();
+-      LittleFS.remove(FIRMWARE_UPLOAD_TMP_PATH);
++    if (s_firmwareUploadBytes == 0) {
+       snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Update failed: uploaded firmware file is empty");
+       firmwareUpdateSucceeded = false;
+       firmwareUpdateInProgress = false;
+       return;
+     }
+ 
+-    if (!Update.begin(firmwareSize)) {
+-      fw.close();
+-      LittleFS.remove(FIRMWARE_UPLOAD_TMP_PATH);
+-      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Update.begin(%u) failed", unsigned(firmwareSize));
+-      Update.printError(Serial);
+-      firmwareUpdateSucceeded = false;
+-      firmwareUpdateInProgress = false;
+-      appendLogEvent("Firmware update: Update.begin failed");
+-      return;
+-    }
+-
+-    size_t written = Update.writeStream(fw);
+-    fw.close();
+-
+-    if (written != firmwareSize) {
+-      // Arduino-Pico UpdaterClass does not provide Update.abort().
+-      // Do not call Update.end() after an incomplete write; remove the staged
+-      // file, mark failure, and allow a fresh upload attempt after reload/reboot.
+-      LittleFS.remove(FIRMWARE_UPLOAD_TMP_PATH);
+-      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Update.writeStream short write: %u/%u", unsigned(written), unsigned(firmwareSize));
+-      Update.printError(Serial);
+-      firmwareUpdateSucceeded = false;
+-      firmwareUpdateInProgress = false;
+-      appendLogEvent("Firmware update: writeStream failed");
+-      return;
+-    }
+-
+-    if (Update.end()) {
++    if (Update.end(true)) {
+       firmwareUpdateSucceeded = true;
+-      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Firmware update OK, %u bytes staged; rebooting", unsigned(firmwareSize));
++      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
++               "Firmware update OK, %u bytes received; rebooting",
++               unsigned(s_firmwareUploadBytes));
+       appendLogEvent("Firmware update: successful, rebooting");
+     } else {
+       firmwareUpdateSucceeded = false;
+-      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Update.end() failed after %u bytes", unsigned(firmwareSize));
++      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
++               "Update.end(true) failed after %u bytes. The image may be invalid or LittleFS was too small.",
++               unsigned(s_firmwareUploadBytes));
+       Update.printError(Serial);
+       appendLogEvent("Firmware update: failed at Update.end");
+     }
+ 
+-    LittleFS.remove(FIRMWARE_UPLOAD_TMP_PATH);
+     firmwareUpdateInProgress = false;
+   } else if (upload.status == UPLOAD_FILE_ABORTED) {
+-    if (s_firmwareUploadFile) {
+-      s_firmwareUploadFile.close();
+-    }
+-    // Arduino-Pico UpdaterClass has no abort() method. At this stage the
+-    // firmware image is only being staged into LittleFS, so cleanup is simply
+-    // removing the temporary upload file and clearing the state flags.
+-    LittleFS.remove(FIRMWARE_UPLOAD_TMP_PATH);
+     firmwareUpdateInProgress = false;
+     firmwareUpdateSucceeded = false;
+-    snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Firmware upload aborted");
++    snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
++             "Firmware upload aborted after %u bytes", unsigned(s_firmwareUploadBytes));
++    Update.printError(Serial);
+     appendLogEvent("Firmware update: aborted");
+   }
+ }
