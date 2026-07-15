@@ -64,6 +64,8 @@ Core 1 initializes the shift-register pins, pulses SRCLR low, latches all channe
 
 HTTP and SCPI handlers shall not directly call low-level shift-register functions. They use wrappers such as `applyChannelMask()`, `applyAllMasksSafely()`, and `forceAllOff()`, which submit commands to Core 1 and wait with a bounded timeout.
 
+Minimum allowed resistance, maximum allowed resistance, and maximum active-bit count are stored and enforced independently for CH1 through CH8. The current safety file format uses `chN_min_ohm`, `chN_max_ohm`, and `chN_max_active_bits` keys. Legacy global keys remain readable and are applied to every channel.
+
 `emergencyOffRequested` is a volatile flag checked by Core 1 outside the normal command queue, so all-OFF can bypass normal queue congestion.
 
 ## Calibration table strategy

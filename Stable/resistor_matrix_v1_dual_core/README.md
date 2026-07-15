@@ -129,6 +129,17 @@ CAL:ALL:FILES?
 `/api/calibration/download?ch=1` returns the active CH1 CSV table.
 `/api/calibration/download_all` returns all eight active tables in BEGIN/END blocks.
 
+
+## 2026-07-15 web GUI consolidation update
+
+- The Control tab no longer renders eight separate resistor tables.
+- The Calibration tab now starts with one scrollable 16-row table containing CH1 through CH8 resistor values.
+- Safety limits are independently configurable and enforced for every channel: minimum resistance, maximum resistance, and maximum active bits.
+- Existing legacy global `safety.csv` files remain supported; their values are applied to all eight channels on load. New saves use the per-channel version-2 format.
+- The Files tab now combines expected channel calibration files and all LittleFS root files into one inventory without duplicate calibration rows.
+- The Firmware tab no longer repeats the LittleFS file inventory and links to the Files tab instead.
+- The Log tab can export the current boot information and in-memory event history as a `.txt` file.
+
 ## 2026-06-24 UI maintenance update
 
 This package includes additional web UI maintenance features:

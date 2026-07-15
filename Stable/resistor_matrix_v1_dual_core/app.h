@@ -83,7 +83,7 @@ inline constexpr uint16_t SCPI_TCP_PORT = 5025;
 // ============================================================
 inline constexpr const char* FIRMWARE_NAME = "E-Resistor";
 inline constexpr const char* FIRMWARE_VENDOR = "OpenBench";
-inline constexpr const char* FIRMWARE_VERSION = "0.4.0";
+inline constexpr const char* FIRMWARE_VERSION = "0.4.1";
 inline constexpr const char* FIRMWARE_BUILD_DATE = __DATE__;
 inline constexpr const char* FIRMWARE_BUILD_TIME = __TIME__;
 
@@ -217,9 +217,9 @@ extern uint32_t httpRequestCount;
 extern uint32_t scpiCommandCount;
 extern uint32_t bootMillis;
 
-extern double safetyMinOhm;
-extern double safetyMaxOhm;
-extern uint8_t safetyMaxActiveBits;
+extern double safetyMinOhm[CHANNEL_COUNT];
+extern double safetyMaxOhm[CHANNEL_COUNT];
+extern uint8_t safetyMaxActiveBits[CHANNEL_COUNT];
 extern bool safetyExpertMode;
 
 extern char eventLog[32][128];
@@ -582,6 +582,11 @@ void appendProfileManager(String& html);
  */
 void appendSafetySummaryCard(String& html);
 /**
+ * @brief Append one combined CH1..CH8 resistor calibration table.
+ * @param html HTML string that receives generated markup.
+ */
+void appendCombinedChannelResistorTable(String& html);
+/**
  * @brief Append Live State Script.
  * @param html HTML string that receives generated markup.
  */
@@ -816,15 +821,11 @@ String u64ToString(uint64_t value);
  */
 String formatBytesHuman(uint64_t bytes);
 /**
- * @brief Append Little Fs Channel Config Status.
+ * @brief Append one combined inventory of expected calibration files and all
+ *        other stored LittleFS root files.
  * @param html HTML string that receives generated markup.
  */
-void appendLittleFsChannelConfigStatus(String& html);
-/**
- * @brief Append Little Fs Stored Files.
- * @param html HTML string that receives generated markup.
- */
-void appendLittleFsStoredFiles(String& html);
+void appendLittleFsCombinedFiles(String& html);
 /**
  * @brief Append Little Fs Storage Info.
  * @param html HTML string that receives generated markup.
@@ -945,6 +946,10 @@ void handleScpiPage();
  * @brief Handle Log Page.
  */
 void handleLogPage();
+/**
+ * @brief Download the current in-memory event log as a text file.
+ */
+void handleLogDownload();
 /**
  * @brief Handle Backup Page.
  */

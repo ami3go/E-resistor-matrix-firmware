@@ -223,15 +223,19 @@ uint8_t countActiveBits16(uint16_t mask) {
  * @return true if the mask passes all safety checks.
  */
 bool checkMaskSafety(uint8_t channelIndex, uint16_t mask, char* reason, size_t reasonLen) {
+    if (channelIndex >= CHANNEL_COUNT) {
+        snprintf(reason, reasonLen, "Rejected: invalid channel");
+        return false;
+    }
     if (mask == 0x0000) return true;
 
     // __builtin_popcount lets GCC choose an efficient RP2040 implementation
     uint8_t activeBits = uint8_t(__builtin_popcount(mask));
 
-    if (!safetyExpertMode && activeBits > safetyMaxActiveBits) {
+    if (!safetyExpertMode && activeBits > safetyMaxActiveBits[channelIndex]) {
         snprintf(reason, reasonLen,
                  "Rejected: %u active bits exceeds safety limit %u",
-                 unsigned(activeBits), unsigned(safetyMaxActiveBits));
+                 unsigned(activeBits), unsigned(safetyMaxActiveBits[channelIndex]));
         return false;
     }
 
@@ -241,17 +245,17 @@ bool checkMaskSafety(uint8_t channelIndex, uint16_t mask, char* reason, size_t r
         return false;
     }
 
-    if (!safetyExpertMode && isfinite(ohms) && ohms < safetyMinOhm) {
+    if (!safetyExpertMode && isfinite(ohms) && ohms < safetyMinOhm[channelIndex]) {
         snprintf(reason, reasonLen,
                  "Rejected: calculated resistance %.3f Ohm below safety limit %.3f Ohm",
-                 ohms, safetyMinOhm);
+                 ohms, safetyMinOhm[channelIndex]);
         return false;
     }
 
-    if (!safetyExpertMode && safetyMaxOhm > 0.0 && isfinite(ohms) && ohms > (safetyMaxOhm * 1.000001)) {
+    if (!safetyExpertMode && safetyMaxOhm[channelIndex] > 0.0 && isfinite(ohms) && ohms > (safetyMaxOhm[channelIndex] * 1.000001)) {
         snprintf(reason, reasonLen,
                  "Rejected: calculated resistance %.3f Ohm above safety limit %.3f Ohm",
-                 ohms, safetyMaxOhm);
+                 ohms, safetyMaxOhm[channelIndex]);
         return false;
     }
 
@@ -353,16 +357,27 @@ bool saveSafetyConfigToLittleFS() {
     if (!littleFsReady) return false;
     File f = LittleFS.open(safetyConfigPath(), "w");
     if (!f) return false;
-    f.print("min_ohm,");        f.println(String(safetyMinOhm, 6));
-    f.print("max_ohm,");        f.println(String(safetyMaxOhm, 6));
-    f.print("max_active_bits,"); f.println(String(safetyMaxActiveBits));
-    f.print("expert_mode,");    f.println(safetyExpertMode ? "1" : "0");
+
+    f.println("version,2");
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+        f.print("ch"); f.print(ch + 1); f.print("_min_ohm,");
+        f.println(String(safetyMinOhm[ch], 6));
+        f.print("ch"); f.print(ch + 1); f.print("_max_ohm,");
+        f.println(String(safetyMaxOhm[ch], 6));
+        f.print("ch"); f.print(ch + 1); f.print("_max_active_bits,");
+        f.println(String(safetyMaxActiveBits[ch]));
+    }
+    f.print("expert_mode,");
+    f.println(safetyExpertMode ? "1" : "0");
     f.close();
     return true;
 }
 
 /**
  * @brief Load safety configuration from LittleFS (/safety.csv).
+ *
+ * Version 2 stores independent limits for CH1..CH8. Legacy global keys are
+ * still accepted and applied to all channels for backward compatibility.
  * @return true on success.
  */
 bool loadSafetyConfigFromLittleFS() {
@@ -381,17 +396,52 @@ bool loadSafetyConfigFromLittleFS() {
         String value = line.substring(comma + 1);
         key.trim(); value.trim(); key.toLowerCase();
 
-        if      (key == "min_ohm")          safetyMinOhm = value.toFloat();
-        else if (key == "max_ohm")          {
+        // Legacy version-1 global values apply to every channel.
+        if (key == "min_ohm") {
             double v = value.toFloat();
-            if (v > 0.0) safetyMaxOhm = v;
+            if (v > 0.0) {
+                for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) safetyMinOhm[ch] = v;
+            }
+            continue;
         }
-        else if (key == "max_active_bits")  {
+        if (key == "max_ohm") {
+            double v = value.toFloat();
+            if (v > 0.0) {
+                for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) safetyMaxOhm[ch] = v;
+            }
+            continue;
+        }
+        if (key == "max_active_bits") {
             int v = value.toInt();
-            if (v >= 1 && v <= 16) safetyMaxActiveBits = uint8_t(v);
+            if (v >= 1 && v <= BIT_COUNT) {
+                for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) safetyMaxActiveBits[ch] = uint8_t(v);
+            }
+            continue;
         }
-        else if (key == "expert_mode")
+        if (key == "expert_mode") {
             safetyExpertMode = (value == "1" || value == "true" || value == "on");
+            continue;
+        }
+
+        // Version-2 keys: chN_min_ohm, chN_max_ohm, chN_max_active_bits.
+        if (!key.startsWith("ch")) continue;
+        int underscore = key.indexOf('_');
+        if (underscore <= 2) continue;
+        int channelNumber = key.substring(2, underscore).toInt();
+        if (channelNumber < 1 || channelNumber > CHANNEL_COUNT) continue;
+        uint8_t ch = uint8_t(channelNumber - 1);
+        String field = key.substring(underscore + 1);
+
+        if (field == "min_ohm") {
+            double v = value.toFloat();
+            if (v > 0.0) safetyMinOhm[ch] = v;
+        } else if (field == "max_ohm") {
+            double v = value.toFloat();
+            if (v > 0.0) safetyMaxOhm[ch] = v;
+        } else if (field == "max_active_bits") {
+            int v = value.toInt();
+            if (v >= 1 && v <= BIT_COUNT) safetyMaxActiveBits[ch] = uint8_t(v);
+        }
     }
     f.close();
     return true;
@@ -452,16 +502,16 @@ bool findNearestMaskForTarget(uint8_t channelIndex, double targetOhm,
     // Safety conductance window:
     //   R_eq >= safetyMinOhm  ↔  gSum <= 1/safetyMinOhm
     //   R_eq <= safetyMaxOhm  ↔  gSum >= 1/safetyMaxOhm
-    const float maxGSafe = (safetyExpertMode || safetyMinOhm <= 0.0)
+    const float maxGSafe = (safetyExpertMode || safetyMinOhm[channelIndex] <= 0.0)
                                ? 1.0e30f
-                               : float(1.0 / safetyMinOhm);
-    const float minGSafe = (safetyExpertMode || safetyMaxOhm <= 0.0)
+                               : float(1.0 / safetyMinOhm[channelIndex]);
+    const float minGSafe = (safetyExpertMode || safetyMaxOhm[channelIndex] <= 0.0)
                                ? 0.0f
-                               : float(1.0 / (safetyMaxOhm * 1.000001));
+                               : float(1.0 / (safetyMaxOhm[channelIndex] * 1.000001));
 
     // Outer loop upper bound: respect safetyMaxActiveBits (unless expert mode).
     // Clamp defensively so corrupted settings cannot generate invalid bit patterns.
-    uint8_t maxK = safetyExpertMode ? uint8_t(BIT_COUNT) : safetyMaxActiveBits;
+    uint8_t maxK = safetyExpertMode ? uint8_t(BIT_COUNT) : safetyMaxActiveBits[channelIndex];
     if (maxK > BIT_COUNT) maxK = BIT_COUNT;
     if (maxK == 0) return false;
 
@@ -641,15 +691,34 @@ void appendProfileManager(String& html) {
  * @param html  HTML string that receives generated markup.
  */
 void appendSafetySummaryCard(String& html) {
+    double minLow = safetyMinOhm[0];
+    double minHigh = safetyMinOhm[0];
+    double maxLow = safetyMaxOhm[0];
+    double maxHigh = safetyMaxOhm[0];
+    uint8_t bitsLow = safetyMaxActiveBits[0];
+    uint8_t bitsHigh = safetyMaxActiveBits[0];
+
+    for (uint8_t ch = 1; ch < CHANNEL_COUNT; ch++) {
+        if (safetyMinOhm[ch] < minLow) minLow = safetyMinOhm[ch];
+        if (safetyMinOhm[ch] > minHigh) minHigh = safetyMinOhm[ch];
+        if (safetyMaxOhm[ch] < maxLow) maxLow = safetyMaxOhm[ch];
+        if (safetyMaxOhm[ch] > maxHigh) maxHigh = safetyMaxOhm[ch];
+        if (safetyMaxActiveBits[ch] < bitsLow) bitsLow = safetyMaxActiveBits[ch];
+        if (safetyMaxActiveBits[ch] > bitsHigh) bitsHigh = safetyMaxActiveBits[ch];
+    }
+
     html += "<div class='grid'>";
-    html += "<div class='metric'><div class='metric-label'>Safety min resistance</div><div class='metric-value'>";
-    html += formatResistanceOhms(safetyMinOhm);
+    html += "<div class='metric'><div class='metric-label'>Per-channel minimum range</div><div class='metric-value'>";
+    html += formatResistanceOhms(minLow);
+    if (minHigh != minLow) { html += " - "; html += formatResistanceOhms(minHigh); }
     html += "</div></div>";
-    html += "<div class='metric'><div class='metric-label'>Safety max resistance</div><div class='metric-value'>";
-    html += formatResistanceOhms(safetyMaxOhm);
+    html += "<div class='metric'><div class='metric-label'>Per-channel maximum range</div><div class='metric-value'>";
+    html += formatResistanceOhms(maxLow);
+    if (maxHigh != maxLow) { html += " - "; html += formatResistanceOhms(maxHigh); }
     html += "</div></div>";
-    html += "<div class='metric'><div class='metric-label'>Max active bits</div><div class='metric-value'>";
-    html += String(safetyMaxActiveBits);
+    html += "<div class='metric'><div class='metric-label'>Active-bit limit range</div><div class='metric-value'>";
+    html += String(bitsLow);
+    if (bitsHigh != bitsLow) { html += " - "; html += String(bitsHigh); }
     html += "</div></div>";
     html += "<div class='metric'><div class='metric-label'>Expert mode</div><div class='metric-value'>";
     html += safetyExpertMode ? "ON" : "OFF";
@@ -658,6 +727,34 @@ void appendSafetySummaryCard(String& html) {
     html += String((millis() - bootMillis) / 1000UL);
     html += " s</div></div>";
     html += "</div>";
+}
+
+/**
+ * @brief Append all channel resistor calibration values in one table.
+ */
+void appendCombinedChannelResistorTable(String& html) {
+    html += "<div class='card'>";
+    html += "<h2>Current channel resistor tables</h2>";
+    html += "<p class='small'>Each row is one shift-register bit. Every channel cell shows the branch designator and its current calibrated resistance value.</p>";
+    html += "<div class='table-scroll'><table class='resistor-matrix-table'>";
+    html += "<tr><th>Bit</th>";
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+        html += "<th>CH"; html += String(ch + 1); html += "</th>";
+    }
+    html += "</tr>";
+
+    for (uint8_t bit = 0; bit < BIT_COUNT; bit++) {
+        html += "<tr><td><code>"; html += String(bit); html += "</code></td>";
+        for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+            html += "<td class='resistor-cell'><code>";
+            html += channelResistorTable[ch][bit].mosfet_name;
+            html += "</code><span>";
+            html += channelResistorTable[ch][bit].nominal_resistance;
+            html += "</span></td>";
+        }
+        html += "</tr>";
+    }
+    html += "</table></div></div>";
 }
 
 /**

@@ -81,7 +81,7 @@ void handleState() {
   Serial.flush();
 
   String text;
-  text.reserve(1600);
+  text.reserve(3200);
 
   text += "status=";
   text += statusText;
@@ -225,17 +225,27 @@ void handleState() {
   text += ipToString(DEVICE_DNS);
   text += "\n";
 
+  // Legacy fields retain CH1 values for existing clients.
   text += "safety_min_ohm=";
-  text += String(safetyMinOhm, 3);
+  text += String(safetyMinOhm[0], 3);
   text += "\n";
 
   text += "safety_max_ohm=";
-  text += String(safetyMaxOhm, 3);
+  text += String(safetyMaxOhm[0], 3);
   text += "\n";
 
   text += "safety_max_active_bits=";
-  text += String(safetyMaxActiveBits);
+  text += String(safetyMaxActiveBits[0]);
   text += "\n";
+
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    text += "safety_ch"; text += String(ch + 1); text += "_min_ohm=";
+    text += String(safetyMinOhm[ch], 3); text += "\n";
+    text += "safety_ch"; text += String(ch + 1); text += "_max_ohm=";
+    text += String(safetyMaxOhm[ch], 3); text += "\n";
+    text += "safety_ch"; text += String(ch + 1); text += "_max_active_bits=";
+    text += String(safetyMaxActiveBits[ch]); text += "\n";
+  }
 
   text += "expert_mode=";
   text += safetyExpertMode ? "1" : "0";
@@ -442,27 +452,6 @@ void handleRoot() {
   html += "</p>";
 
   appendProfileManager(html);
-
-  html += "<h2>Current channel resistor tables</h2>";
-  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-    html += "<h3>CH";
-    html += String(ch + 1);
-    html += "</h3>";
-    html += "<table>";
-    html += "<tr><th>Bit</th><th>Branch</th><th>Resistance</th></tr>";
-
-    for (uint8_t i = 0; i < BIT_COUNT; i++) {
-      html += "<tr><td>";
-      html += String(channelResistorTable[ch][i].bit);
-      html += "</td><td>";
-      html += channelResistorTable[ch][i].mosfet_name;
-      html += "</td><td>";
-      html += channelResistorTable[ch][i].nominal_resistance;
-      html += "</td></tr>";
-    }
-
-    html += "</table>";
-  }
 
   appendCommonPageFooter(html);
 
@@ -717,7 +706,7 @@ void handleFirmwarePage() {
   html += "FIRM:BUILD?\n";
   html += "</code></pre></div>";
 
-  appendLittleFsStorageInfo(html);
+  html += "<div class='notice'>Calibration and LittleFS file inventory is available on the <a href='/files'>Files tab</a>.</div>";
   appendCommonPageFooter(html);
   sendNoCacheHeaders();
   server.send(200, "text/html", html);
@@ -925,7 +914,7 @@ void handleFilesPage() {
   noteHttpRequest();
 
   String html;
-  html.reserve(9000);
+  html.reserve(15000);
   appendCommonPageHeader(html, "E-Resistor Files");
   html += "<h1>LittleFS Files</h1>";
   html += "<div class='card'><h2>Calibration file readback</h2>";
@@ -1002,7 +991,7 @@ void handleSettings() {
 
   String selectedChStr = server.hasArg("ch") ? server.arg("ch") : "1";
   int selectedCh = selectedChStr.toInt();
-  if (selectedCh < 1 || selectedCh > 8) {
+  if (selectedCh < 1 || selectedCh > CHANNEL_COUNT) {
     selectedCh = 1;
   }
 
@@ -1010,15 +999,17 @@ void handleSettings() {
   String currentConfig = channelConfigToText(chIndex);
 
   String html;
-  html.reserve(13000);
+  html.reserve(24000);
 
-  appendCommonPageHeader(html, "E-Resistor Settings");
+  appendCommonPageHeader(html, "E-Resistor Calibration");
 
-  html += "<h1>Settings</h1>";
+  html += "<h1>Calibration</h1>";
 
   html += "<p>Status: <code>";
   html += statusText;
   html += "</code></p>";
+
+  appendCombinedChannelResistorTable(html);
 
   html += "<div class='card'>";
 
@@ -1571,65 +1562,103 @@ void handleSafetyPage() {
   noteHttpRequest();
 
   String html;
-  html.reserve(7000);
+  html.reserve(12000);
   appendCommonPageHeader(html, "E-Resistor Safety");
   html += "<h1>Safety Limits</h1>";
   appendSafetySummaryCard(html);
-  html += "<div class='card'><form method='POST' action='/safety_save'>";
-  html += "<table><tr><th>Setting</th><th>Value</th></tr>";
-  html += "<tr><td>Minimum allowed calculated resistance, Ohm</td><td><input name='min_ohm' value='";
-  html += String(safetyMinOhm, 3);
-  html += "'></td></tr>";
-  html += "<tr><td>Maximum allowed calculated resistance, Ohm</td><td><input name='max_ohm' value='";
-  html += String(safetyMaxOhm, 3);
-  html += "'></td></tr>";
-  html += "<tr><td>Maximum active bits per channel</td><td><input name='max_bits' value='";
-  html += String(safetyMaxActiveBits);
-  html += "'></td></tr>";
-  html += "<tr><td>Expert mode / bypass safety checks</td><td><select name='expert'><option value='0'";
+  html += "<div class='card'>";
+  html += "<h2>Per-channel limits</h2>";
+  html += "<p class='small'>Each channel is checked against its own limits before a mask is applied or a nearest resistance is selected.</p>";
+  html += "<form method='POST' action='/safety_save'>";
+  html += "<div class='table-scroll'><table class='safety-table'><tr><th>Setting</th>";
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    html += "<th>CH"; html += String(ch + 1); html += "</th>";
+  }
+  html += "</tr>";
+
+  html += "<tr><td>Minimum allowed calculated resistance, Ohm</td>";
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    html += "<td><input type='number' min='0.001' step='any' name='min_ohm_ch";
+    html += String(ch + 1); html += "' value='";
+    html += String(safetyMinOhm[ch], 3); html += "' required></td>";
+  }
+  html += "</tr>";
+
+  html += "<tr><td>Maximum allowed calculated resistance, Ohm</td>";
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    html += "<td><input type='number' min='0.001' step='any' name='max_ohm_ch";
+    html += String(ch + 1); html += "' value='";
+    html += String(safetyMaxOhm[ch], 3); html += "' required></td>";
+  }
+  html += "</tr>";
+
+  html += "<tr><td>Maximum active bits per channel</td>";
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    html += "<td><input type='number' min='1' max='";
+    html += String(BIT_COUNT); html += "' step='1' name='max_bits_ch";
+    html += String(ch + 1); html += "' value='";
+    html += String(safetyMaxActiveBits[ch]); html += "' required></td>";
+  }
+  html += "</tr></table></div>";
+
+  html += "<p><label>Expert mode / bypass all channel safety checks: <select name='expert'><option value='0'";
   html += safetyExpertMode ? "" : " selected";
   html += ">OFF</option><option value='1'";
   html += safetyExpertMode ? " selected" : "";
-  html += ">ON</option></select></td></tr>";
-  html += "</table><p><button type='submit'>Save safety settings</button></p></form></div>";
-  html += "<div class='notice'>Recommended default: minimum 300 Ohm, max active bits 16, expert OFF. Lower limits can stress resistors/MOSFETs depending on applied voltage.</div>";
+  html += ">ON</option></select></label></p>";
+  html += "<p><button type='submit'>Save safety settings</button></p></form></div>";
+  html += "<div class='notice'>Recommended defaults for every channel: minimum 300 Ohm, maximum 20 MOhm, maximum 16 active bits, expert OFF. Lower limits can stress resistors or MOSFETs depending on applied voltage.</div>";
   appendCommonPageFooter(html);
   sendNoCacheHeaders();
   server.send(200, "text/html", html);
 }
 
 /**
- * @brief Handle Safety Save.
+ * @brief Save independent CH1..CH8 safety limits.
  */
 void handleSafetySave() {
   noteHttpRequest();
 
-  if (server.hasArg("min_ohm")) {
-    double v = server.arg("min_ohm").toFloat();
-    if (v > 0.0) {
-      safetyMinOhm = v;
+  double newMin[CHANNEL_COUNT];
+  double newMax[CHANNEL_COUNT];
+  uint8_t newBits[CHANNEL_COUNT];
+
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    String suffix = String(ch + 1);
+    String minName = String("min_ohm_ch") + suffix;
+    String maxName = String("max_ohm_ch") + suffix;
+    String bitsName = String("max_bits_ch") + suffix;
+
+    if (!server.hasArg(minName) || !server.hasArg(maxName) || !server.hasArg(bitsName)) {
+      server.send(400, "text/plain", String("Missing safety value for CH") + suffix + "\n");
+      return;
     }
+
+    newMin[ch] = server.arg(minName).toFloat();
+    newMax[ch] = server.arg(maxName).toFloat();
+    int bits = server.arg(bitsName).toInt();
+
+    if (newMin[ch] <= 0.0 || newMax[ch] <= 0.0 || newMin[ch] > newMax[ch]) {
+      server.send(400, "text/plain", String("Invalid resistance range for CH") + suffix + "\n");
+      return;
+    }
+    if (bits < 1 || bits > BIT_COUNT) {
+      server.send(400, "text/plain", String("Invalid maximum active bits for CH") + suffix + "\n");
+      return;
+    }
+    newBits[ch] = uint8_t(bits);
   }
 
-  if (server.hasArg("max_ohm")) {
-    double v = server.arg("max_ohm").toFloat();
-    if (v > 0.0) {
-      safetyMaxOhm = v;
-    }
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    safetyMinOhm[ch] = newMin[ch];
+    safetyMaxOhm[ch] = newMax[ch];
+    safetyMaxActiveBits[ch] = newBits[ch];
   }
-
-  if (server.hasArg("max_bits")) {
-    int v = server.arg("max_bits").toInt();
-    if (v >= 1 && v <= 16) {
-      safetyMaxActiveBits = uint8_t(v);
-    }
-  }
-
   safetyExpertMode = server.hasArg("expert") && server.arg("expert") == "1";
 
   bool saved = saveSafetyConfigToLittleFS();
-  setStatus(saved ? "Safety settings saved" : "Safety settings changed in RAM only");
-  appendLogEvent("Safety settings updated");
+  setStatus(saved ? "Per-channel safety settings saved" : "Per-channel safety settings changed in RAM only");
+  appendLogEvent("Per-channel safety settings updated");
 
   server.sendHeader("Location", "/safety", true);
   server.send(303, "text/plain", "See Other\n");
@@ -1716,6 +1745,7 @@ void handleLogPage() {
   html.reserve(8000);
   appendCommonPageHeader(html, "E-Resistor Event Log");
   html += "<h1>Event Log</h1>";
+  html += "<p><a class='button' href='/log_download'>Export log as TXT</a></p>";
   html += "<div class='card'><h2>Boot status</h2>";
   html += "<table>";
   html += "<tr><th>Item</th><th>Status</th></tr>";
@@ -1749,6 +1779,42 @@ void handleLogPage() {
   appendCommonPageFooter(html);
   sendNoCacheHeaders();
   server.send(200, "text/html", html);
+}
+
+/**
+ * @brief Download boot information and the current event-history ring buffer.
+ */
+void handleLogDownload() {
+  noteHttpRequest();
+
+  String out;
+  out.reserve(7000);
+  out += "E-Resistor event log\n";
+  out += "====================\n";
+  out += "Board serial: "; out += deviceSerialNumber; out += "\n";
+  out += "Firmware version: "; out += FIRMWARE_VERSION; out += "\n";
+  out += "Firmware build: "; out += FIRMWARE_BUILD_DATE; out += " "; out += FIRMWARE_BUILD_TIME; out += "\n";
+  out += "Export uptime: "; out += String((millis() - bootMillis) / 1000UL); out += " s\n";
+  out += "Status: "; out += statusText; out += "\n";
+  out += "Last error: "; out += lastError; out += "\n";
+  out += "Core 1 engine: "; out += (core1EngineReady ? "ready" : "not ready"); out += "\n";
+  out += "Outputs known safe: "; out += (outputsKnownSafe ? "yes" : "no"); out += "\n";
+  out += "LittleFS: "; out += (littleFsReady ? "ready" : "not ready"); out += "\n";
+  out += "Ethernet fault: "; out += (ethernetFault ? "yes" : "no"); out += "\n";
+  out += "IP address: "; out += ipToString(eth.localIP()); out += "\n\n";
+  out += "Event history\n-------------\n";
+
+  for (uint8_t i = 0; i < eventLogCount; i++) {
+    uint8_t index = (eventLogHead + 32U - eventLogCount + i) % 32U;
+    out += eventLog[index];
+    out += "\n";
+  }
+  if (eventLogCount == 0) out += "No events yet.\n";
+
+  String filename = String("e_resistor_log_") + deviceSerialNumber + ".txt";
+  server.sendHeader("Content-Disposition", String("attachment; filename=\"") + filename + "\"");
+  sendNoCacheHeaders();
+  server.send(200, "text/plain; charset=utf-8", out);
 }
 
 /**
@@ -1792,14 +1858,16 @@ void handleBackupDownload() {
   out += String(millis());
   out += "\n\n[network]\n";
   out += networkConfigToText();
-  out += "\n[safety]\n";
-  out += "min_ohm,";
-  out += String(safetyMinOhm, 6);
-  out += "\nmax_ohm,";
-  out += String(safetyMaxOhm, 6);
-  out += "\nmax_active_bits,";
-  out += String(safetyMaxActiveBits);
-  out += "\nexpert_mode,";
+  out += "\n[safety]\nversion,2\n";
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    out += "ch"; out += String(ch + 1); out += "_min_ohm,";
+    out += String(safetyMinOhm[ch], 6); out += "\n";
+    out += "ch"; out += String(ch + 1); out += "_max_ohm,";
+    out += String(safetyMaxOhm[ch], 6); out += "\n";
+    out += "ch"; out += String(ch + 1); out += "_max_active_bits,";
+    out += String(safetyMaxActiveBits[ch]); out += "\n";
+  }
+  out += "expert_mode,";
   out += safetyExpertMode ? "1\n" : "0\n";
 
   for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
@@ -2091,6 +2159,7 @@ void setupHttpServer() {
   server.on("/files", HTTP_GET, handleFilesPage);
   server.on("/file_delete", HTTP_POST, handleFileDelete);
   server.on("/log", HTTP_GET, handleLogPage);
+  server.on("/log_download", HTTP_GET, handleLogDownload);
   server.on("/backup", HTTP_GET, handleBackupPage);
   server.on("/backup_download", HTTP_GET, handleBackupDownload);
   server.on("/factory_reset", HTTP_GET, handleFactoryReset);

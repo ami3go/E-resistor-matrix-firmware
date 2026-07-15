@@ -508,10 +508,19 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     client.print(deviceSerialNumber);
     client.print(",fw_version=");
     client.print(FIRMWARE_VERSION);
+    // Legacy summary fields report CH1; channel-specific values follow.
     client.print(",min_ohm=");
-    client.print(String(safetyMinOhm, 3));
+    client.print(String(safetyMinOhm[0], 3));
     client.print(",max_ohm=");
-    client.print(String(safetyMaxOhm, 3));
+    client.print(String(safetyMaxOhm[0], 3));
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+      client.print(",ch"); client.print(ch + 1); client.print("_min_ohm=");
+      client.print(String(safetyMinOhm[ch], 3));
+      client.print(",ch"); client.print(ch + 1); client.print("_max_ohm=");
+      client.print(String(safetyMaxOhm[ch], 3));
+      client.print(",ch"); client.print(ch + 1); client.print("_max_bits=");
+      client.print(safetyMaxActiveBits[ch]);
+    }
     client.print(",expert=");
     client.print(safetyExpertMode ? "1" : "0");
     client.print(",core1_ready=");

@@ -46,99 +46,114 @@ String formatBytesHuman(uint64_t bytes) {
 }
 
 /**
- * @brief Append Little Fs Channel Config Status.
- * @param html HTML string that receives generated markup.
+ * @brief Return a user-facing category for a LittleFS root file.
  */
-void appendLittleFsChannelConfigStatus(String& html) {
-  html += "<h3>Expected channel config files</h3>";
-  html += "<table>";
-  html += "<tr><th>Channel</th><th>File path</th><th>Status</th><th>Size</th></tr>";
+static String littleFsFileType(const String& path) {
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    if (path == channelConfigPath(ch)) return "Channel calibration";
+  }
+  if (path.startsWith("/meta_ch")) return "Calibration metadata";
+  if (path.startsWith("/profile_")) return "Profile";
+  if (path == networkConfigPath()) return "Ethernet settings";
+  if (path == safetyConfigPath()) return "Safety settings";
+  if (path == "/fw_update.bin.tmp") return "Firmware staging";
+  return "Other";
+}
 
+/**
+ * @brief Append one delete action cell for an existing LittleFS file.
+ */
+static void appendLittleFsDeleteAction(String& html, const String& fullPath) {
+  html += "<form method='POST' action='/file_delete' onsubmit=\"return confirm('Delete this LittleFS file?');\" style='margin:0'>";
+  html += "<input type='hidden' name='path' value='";
+  html += fullPath;
+  html += "'>";
+  html += "<button class='off' type='submit'>Delete</button>";
+  html += "</form>";
+}
+
+/**
+ * @brief Append one combined table containing expected channel calibration
+ *        files and every other stored file in the LittleFS root.
+ */
+void appendLittleFsCombinedFiles(String& html) {
+  html += "<h3>LittleFS file inventory</h3>";
+  html += "<p class='small'>Expected CH1-CH8 calibration files and all other root files are shown in one table. Existing calibration files appear only once.</p>";
+  html += "<div class='table-scroll'><table class='file-table'>";
+  html += "<tr><th>Type</th><th>Channel</th><th>File path</th><th>Status</th><th>Size</th><th>Action</th></tr>";
+
+  uint16_t existingFileCount = 0;
+  uint64_t listedBytes = 0;
+
+  // Always show the eight expected channel calibration paths, even if the
+  // filesystem is unavailable or a file has not yet been stored.
   for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
     String path = channelConfigPath(ch);
     bool exists = littleFsReady && LittleFS.exists(path);
     uint64_t size = 0;
-
     if (exists) {
       File f = LittleFS.open(path, "r");
       if (f) {
         size = f.size();
         f.close();
       }
+      existingFileCount++;
+      listedBytes += size;
     }
 
-    html += "<tr><td>CH";
+    html += "<tr><td>Channel calibration</td><td>CH";
     html += String(ch + 1);
     html += "</td><td><code>";
     html += path;
     html += "</code></td><td>";
-    html += exists ? "<span class='ok'>stored</span>" : "<span class='warn'>not stored</span>";
+    if (!littleFsReady) html += "<span class='warn'>filesystem unavailable</span>";
+    else html += exists ? "<span class='ok'>stored</span>" : "<span class='warn'>not stored</span>";
     html += "</td><td>";
     html += exists ? formatBytesHuman(size) : "-";
-    html += "</td></tr>";
-  }
-
-  html += "</table>";
-}
-
-/**
- * @brief Append Little Fs Stored Files.
- * @param html HTML string that receives generated markup.
- */
-void appendLittleFsStoredFiles(String& html) {
-  html += "<h3>Stored files in LittleFS root</h3>";
-
-  if (!littleFsReady) {
-    html += "<p class='warn'>LittleFS is not ready, so stored files cannot be listed.</p>";
-    return;
-  }
-
-  Dir dir = LittleFS.openDir("/");
-  uint16_t fileCount = 0;
-  uint64_t listedBytes = 0;
-
-  html += "<table>";
-  html += "<tr><th>#</th><th>File name</th><th>Full path</th><th>Size</th><th>Action</th></tr>";
-
-  while (dir.next()) {
-    String name = dir.fileName();
-    String fullPath = name;
-
-    if (!fullPath.startsWith("/")) {
-      fullPath = "/" + fullPath;
-    }
-
-    uint64_t size = dir.fileSize();
-    listedBytes += size;
-    fileCount++;
-
-    html += "<tr><td>";
-    html += String(fileCount);
-    html += "</td><td><code>";
-    html += name;
-    html += "</code></td><td><code>";
-    html += fullPath;
-    html += "</code></td><td>";
-    html += formatBytesHuman(size);
     html += "</td><td>";
-    html += "<form method='POST' action='/file_delete' onsubmit=\"return confirm('Delete this LittleFS file?');\" style='margin:0'>";
-    html += "<input type='hidden' name='path' value='";
-    html += fullPath;
-    html += "'>";
-    html += "<button class='off' type='submit'>Delete</button>";
-    html += "</form>";
+    if (exists) appendLittleFsDeleteAction(html, path);
+    else html += "-";
     html += "</td></tr>";
   }
 
-  if (fileCount == 0) {
-    html += "<tr><td colspan='5'><span class='warn'>No files stored in root directory.</span></td></tr>";
-  } else {
-    html += "<tr><th colspan='3'>Listed files total</th><th colspan='2'>";
-    html += formatBytesHuman(listedBytes);
-    html += "</th></tr>";
+  if (littleFsReady) {
+    Dir dir = LittleFS.openDir("/");
+    while (dir.next()) {
+      String fullPath = dir.fileName();
+      if (!fullPath.startsWith("/")) fullPath = "/" + fullPath;
+
+      bool isExpectedChannelFile = false;
+      for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+        if (fullPath == channelConfigPath(ch)) {
+          isExpectedChannelFile = true;
+          break;
+        }
+      }
+      if (isExpectedChannelFile) continue;
+
+      uint64_t size = dir.fileSize();
+      existingFileCount++;
+      listedBytes += size;
+
+      html += "<tr><td>";
+      html += littleFsFileType(fullPath);
+      html += "</td><td>-</td><td><code>";
+      html += fullPath;
+      html += "</code></td><td><span class='ok'>stored</span></td><td>";
+      html += formatBytesHuman(size);
+      html += "</td><td>";
+      if (fullPath == "/fw_update.bin.tmp") html += "<span class='warn'>protected</span>";
+      else appendLittleFsDeleteAction(html, fullPath);
+      html += "</td></tr>";
+    }
   }
 
-  html += "</table>";
+  html += "<tr><th colspan='3'>Existing files total</th><th>";
+  html += String(existingFileCount);
+  html += "</th><th>";
+  html += formatBytesHuman(listedBytes);
+  html += "</th><th>-</th></tr>";
+  html += "</table></div>";
 }
 
 /**
@@ -154,15 +169,14 @@ void appendLittleFsStorageInfo(String& html) {
 
   if (!littleFsReady) {
     html += "<p class='warn'>No filesystem size or file list is available because LittleFS did not mount.</p>";
-    appendLittleFsChannelConfigStatus(html);
+    appendLittleFsCombinedFiles(html);
     return;
   }
 
   FSInfo fsInfo;
   if (!LittleFS.info(fsInfo)) {
     html += "<p class='warn'>LittleFS.info() failed. Files may still be usable, but capacity information is unavailable.</p>";
-    appendLittleFsChannelConfigStatus(html);
-    appendLittleFsStoredFiles(html);
+    appendLittleFsCombinedFiles(html);
     return;
   }
 
@@ -216,7 +230,6 @@ void appendLittleFsStorageInfo(String& html) {
 
   html += "</table>";
 
-  appendLittleFsChannelConfigStatus(html);
-  appendLittleFsStoredFiles(html);
+  appendLittleFsCombinedFiles(html);
 }
 

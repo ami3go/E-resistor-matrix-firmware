@@ -63,9 +63,12 @@ uint32_t httpRequestCount = 0;
 uint32_t scpiCommandCount = 0;
 uint32_t bootMillis = 0;
 
-double safetyMinOhm = 300.0;
-double safetyMaxOhm = 20000000.0;
-uint8_t safetyMaxActiveBits = 16;
+double safetyMinOhm[CHANNEL_COUNT] = {300.0, 300.0, 300.0, 300.0, 300.0, 300.0, 300.0, 300.0};
+double safetyMaxOhm[CHANNEL_COUNT] = {
+  20000000.0, 20000000.0, 20000000.0, 20000000.0,
+  20000000.0, 20000000.0, 20000000.0, 20000000.0
+};
+uint8_t safetyMaxActiveBits[CHANNEL_COUNT] = {16, 16, 16, 16, 16, 16, 16, 16};
 bool safetyExpertMode = false;
 
 char eventLog[32][128] = {{0}};
