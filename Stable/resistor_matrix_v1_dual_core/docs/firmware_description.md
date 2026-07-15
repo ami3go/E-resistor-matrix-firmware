@@ -124,3 +124,5 @@ CAL:ALL:FILES?
 ```
 
 The download data is the active runtime table, not only raw LittleFS file bytes. Therefore the GUI can recover effective calibration values even when a channel is using compile-time defaults or a RAM-only uploaded table.
+
+The Files page also provides a browser-oriented `/calibration_download_all` route with a download attachment filename, plus a POST `/calibration_import_all` restore route. The restore parser requires exactly one BEGIN/END block for every channel, validates all eight tables before changing runtime data, stages replacement files in LittleFS, and refuses import while any channel is active.

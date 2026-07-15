@@ -735,21 +735,27 @@ void appendSafetySummaryCard(String& html) {
 void appendCombinedChannelResistorTable(String& html) {
     html += "<div class='card'>";
     html += "<h2>Current channel resistor tables</h2>";
-    html += "<p class='small'>Each row is one shift-register bit. Every channel cell shows the branch designator and its current calibrated resistance value.</p>";
+    html += "<p class='small'>Each row is one shift-register bit. The MOSFET column shows the common hardware branch mapping, and CH1-CH8 show the current calibrated resistance values in ohms.</p>";
     html += "<div class='table-scroll'><table class='resistor-matrix-table'>";
-    html += "<tr><th>Bit</th>";
+    html += "<tr><th>Bit</th><th>MOSFET</th>";
     for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
         html += "<th>CH"; html += String(ch + 1); html += "</th>";
     }
     html += "</tr>";
 
     for (uint8_t bit = 0; bit < BIT_COUNT; bit++) {
-        html += "<tr><td><code>"; html += String(bit); html += "</code></td>";
+        RuntimeResistorInfo* mappingInfo = getRuntimeResistorInfoForBit(0, bit);
+
+        html += "<tr><td><code>";
+        html += String(bit);
+        html += "</code></td><td><code>";
+        html += mappingInfo ? mappingInfo->mosfet_name : "-";
+        html += "</code></td>";
+
         for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-            html += "<td class='resistor-cell'><code>";
-            html += channelResistorTable[ch][bit].mosfet_name;
-            html += "</code><span>";
-            html += channelResistorTable[ch][bit].nominal_resistance;
+            RuntimeResistorInfo* info = getRuntimeResistorInfoForBit(ch, bit);
+            html += "<td class='resistor-cell'><span>";
+            html += info ? info->nominal_resistance : "-";
             html += "</span></td>";
         }
         html += "</tr>";

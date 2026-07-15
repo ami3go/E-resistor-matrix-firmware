@@ -7,6 +7,7 @@
 
 static File s_firmwareUploadFile;
 static constexpr const char* FIRMWARE_UPLOAD_TMP_PATH = "/fw_update.bin.tmp";
+static constexpr size_t CALIBRATION_BUNDLE_MAX_BYTES = 16384;
 
 /**
  * @brief Return LittleFS capacity information for firmware-update diagnostics.
@@ -914,16 +915,46 @@ void handleFilesPage() {
   noteHttpRequest();
 
   String html;
-  html.reserve(15000);
+  html.reserve(17500);
   appendCommonPageHeader(html, "E-Resistor Files");
-  html += "<h1>LittleFS Files</h1>";
+  html += "<h1>Files</h1>";
+
+  // Keep LittleFS capacity and file inventory at the top of this tab.
+  appendLittleFsStorageInfo(html);
+
   html += "<div class='card'><h2>Calibration file readback</h2>";
-  html += "<p class='small'>Use these links from the GUI calibration tool or browser to recover calibration tables from this device.</p>";
-  html += "<p><a class='button' href='/api/calibration/files'>List calibration files</a> ";
-  html += "<a class='button' href='/api/calibration/download_all'>Download all calibration tables</a></p>";
+  html += "<p class='small'>Back up all eight active calibration tables to one text file, or restore all eight tables from a previously exported file.</p>";
+  if (server.hasArg("cal_import") && server.arg("cal_import") == "ok") {
+    html += "<p class='ok'>All eight calibration tables were imported, saved to LittleFS, and activated.</p>";
+  }
+  html += "<p><a class='button' href='/calibration_download_all'>Download All</a> ";
+  html += "<a class='button' href='/api/calibration/files'>List calibration files</a></p>";
+
+  html += "<form id='calibrationImportForm' method='POST' action='/calibration_import_all'>";
+  html += "<p><input id='calibrationImportFile' type='file' accept='.txt,text/plain'> ";
+  html += "<button id='calibrationImportButton' type='submit' disabled>Import from file</button></p>";
+  html += "<textarea id='calibrationBundleText' name='bundle' style='display:none'></textarea>";
+  html += "<p class='small'>Import accepts the single text file produced by Download All. All channels must be OFF. The firmware validates all eight channel blocks before replacing any calibration file.</p>";
+  html += "</form>";
+
   html += "<pre><code>GET /api/calibration/files\nGET /api/calibration/download?ch=1\nGET /api/calibration/download_all</code></pre>";
   html += "</div>";
-  appendLittleFsStorageInfo(html);
+
+  html += "<script>(function(){";
+  html += "var input=document.getElementById('calibrationImportFile');";
+  html += "var text=document.getElementById('calibrationBundleText');";
+  html += "var button=document.getElementById('calibrationImportButton');";
+  html += "var form=document.getElementById('calibrationImportForm');";
+  html += "input.addEventListener('change',function(){";
+  html += "button.disabled=true;text.value='';var file=input.files[0];if(!file)return;";
+  html += "if(file.size>" + String(CALIBRATION_BUNDLE_MAX_BYTES) + "){alert('Calibration file is too large.');input.value='';return;}";
+  html += "var reader=new FileReader();reader.onload=function(e){text.value=e.target.result;button.disabled=(text.value.length===0);};";
+  html += "reader.onerror=function(){alert('Could not read calibration file.');input.value='';};reader.readAsText(file);";
+  html += "});";
+  html += "form.addEventListener('submit',function(e){if(!text.value){e.preventDefault();return;}";
+  html += "if(!confirm('Restore all eight calibration tables from this file? Existing channel calibration files will be replaced.'))e.preventDefault();});";
+  html += "})();</script>";
+
   appendCommonPageFooter(html);
   sendNoCacheHeaders();
   server.send(200, "text/html", html);
@@ -1322,6 +1353,68 @@ void handleCalibrationDownloadAll() {
   server.send(200, "text/plain", allChannelConfigsToBundleText());
 }
 
+/**
+ * @brief Download all active calibration tables as one browser attachment.
+ */
+void handleCalibrationDownloadAllFile() {
+  noteHttpRequest();
+
+  String filename = "e-resistor-calibration-";
+  filename += deviceSerialNumber;
+  filename += ".txt";
+  String disposition = "attachment; filename=\"" + filename + "\"";
+
+  sendNoCacheHeaders();
+  server.sendHeader("Content-Disposition", disposition);
+  server.sendHeader("X-Content-Type-Options", "nosniff");
+  server.send(200, "text/plain; charset=utf-8", allChannelConfigsToBundleText());
+}
+
+/**
+ * @brief Import, persist, and activate all eight calibration tables from one bundle.
+ */
+void handleCalibrationImportAll() {
+  noteHttpRequest();
+
+  if (!littleFsReady) {
+    server.send(503, "text/plain", "LittleFS is not ready; calibration restore requires persistent storage.\n");
+    return;
+  }
+
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    if (channelMask[ch] != 0) {
+      server.send(409, "text/plain", "Turn all channels OFF before importing calibration data.\n");
+      return;
+    }
+  }
+
+  if (!server.hasArg("bundle")) {
+    server.send(400, "text/plain", "Missing calibration bundle.\n");
+    return;
+  }
+
+  String bundle = server.arg("bundle");
+  if (bundle.length() == 0 || bundle.length() > CALIBRATION_BUNDLE_MAX_BYTES) {
+    server.send(400, "text/plain", "Calibration bundle is empty or exceeds 16384 bytes.\n");
+    return;
+  }
+
+  char error[160];
+  if (!restoreAllChannelConfigsFromBundleText(bundle, error, sizeof(error))) {
+    setStatus("Calibration bundle import failed");
+    setLastError(error);
+    appendLogEvent(error);
+    server.send(400, "text/plain", String("Calibration import failed: ") + error + "\n");
+    return;
+  }
+
+  setStatus("All channel calibration tables imported");
+  clearLastError();
+  appendLogEvent("All eight calibration tables imported and saved");
+  server.sendHeader("Location", "/files?cal_import=ok", true);
+  server.send(303, "text/plain", "See Other\n");
+}
+
 
 /**
  * @brief Handle Toggle Bit.
@@ -1671,7 +1764,7 @@ void handleScpiPage() {
   noteHttpRequest();
 
   String html;
-  html.reserve(8000);
+  html.reserve(12000);
   appendCommonPageHeader(html, "E-Resistor SCPI");
   html += "<h1>SCPI Interface</h1>";
   html += "<div class='grid'>";
@@ -1691,42 +1784,33 @@ void handleScpiPage() {
   html += FIRMWARE_VERSION;
   html += "</div></div>";
   html += "</div>";
-  html += "<div class='card'><h2>Supported commands</h2><pre><code>";
-  html += "*IDN?\n";
-  html += "SYST:SER?\n";
-  html += "SYST:VERS?\n";
-  html += "FIRM:VERS?\n";
-  html += "FIRM:BUILD?\n";
-  html += "*CLS\n";
-  html += "SYST:ERR?\n";
-  html += "SYST:ERR:CLEAR\n";
-  html += "SYST:STAT?\n";
-  html += "STATE?\n";
-  html += "ALL:OFF\n";
-  html += "OUTP:ALL OFF\n";
-  html += "ROUT:ALL:MASK <m1>,<m2>,<m3>,<m4>,<m5>,<m6>,<m7>,<m8>\n";
-  html += "CH1:MASK 0001\n";
-  html += "CH1:MASK?\n";
-  html += "ROUT:CHANnel1:MASK 0001\n";
-  html += "ROUT:CHANnel1:MASK?\n";
-  html += "CH1:RES?\n";
-  html += "CH1:CONF?\n\n";
-  html += "Calibration resistor table queries for PC-side nearest-mask calculation:\n";
-  html += "CAL:RES?\n";
-  html += "CAL:RESISTORS?\n";
-  html += "CAL:RES? 3\n";
-  html += "CAL:RES? CH3\n";
-  html += "CAL:CHAN1:RES?\n";
-  html += "CAL:CHANnel1:RESISTORS?\n";
-  html += "CAL:CH1:TABLE?\n\n";
-  html += "Calibration file readback for GUI tools:\n";
-  html += "CAL:FILES?\n";
-  html += "CAL:FILE? CH1\n";
-  html += "CAL:CHAN1:FILE?\n";
-  html += "CAL:ALL:FILES?\n";
-  html += "HTTP: /api/calibration/files, /api/calibration/download?ch=1, /api/calibration/download_all\n";
-  html += "Response record: CHn:bit_index,mosfet_name,resistance_ohm;...\n";
-  html += "</code></pre></div>";
+  html += "<div class='card'><h2>Supported commands</h2>";
+  html += "<div class='table-scroll'><table class='scpi-command-table'>";
+  html += "<tr><th>Command</th><th>Description</th></tr>";
+  html += "<tr><td><code>*IDN?</code></td><td>Read device identity, serial, and firmware.</td></tr>";
+  html += "<tr><td><code>SYST:SER?</code></td><td>Read the device serial number.</td></tr>";
+  html += "<tr><td><code>SYST:VERS?</code> / <code>FIRM:VERS?</code></td><td>Read the firmware version.</td></tr>";
+  html += "<tr><td><code>FIRM:BUILD?</code></td><td>Read firmware build date and time.</td></tr>";
+  html += "<tr><td><code>*CLS</code> / <code>SYST:ERR:CLEAR</code></td><td>Clear the last SCPI error.</td></tr>";
+  html += "<tr><td><code>SYST:ERR?</code></td><td>Read and clear the last error.</td></tr>";
+  html += "<tr><td><code>SYST:STAT?</code></td><td>Read system, safety, and core status.</td></tr>";
+  html += "<tr><td><code>STATE?</code></td><td>Read all masks and calculated resistances.</td></tr>";
+  html += "<tr><td><code>HELP?</code></td><td>List supported commands over SCPI.</td></tr>";
+  html += "<tr><td><code>ALL:OFF</code> / <code>OUTP:ALL OFF</code></td><td>Turn all resistor channels off.</td></tr>";
+  html += "<tr><td><code>ROUT:ALL:MASK &lt;m1&gt;,...,&lt;m8&gt;</code></td><td>Apply one mask to each channel.</td></tr>";
+  html += "<tr><td><code>CH&lt;n&gt;:MASK &lt;hex&gt;</code></td><td>Set a channel's 16-bit resistor mask.</td></tr>";
+  html += "<tr><td><code>CH&lt;n&gt;:MASK?</code></td><td>Read a channel's active mask.</td></tr>";
+  html += "<tr><td><code>CH&lt;n&gt;:RES?</code></td><td>Read calculated channel resistance.</td></tr>";
+  html += "<tr><td><code>CH&lt;n&gt;:CONF?</code></td><td>Read the channel calibration configuration.</td></tr>";
+  html += "<tr><td><code>CAL:RES?</code> / <code>CAL:RESISTORS?</code></td><td>Read branch values for all channels.</td></tr>";
+  html += "<tr><td><code>CAL:RES? CH&lt;n&gt;</code></td><td>Read branch values for one channel.</td></tr>";
+  html += "<tr><td><code>CAL:CH&lt;n&gt;:TABLE?</code></td><td>Read one compact calibration table.</td></tr>";
+  html += "<tr><td><code>CAL:FILES?</code></td><td>List calibration files and save status.</td></tr>";
+  html += "<tr><td><code>CAL:FILE? CH&lt;n&gt;</code></td><td>Download one channel calibration CSV.</td></tr>";
+  html += "<tr><td><code>CAL:ALL:FILES?</code></td><td>Download all channel calibration CSVs.</td></tr>";
+  html += "</table></div>";
+  html += "<p class='muted'>Use channel numbers 1 to 8. The full and abbreviated <code>ROUTe:CHANnel&lt;n&gt;</code> forms are also accepted.</p>";
+  html += "</div>";
   html += "<div class='card'><h2>Last SCPI command</h2><pre><code>";
   html += lastScpiCommand;
   html += "</code></pre></div>";
@@ -2174,7 +2258,8 @@ void setupHttpServer() {
   server.on("/api/calibration/files", HTTP_GET, handleCalibrationFilesApi);
   server.on("/api/calibration/download", HTTP_GET, handleDownloadConfig);
   server.on("/api/calibration/download_all", HTTP_GET, handleCalibrationDownloadAll);
-  server.on("/calibration_download_all", HTTP_GET, handleCalibrationDownloadAll);
+  server.on("/calibration_download_all", HTTP_GET, handleCalibrationDownloadAllFile);
+  server.on("/calibration_import_all", HTTP_POST, handleCalibrationImportAll);
   server.on("/config", HTTP_GET, handleDownloadConfig);
   server.onNotFound(handleNotFound);
 

@@ -129,6 +129,16 @@ CAL:ALL:FILES?
 `/api/calibration/download?ch=1` returns the active CH1 CSV table.
 `/api/calibration/download_all` returns all eight active tables in BEGIN/END blocks.
 
+The browser **Files** tab places LittleFS capacity and its combined file inventory at the top. Its **Download All** button saves the eight-table bundle as a `.txt` file on the PC. **Import from file** restores all eight tables from that same bundle format. Import is accepted only while all channels are OFF; all channel blocks are validated and staged before the runtime calibration is replaced.
+
+
+## 2026-07-15 calibration bundle backup update — v0.4.4
+
+- The Files tab now shows LittleFS storage and file inventory before calibration backup controls.
+- **Download All** saves one named text file containing CH1-CH8 active calibration tables.
+- **Import from file** validates, persists, and activates all eight tables from one exported file.
+- Restore uses temporary files and backups so malformed or partially staged imports do not replace the active runtime tables.
+- Calibration import is rejected while any channel mask is active.
 
 ## 2026-07-15 web GUI consolidation update
 
@@ -172,3 +182,9 @@ For web `.bin` update, select an Arduino-Pico **Tools > Flash Size** option that
 - The Backup tab factory-reset actions are arranged in a spaced grid instead of stacked tightly.
 - The SCPI page now labels the connection field as **Address** and shows `IP:5025`.
 - The Safety page now includes both minimum and maximum allowed calculated resistance limits in ohms.
+
+## SCPI web reference table (introduced in v0.4.3)
+
+- Replaced the SCPI tab's plain command list with a two-column **Command / Description** table.
+- Kept descriptions short and grouped equivalent command aliases in the same row.
+- Documented channel placeholders as `CH<n>` for channels 1 through 8.

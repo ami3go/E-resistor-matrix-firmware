@@ -76,31 +76,35 @@ String networkConfigPath() {
   return "/network.csv";
 }
 
+/** @brief Convert one complete resistor table to the persistent CSV format. */
+static String resistorTableToText(const RuntimeResistorInfo table[BIT_COUNT]) {
+  String out;
+  out.reserve(450);
+  out += "bit,mosfet_name,nominal_resistance\n";
+
+  for (uint8_t i = 0; i < BIT_COUNT; i++) {
+    out += String(table[i].bit);
+    out += ",";
+    out += table[i].mosfet_name;
+    out += ",";
+    out += table[i].nominal_resistance;
+    out += "\n";
+  }
+
+  return out;
+}
+
 /**
  * @brief Channel Config To Text.
  * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
  * @return Result value; for bool, true means the operation succeeded.
  */
 String channelConfigToText(uint8_t channelIndex) {
-  String out;
-  out.reserve(450);
-
-  out += "bit,mosfet_name,nominal_resistance\n";
-
   if (channelIndex >= CHANNEL_COUNT) {
-    return out;
+    return String("bit,mosfet_name,nominal_resistance\n");
   }
 
-  for (uint8_t i = 0; i < BIT_COUNT; i++) {
-    out += String(channelResistorTable[channelIndex][i].bit);
-    out += ",";
-    out += channelResistorTable[channelIndex][i].mosfet_name;
-    out += ",";
-    out += channelResistorTable[channelIndex][i].nominal_resistance;
-    out += "\n";
-  }
-
-  return out;
+  return resistorTableToText(channelResistorTable[channelIndex]);
 }
 
 
@@ -190,7 +194,14 @@ String calibrationFileListText() {
  */
 String allChannelConfigsToBundleText() {
   String out;
-  out.reserve(5200);
+  out.reserve(5600);
+  out += "# E-Resistor calibration bundle\n";
+  out += "# format=1\n";
+  out += "# firmware=";
+  out += FIRMWARE_VERSION;
+  out += "\n# serial=";
+  out += deviceSerialNumber;
+  out += "\n";
 
   for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
     bool exists = false;
@@ -320,19 +331,14 @@ bool parseHeaderInitializerLine(const String& line, RuntimeResistorInfo& out) {
 }
 
 /**
- * @brief Parse Channel Config Text.
- * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
- * @param text Function parameter.
- * @param error Output buffer for a human-readable diagnostic message.
- * @param errorLen Output buffer for a human-readable diagnostic message.
- * @return Result value; for bool, true means the operation succeeded.
+ * @brief Parse one channel table into caller-provided storage without changing runtime state.
  */
-bool parseChannelConfigText(uint8_t channelIndex, const String& text, char* error, size_t errorLen) {
-  if (channelIndex >= CHANNEL_COUNT) {
-    snprintf(error, errorLen, "Invalid channel");
-    return false;
-  }
-
+static bool parseChannelConfigTextToTable(
+  const String& text,
+  RuntimeResistorInfo output[BIT_COUNT],
+  char* error,
+  size_t errorLen
+) {
   RuntimeResistorInfo temp[BIT_COUNT];
   bool seen[BIT_COUNT] = {false};
 
@@ -353,14 +359,9 @@ bool parseChannelConfigText(uint8_t channelIndex, const String& text, char* erro
 
     String line = text.substring(start, end);
     line.trim();
-
     start = end + 1;
 
-    if (line.length() == 0) {
-      continue;
-    }
-
-    if (line.startsWith("#") || line.startsWith("//")) {
+    if (line.length() == 0 || line.startsWith("#") || line.startsWith("//")) {
       continue;
     }
 
@@ -372,7 +373,6 @@ bool parseChannelConfigText(uint8_t channelIndex, const String& text, char* erro
 
     RuntimeResistorInfo info;
     bool parsed = false;
-
     if (line.indexOf('{') >= 0) {
       parsed = parseHeaderInitializerLine(line, info);
     } else if (line.indexOf(',') >= 0) {
@@ -403,14 +403,213 @@ bool parseChannelConfigText(uint8_t channelIndex, const String& text, char* erro
       snprintf(error, errorLen, "Missing bit %u", unsigned(bit));
       return false;
     }
+    output[bit] = temp[bit];
+  }
+
+  snprintf(error, errorLen, "OK");
+  return true;
+}
+
+/**
+ * @brief Parse Channel Config Text.
+ * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
+ * @param text Function parameter.
+ * @param error Output buffer for a human-readable diagnostic message.
+ * @param errorLen Output buffer for a human-readable diagnostic message.
+ * @return Result value; for bool, true means the operation succeeded.
+ */
+bool parseChannelConfigText(uint8_t channelIndex, const String& text, char* error, size_t errorLen) {
+  if (channelIndex >= CHANNEL_COUNT) {
+    snprintf(error, errorLen, "Invalid channel");
+    return false;
+  }
+
+  RuntimeResistorInfo parsed[BIT_COUNT];
+  if (!parseChannelConfigTextToTable(text, parsed, error, errorLen)) {
+    return false;
   }
 
   for (uint8_t i = 0; i < BIT_COUNT; i++) {
-    channelResistorTable[channelIndex][i] = temp[i];
+    channelResistorTable[channelIndex][i] = parsed[i];
   }
 
   invalidateConductanceCache();
+  snprintf(error, errorLen, "OK");
+  return true;
+}
 
+/** @brief Count non-overlapping occurrences of a marker in a text buffer. */
+static uint8_t countBundleMarker(const String& text, const String& marker) {
+  uint8_t count = 0;
+  int position = 0;
+  while (position >= 0 && position < int(text.length())) {
+    position = text.indexOf(marker, position);
+    if (position < 0) break;
+    count++;
+    position += marker.length();
+  }
+  return count;
+}
+
+/** @brief Write and verify one temporary import file. */
+static bool writeImportFileExact(const String& path, const String& text) {
+  LittleFS.remove(path);
+  File file = LittleFS.open(path, "w");
+  if (!file) return false;
+
+  size_t written = file.print(text);
+  file.close();
+  if (written != text.length()) {
+    LittleFS.remove(path);
+    return false;
+  }
+
+  File verify = LittleFS.open(path, "r");
+  if (!verify) {
+    LittleFS.remove(path);
+    return false;
+  }
+  size_t storedSize = size_t(verify.size());
+  verify.close();
+  if (storedSize != text.length()) {
+    LittleFS.remove(path);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * @brief Validate and restore all eight calibration tables from one bundle.
+ *
+ * All channel blocks are parsed before persistent or runtime state is changed.
+ * Files are first written to temporary paths, existing files are retained as
+ * backups during replacement, and runtime tables are committed only after all
+ * eight final files have been installed successfully.
+ */
+bool restoreAllChannelConfigsFromBundleText(const String& text, char* error, size_t errorLen) {
+  if (!littleFsReady) {
+    snprintf(error, errorLen, "LittleFS is not ready");
+    return false;
+  }
+
+  if (countBundleMarker(text, "#BEGIN CH") != CHANNEL_COUNT ||
+      countBundleMarker(text, "#END CH") != CHANNEL_COUNT) {
+    snprintf(error, errorLen, "Bundle must contain exactly 8 BEGIN and 8 END channel markers");
+    return false;
+  }
+
+  static RuntimeResistorInfo candidate[CHANNEL_COUNT][BIT_COUNT];
+
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    String beginMarker = "#BEGIN CH" + String(ch + 1);
+    String endMarker = "#END CH" + String(ch + 1);
+
+    int begin = text.indexOf(beginMarker);
+    if (begin < 0 || text.indexOf(beginMarker, begin + beginMarker.length()) >= 0) {
+      snprintf(error, errorLen, "Missing or duplicate BEGIN marker for CH%u", unsigned(ch + 1));
+      return false;
+    }
+
+    int dataStart = text.indexOf('\n', begin);
+    if (dataStart < 0) {
+      snprintf(error, errorLen, "Missing data after CH%u BEGIN marker", unsigned(ch + 1));
+      return false;
+    }
+    dataStart++;
+
+    int end = text.indexOf(endMarker, dataStart);
+    if (end < 0 || text.indexOf(endMarker, end + endMarker.length()) >= 0) {
+      snprintf(error, errorLen, "Missing or duplicate END marker for CH%u", unsigned(ch + 1));
+      return false;
+    }
+
+    String tableText = text.substring(dataStart, end);
+    char channelError[96];
+    if (!parseChannelConfigTextToTable(tableText, candidate[ch], channelError, sizeof(channelError))) {
+      snprintf(error, errorLen, "CH%u: %s", unsigned(ch + 1), channelError);
+      return false;
+    }
+  }
+
+  bool backupCreated[CHANNEL_COUNT] = {false};
+  bool finalInstalled[CHANNEL_COUNT] = {false};
+
+  // Recover or clean files left by an interrupted previous import.
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    String finalPath = channelConfigPath(ch);
+    String tempPath = finalPath + ".import.tmp";
+    String backupPath = finalPath + ".import.bak";
+    LittleFS.remove(tempPath);
+    if (LittleFS.exists(backupPath)) {
+      if (LittleFS.exists(finalPath)) {
+        LittleFS.remove(backupPath);
+      } else if (!LittleFS.rename(backupPath.c_str(), finalPath.c_str())) {
+        snprintf(error, errorLen, "Failed to recover previous CH%u calibration backup", unsigned(ch + 1));
+        return false;
+      }
+    }
+  }
+
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    String tempPath = channelConfigPath(ch) + ".import.tmp";
+    String normalized = resistorTableToText(candidate[ch]);
+    if (!writeImportFileExact(tempPath, normalized)) {
+      for (uint8_t i = 0; i < CHANNEL_COUNT; i++) {
+        LittleFS.remove(channelConfigPath(i) + ".import.tmp");
+      }
+      snprintf(error, errorLen, "Failed to stage CH%u calibration file", unsigned(ch + 1));
+      return false;
+    }
+  }
+
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    String finalPath = channelConfigPath(ch);
+    String backupPath = finalPath + ".import.bak";
+    LittleFS.remove(backupPath);
+    if (LittleFS.exists(finalPath)) {
+      if (!LittleFS.rename(finalPath.c_str(), backupPath.c_str())) {
+        for (uint8_t i = 0; i < ch; i++) {
+          if (backupCreated[i]) {
+            LittleFS.rename((channelConfigPath(i) + ".import.bak").c_str(), channelConfigPath(i).c_str());
+          }
+        }
+        for (uint8_t i = 0; i < CHANNEL_COUNT; i++) {
+          LittleFS.remove(channelConfigPath(i) + ".import.tmp");
+        }
+        snprintf(error, errorLen, "Failed to prepare CH%u file replacement", unsigned(ch + 1));
+        return false;
+      }
+      backupCreated[ch] = true;
+    }
+  }
+
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    String finalPath = channelConfigPath(ch);
+    String tempPath = finalPath + ".import.tmp";
+    if (!LittleFS.rename(tempPath.c_str(), finalPath.c_str())) {
+      for (uint8_t i = 0; i < CHANNEL_COUNT; i++) {
+        String restoreFinal = channelConfigPath(i);
+        String restoreBackup = restoreFinal + ".import.bak";
+        if (finalInstalled[i]) LittleFS.remove(restoreFinal);
+        if (backupCreated[i] && LittleFS.exists(restoreBackup)) {
+          LittleFS.rename(restoreBackup.c_str(), restoreFinal.c_str());
+        }
+        LittleFS.remove(restoreFinal + ".import.tmp");
+      }
+      snprintf(error, errorLen, "Failed to install CH%u calibration file", unsigned(ch + 1));
+      return false;
+    }
+    finalInstalled[ch] = true;
+  }
+
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    for (uint8_t bit = 0; bit < BIT_COUNT; bit++) {
+      channelResistorTable[ch][bit] = candidate[ch][bit];
+    }
+    LittleFS.remove(channelConfigPath(ch) + ".import.bak");
+  }
+
+  rebuildConductanceCache();
   snprintf(error, errorLen, "OK");
   return true;
 }

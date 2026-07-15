@@ -1226,3 +1226,30 @@ bool w5500SoftwareResetAndProbe()
 ## Fast resistance-calculation cache update
 
 This package integrates an optimized `resistance_calculation.cpp` implementation.  Equivalent-resistance calculations now use a cached conductance table (`1/R`) and the firmware-side nearest-mask search uses combination enumeration instead of brute-forcing every 16-bit mask.  The cache is rebuilt at startup after runtime resistor configuration loading and invalidated after any runtime resistor table update.  The firmware-side nearest function is kept for web/manual use, but PC-side drivers should still prefer downloading `CAL:RES?` and calculating nearest masks on the host.
+
+
+## Calibration bundle backup and restore (v0.4.4)
+
+### `restoreAllChannelConfigsFromBundleText`
+
+Validates all eight BEGIN/END-delimited channel tables, stages their LittleFS files, preserves the previous files during replacement, and activates the new runtime tables only after the complete restore succeeds.
+
+```cpp
+bool restoreAllChannelConfigsFromBundleText(const String& text, char* error, size_t errorLen)
+```
+
+### `handleCalibrationDownloadAllFile`
+
+Sends the active CH1-CH8 calibration bundle as a downloadable text attachment.
+
+```cpp
+void handleCalibrationDownloadAllFile()
+```
+
+### `handleCalibrationImportAll`
+
+Handles browser restore of all eight calibration tables from one exported text file. Import requires LittleFS and all channel masks OFF.
+
+```cpp
+void handleCalibrationImportAll()
+```

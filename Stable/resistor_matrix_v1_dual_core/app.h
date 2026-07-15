@@ -83,7 +83,7 @@ inline constexpr uint16_t SCPI_TCP_PORT = 5025;
 // ============================================================
 inline constexpr const char* FIRMWARE_NAME = "E-Resistor";
 inline constexpr const char* FIRMWARE_VENDOR = "OpenBench";
-inline constexpr const char* FIRMWARE_VERSION = "0.4.1";
+inline constexpr const char* FIRMWARE_VERSION = "0.4.4";
 inline constexpr const char* FIRMWARE_BUILD_DATE = __DATE__;
 inline constexpr const char* FIRMWARE_BUILD_TIME = __TIME__;
 
@@ -399,6 +399,14 @@ String calibrationFileListText();
  * @brief Build a BEGIN/END-delimited text bundle of all active channel calibration tables.
  */
 String allChannelConfigsToBundleText();
+/**
+ * @brief Validate and restore all eight channel calibration tables from one bundle.
+ * @param text BEGIN/END-delimited bundle produced by allChannelConfigsToBundleText().
+ * @param error Output buffer for a human-readable diagnostic message.
+ * @param errorLen Size of the error output buffer.
+ * @return true only when all eight tables were validated, saved, and activated.
+ */
+bool restoreAllChannelConfigsFromBundleText(const String& text, char* error, size_t errorLen);
 /**
  * @brief Parse Csv Config Line.
  * @param line Function parameter.
@@ -902,6 +910,10 @@ void handleCalibrationFilesApi();
  * @brief Return all active calibration tables as a BEGIN/END-delimited text bundle.
  */
 void handleCalibrationDownloadAll();
+/** @brief Download all calibration tables as a browser attachment. */
+void handleCalibrationDownloadAllFile();
+/** @brief Import and restore all calibration tables from one uploaded text bundle. */
+void handleCalibrationImportAll();
 /**
  * @brief Handle Toggle Bit.
  */

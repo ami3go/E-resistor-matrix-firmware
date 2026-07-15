@@ -103,6 +103,8 @@ Equivalent HTTP endpoints are:
 GET /api/calibration/files
 GET /api/calibration/download?ch=1
 GET /api/calibration/download_all
+GET /calibration_download_all      # browser attachment
+POST /calibration_import_all       # browser bundle restore
 ```
 
 ## Firmware identity commands

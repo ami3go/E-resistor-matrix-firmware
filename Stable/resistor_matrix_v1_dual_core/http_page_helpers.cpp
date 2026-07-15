@@ -62,6 +62,7 @@ void appendCommonPageHeader(String& html, const char* title) {
   html += ".resistor-matrix-table{min-width:1050px;}.resistor-matrix-table th,.resistor-matrix-table td{text-align:center;white-space:nowrap;}.resistor-matrix-table th:first-child,.resistor-matrix-table td:first-child{text-align:left;}.resistor-cell code{display:block;color:#dfe7f5;}.resistor-cell span{display:block;color:#a7f3d0;font-family:monospace;margin-top:3px;}";
   html += ".safety-table{min-width:1180px;}.safety-table th:not(:first-child),.safety-table td:not(:first-child){text-align:center;}.safety-table input{width:126px;max-width:100%;font-family:monospace;padding:7px 8px;margin:0;}";
   html += ".file-table{min-width:920px;}";
+  html += ".scpi-command-table{min-width:760px;}.scpi-command-table th:first-child,.scpi-command-table td:first-child{width:42%;white-space:nowrap;}.scpi-command-table td:nth-child(2){text-align:left;}";
   html += ".bits{display:flex;flex-wrap:nowrap;gap:2px;min-width:386px;white-space:nowrap;}";
   html += ".bit{display:inline-block;flex:0 0 23px;width:23px;height:22px;line-height:22px;text-align:center;border:1px solid var(--border);border-radius:6px;font-size:10px;font-family:monospace;}";
   html += ".bit:hover{transform:translateY(-1px);box-shadow:0 0 0 2px rgba(91,140,255,.25);border-color:var(--primary);}";
