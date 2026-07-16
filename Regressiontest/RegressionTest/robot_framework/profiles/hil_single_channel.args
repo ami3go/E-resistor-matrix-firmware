@@ -1,0 +1,6 @@
+--loglevel
+DEBUG
+--console
+verbose
+--metadata
+Fixture:Ethernet SCPI + RP2040 USB COM + USB DMM

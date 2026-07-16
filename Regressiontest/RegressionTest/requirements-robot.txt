@@ -1,0 +1,7 @@
+robotframework>=7.0,<8.0
+pyserial>=3.5
+PyVISA>=1.14
+# Install one VISA implementation for the DMM:
+# - Keysight IO Libraries Suite
+# - NI-VISA
+# - or optionally: PyVISA-py>=0.7 for supported resources

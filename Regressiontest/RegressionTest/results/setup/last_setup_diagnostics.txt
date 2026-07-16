@@ -1,0 +1,76 @@
+E-Resistor regression environment diagnostics
+Setup kind: robot
+Setup mode: ensure
+Root: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest
+Base launcher: py -3
+Venv Python: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Scripts\python.exe
+Timestamp UTC: 2026-07-16T12:15:07.109471+00:00
+Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+Executable: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Scripts\python.exe
+Platform: Windows-11-10.0.22631-SP0
+pip 26.1.2 from C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Lib\site-packages\pip (python 3.13)
+Name: e-resistor-regression
+Version: 2.3.3
+Summary: Gate-based Python and Robot Framework regression harness for E-Resistor firmware
+Home-page: 
+Author: 
+Author-email: 
+License: 
+Location: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Lib\site-packages
+Editable project location: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest
+Requires: 
+Required-by: 
+---
+Name: pyserial
+Version: 3.5
+Summary: Python Serial Port Extension
+Home-page: https://github.com/pyserial/pyserial
+Author: Chris Liechti
+Author-email: cliechti@gmx.net
+License: BSD
+Location: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Lib\site-packages
+Requires: 
+Required-by: 
+---
+Name: PyVISA
+Version: 1.16.2
+Summary: Python VISA bindings for GPIB, RS232, TCPIP and USB instruments
+Home-page: https://github.com/pyvisa/pyvisa
+Author: Gregor Thalhammer
+Author-email: Torsten Bronger <bronger@physik.rwth-aachen.de>, "Hernan E. Grecco" <hernan.grecco@gmail.com>
+License: The MIT License
+
+Copyright (c) 2005-2024 PyVISA Authors and contributors. See AUTHORS
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Location: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Lib\site-packages
+Requires: typing_extensions
+Required-by: 
+---
+Name: robotframework
+Version: 7.4.2
+Summary: Generic automation framework for acceptance testing and robotic process automation (RPA)
+Home-page: https://robotframework.org
+Author: Pekka Klärck
+Author-email: peke@eliga.fi
+License: Apache License 2.0
+Location: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Lib\site-packages
+Requires: 
+Required-by: robotframework-ride

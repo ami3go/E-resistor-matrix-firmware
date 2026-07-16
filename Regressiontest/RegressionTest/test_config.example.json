@@ -1,0 +1,33 @@
+{
+  "host": "192.168.0.55",
+  "http_port": 80,
+  "scpi_port": 5025,
+  "timeout_s": 3.0,
+  "iterations": 30,
+  "stress_iterations": 100,
+  "heap_drift_limit_bytes": 2048,
+  "latency_regression_percent": 15.0,
+  "required_pages": [
+    "/",
+    "/settings",
+    "/safety",
+    "/files",
+    "/firmware",
+    "/scpi",
+    "/log",
+    "/runtime",
+    "/watchdog"
+  ],
+  "hil_profile": {
+    "serial_port": "auto",
+    "serial_baud": 115200,
+    "dmm_resource": "auto",
+    "dmm_idn_contains": "34401",
+    "hil_channel": 1,
+    "hil_bits": "0-15",
+    "hil_combination_masks": "0003,0005,0009",
+    "hil_repeat_cycles": 10,
+    "hil_error_limit_percent": 1.0,
+    "hil_off_min_ohm": 50000000.0
+  }
+}

@@ -1,0 +1,654 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.4.2 (Python 3.13.5 on win32)" generated="2026-07-16T14:55:27.630791" rpa="false" schemaversion="5">
+<suite id="s1" name="E-Resistor G0 safe_output" source="C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\robot_framework\suites\safe_output.robot">
+<kw name="Initialize Regression Profile" owner="common" type="SETUP">
+<kw name="Initialize E-Resistor Regression Suite" owner="EResistor">
+<msg time="2026-07-16T14:55:37.276035" level="INFO">E-Resistor regression initialized: run_id=G0-safe_output-20260716T115533Z-7257f3, profile=safe_output, gate=G0, evidence=C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\results\robot\G0-safe_output-20260716T115504Z\e_resistor_evidence\safe_output</msg>
+<arg>output_dir=${OUTPUT_DIR}</arg>
+<arg>profile=${profile}</arg>
+<arg>gate=${GATE}</arg>
+<arg>host=${ERESISTOR_HOST}</arg>
+<arg>http_port=${HTTP_PORT}</arg>
+<arg>scpi_port=${SCPI_PORT}</arg>
+<arg>timeout_s=${TIMEOUT_S}</arg>
+<arg>iterations=${ITERATIONS}</arg>
+<arg>stress_iterations=${STRESS_ITERATIONS}</arg>
+<arg>heap_drift_limit_bytes=${HEAP_DRIFT_LIMIT_BYTES}</arg>
+<arg>latency_regression_percent=${LATENCY_REGRESSION_PERCENT}</arg>
+<arg>source_dir=${SOURCE_DIR}</arg>
+<arg>baseline=${BASELINE}</arg>
+<arg>gate_manifest=${GATE_MANIFEST}</arg>
+<arg>allow_output_tests=${ALLOW_OUTPUT_TESTS}</arg>
+<arg>allow_active_output_tests=${ALLOW_ACTIVE_OUTPUT_TESTS}</arg>
+<arg>allow_storage_tests=${ALLOW_STORAGE_TESTS}</arg>
+<arg>allow_ota_tests=${ALLOW_OTA_TESTS}</arg>
+<arg>allow_watchdog_tests=${ALLOW_WATCHDOG_TESTS}</arg>
+<arg>arduino_cli=${ARDUINO_CLI}</arg>
+<arg>fqbn=${FQBN}</arg>
+<arg>serial_port=${SERIAL_PORT}</arg>
+<arg>serial_baud=${SERIAL_BAUD}</arg>
+<arg>serial_match=${SERIAL_MATCH}</arg>
+<arg>dmm_resource=${DMM_RESOURCE}</arg>
+<arg>dmm_idn_contains=${DMM_IDN_CONTAINS}</arg>
+<arg>dmm_backend=${DMM_BACKEND}</arg>
+<arg>dmm_init_commands=${DMM_INIT_COMMANDS}</arg>
+<arg>dmm_measure_command=${DMM_MEASURE_COMMAND}</arg>
+<arg>hil_channel=${HIL_CHANNEL}</arg>
+<arg>hil_bits=${HIL_BITS}</arg>
+<arg>hil_combination_masks=${HIL_COMBINATION_MASKS}</arg>
+<arg>hil_repeat_cycles=${HIL_REPEAT_CYCLES}</arg>
+<arg>hil_error_limit_percent=${HIL_ERROR_LIMIT_PERCENT}</arg>
+<arg>hil_settle_timeout_s=${HIL_SETTLE_TIMEOUT_S}</arg>
+<arg>hil_sample_count=${HIL_SAMPLE_COUNT}</arg>
+<arg>hil_sample_interval_s=${HIL_SAMPLE_INTERVAL_S}</arg>
+<arg>hil_stability_percent=${HIL_STABILITY_PERCENT}</arg>
+<arg>hil_minimum_wait_s=${HIL_MINIMUM_WAIT_S}</arg>
+<arg>hil_off_min_ohm=${HIL_OFF_MIN_OHM}</arg>
+<arg>hil_serial_fault_patterns=${HIL_SERIAL_FAULT_PATTERNS}</arg>
+<arg>fixture_confirmation=${FIXTURE_CONFIRMATION}</arg>
+<arg>verbose=${VERBOSE}</arg>
+<status status="PASS" start="2026-07-16T14:55:33.506579" elapsed="3.769836"/>
+</kw>
+<arg>safe_output</arg>
+<status status="PASS" start="2026-07-16T14:55:33.505266" elapsed="3.771797"/>
+</kw>
+<test id="s1-t1" name="NET-001 TCP Reachability" line="10">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:55:37.446158" level="INFO">NET-001 PASS: HTTP and SCPI ports reachable
+Metrics: {"http_connect_ms": 42.8752, "scpi_connect_ms": 37.6054}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:55:37.336456" elapsed="0.110135"/>
+</kw>
+<arg>NET-001</arg>
+<arg>TCP reachability</arg>
+<arg>test_tcp_reachability</arg>
+<status status="PASS" start="2026-07-16T14:55:37.335131" elapsed="0.111822"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:55:42.740320" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:55:37.452147" elapsed="5.442068">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:55:37.450955" elapsed="5.443907">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>NET-001</tag>
+<tag>network</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<status status="FAIL" start="2026-07-16T14:55:37.277314" elapsed="5.679144">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t2" name="HTTP-001 HTTP Ping" line="14">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:55:44.196444" level="INFO">HTTP-001 PASS: HTTP 200, body='pong'
+Metrics: {"http_ping_single_ms": 627.3057}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:55:43.507540" elapsed="0.689354"/>
+</kw>
+<arg>HTTP-001</arg>
+<arg>HTTP ping</arg>
+<arg>test_http_ping</arg>
+<status status="PASS" start="2026-07-16T14:55:43.506373" elapsed="0.690858"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:55:46.813448" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:55:44.213697" elapsed="2.600739">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:55:44.212839" elapsed="2.601935">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>http</tag>
+<tag>HTTP-001</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<status status="FAIL" start="2026-07-16T14:55:43.454884" elapsed="3.364476">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t3" name="HTTP-002 State Schema And Readiness" line="18">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:55:46.992732" level="INFO">HTTP-002 FAIL: {"channel_count": 0, "missing": [], "readiness_failures": []}
+Metrics: {"state_request_ms": 82.9252}</msg>
+<msg time="2026-07-16T14:55:46.993120" level="FAIL">HTTP-002 State schema and readiness: {"channel_count": 0, "missing": [], "readiness_failures": []}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="FAIL" start="2026-07-16T14:55:46.844439" elapsed="0.150496">HTTP-002 State schema and readiness: {"channel_count": 0, "missing": [], "readiness_failures": []}</status>
+</kw>
+<arg>HTTP-002</arg>
+<arg>State schema and readiness</arg>
+<arg>test_state_schema</arg>
+<status status="FAIL" start="2026-07-16T14:55:46.843402" elapsed="0.151954">HTTP-002 State schema and readiness: {"channel_count": 0, "missing": [], "readiness_failures": []}</status>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:55:50.291220" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:55:47.000699" elapsed="3.316165">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:55:46.999689" elapsed="3.317772">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>http</tag>
+<tag>HTTP-002</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<tag>state</tag>
+<status status="FAIL" start="2026-07-16T14:55:46.833033" elapsed="3.568105">HTTP-002 State schema and readiness: {"channel_count": 0, "missing": [], "readiness_failures": []}
+
+Also teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t4" name="HTTP-003 Required GUI Pages" line="22">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:55:52.899672" level="INFO">HTTP-003 PASS: 9 pages valid
+Metrics: {"gui_page_avg_ms": 181.77196666666666, "gui_page_count": 9, "gui_page_max_ms": 314.7166, "gui_page_min_ms": 107.3443, "gui_page_p50_ms": 133.8088, "gui_page_p95_ms": 311.13952000000006, "gui_page_p99_ms": 314.001184, "gui_page_total_bytes": 127526}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:55:50.801745" elapsed="2.098895"/>
+</kw>
+<arg>HTTP-003</arg>
+<arg>Required GUI pages</arg>
+<arg>test_pages</arg>
+<status status="PASS" start="2026-07-16T14:55:50.800787" elapsed="2.100199"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:55:55.642761" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:55:52.970277" elapsed="2.674001">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:55:52.968729" elapsed="2.675998">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>gui</tag>
+<tag>http</tag>
+<tag>HTTP-003</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<status status="FAIL" start="2026-07-16T14:55:50.691644" elapsed="4.959673">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t5" name="SCPI-001 Identity And Greeting" line="26">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:55:56.677924" level="INFO">SCPI-001 PASS: OpenBench,E-Resistor,E66178758B3E742A,0.4.4
+Metrics: {"scpi_idn_ms": 217.5564, "scpi_version_ms": 217.4225}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:55:55.741210" elapsed="0.937348"/>
+</kw>
+<arg>SCPI-001</arg>
+<arg>SCPI identity and greeting</arg>
+<arg>test_scpi_identity</arg>
+<status status="PASS" start="2026-07-16T14:55:55.739581" elapsed="0.939409"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:00.484826" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:55:56.751762" elapsed="3.734373">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:55:56.750947" elapsed="3.735619">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<tag>scpi</tag>
+<tag>SCPI-001</tag>
+<status status="FAIL" start="2026-07-16T14:55:55.717947" elapsed="4.769219">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t6" name="SCPI-002 Status And State Consistency" line="30">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:01.405916" level="INFO">SCPI-002 FAIL: mismatches=[]
+Metrics: {"scpi_state_ms": 135.6195, "scpi_status_ms": 265.2973}</msg>
+<msg time="2026-07-16T14:56:01.406301" level="FAIL">SCPI-002 SCPI status and state consistency: mismatches=[]</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="FAIL" start="2026-07-16T14:56:00.511722" elapsed="0.896035">SCPI-002 SCPI status and state consistency: mismatches=[]</status>
+</kw>
+<arg>SCPI-002</arg>
+<arg>SCPI status and state consistency</arg>
+<arg>test_scpi_state_consistency</arg>
+<status status="FAIL" start="2026-07-16T14:56:00.510758" elapsed="0.897382">SCPI-002 SCPI status and state consistency: mismatches=[]</status>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:03.907848" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:01.411537" elapsed="2.498106">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:01.410711" elapsed="2.499486">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<tag>scpi</tag>
+<tag>SCPI-002</tag>
+<tag>state</tag>
+<status status="FAIL" start="2026-07-16T14:56:00.498800" elapsed="3.412828">SCPI-002 SCPI status and state consistency: mismatches=[]
+
+Also teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t7" name="SCPI-003 Calibration Table Integrity" line="34">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:04.493626" level="INFO">SCPI-003 PASS: 8 x 16 table valid
+Metrics: {"calibration_query_ms": 244.3549, "calibration_response_bytes": 2511}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:56:03.954695" elapsed="0.539306"/>
+</kw>
+<arg>SCPI-003</arg>
+<arg>Calibration table integrity</arg>
+<arg>test_calibration</arg>
+<status status="PASS" start="2026-07-16T14:56:03.953380" elapsed="0.540949"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:07.247508" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:04.497953" elapsed="2.751545">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:04.496907" elapsed="2.753724">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>calibration</tag>
+<tag>e-resistor</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<tag>scpi</tag>
+<tag>SCPI-003</tag>
+<status status="FAIL" start="2026-07-16T14:56:03.938164" elapsed="3.323571">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t8" name="SCPI-004 Undefined Header Error Queue" line="38">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:08.725588" level="INFO">SCPI-004 PASS: invalid='ERR,-113,"Undefined header"', error='-113,"Undefined header"', cleared='0,"No error"'
+Metrics: {}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:56:07.490975" elapsed="1.234988"/>
+</kw>
+<arg>SCPI-004</arg>
+<arg>Undefined-header error queue</arg>
+<arg>test_scpi_error_queue</arg>
+<status status="PASS" start="2026-07-16T14:56:07.490053" elapsed="1.236207"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:11.578993" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:08.729380" elapsed="2.850900">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:08.728487" elapsed="2.852190">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>negative</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<tag>scpi</tag>
+<tag>SCPI-004</tag>
+<status status="FAIL" start="2026-07-16T14:56:07.447019" elapsed="4.134265">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t9" name="SCPI-005 Oversized Line Recovery" line="42">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:12.377858" level="INFO">SCPI-005 PASS: recovered=True, overflow='ERR,-350,"Input buffer overflow"\r\nERR,-113,"Undefined header"'
+Metrics: {"post_overflow_idn_ms": 196.9463}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:56:11.614855" elapsed="0.763299"/>
+</kw>
+<arg>SCPI-005</arg>
+<arg>Oversized-line recovery</arg>
+<arg>test_scpi_overflow_recovery</arg>
+<status status="PASS" start="2026-07-16T14:56:11.613962" elapsed="0.764416"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:15.081363" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:12.381393" elapsed="2.701376">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:12.379510" elapsed="2.703619">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>negative</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<tag>scpi</tag>
+<tag>SCPI-005</tag>
+<status status="FAIL" start="2026-07-16T14:56:11.599610" elapsed="3.484008">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t10" name="PERF-001 HTTP Latency Sample" line="46">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:20.553611" level="INFO">PERF-001 PASS: 30 ping and state samples
+Metrics: {"http_ping_avg_ms": 64.72743, "http_ping_count": 30, "http_ping_max_ms": 91.2417, "http_ping_min_ms": 48.6301, "http_ping_p50_ms": 64.58670000000001, "http_ping_p95_ms": 89.376465, "http_ping_p99_ms": 90.766593, "http_state_avg_ms": 75.5802, "http_state_count": 30, "http_state_max_ms": 113.8204, "http_state_min_ms": 55.0919, "http_state_p50_ms": 72.5474, "http_state_p95_ms": 100.96924999999995, "http_state_p99_ms": 112.648104}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:56:15.110766" elapsed="5.443139"/>
+</kw>
+<arg>PERF-001</arg>
+<arg>HTTP latency sample</arg>
+<arg>test_http_latency</arg>
+<status status="PASS" start="2026-07-16T14:56:15.109661" elapsed="5.444471"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:23.385527" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:20.555824" elapsed="2.831044">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:20.555101" elapsed="2.832159">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>http</tag>
+<tag>PERF-001</tag>
+<tag>performance</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<status status="FAIL" start="2026-07-16T14:56:15.094008" elapsed="8.294153">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t11" name="PERF-002 SCPI Latency Sample" line="50">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:30.838240" level="INFO">PERF-002 PASS: 30 samples
+Metrics: {"scpi_idn_avg_ms": 202.02427333333335, "scpi_idn_count": 30, "scpi_idn_max_ms": 214.6234, "scpi_idn_min_ms": 190.4291, "scpi_idn_p50_ms": 201.80825, "scpi_idn_p95_ms": 214.140665, "scpi_idn_p99_ms": 214.558614}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:56:23.436567" elapsed="7.402170"/>
+</kw>
+<arg>PERF-002</arg>
+<arg>SCPI latency sample</arg>
+<arg>test_scpi_latency</arg>
+<status status="PASS" start="2026-07-16T14:56:23.435639" elapsed="7.403336"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:33.530265" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:30.840942" elapsed="2.690438">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:30.840195" elapsed="2.691535">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>PERF-002</tag>
+<tag>performance</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<tag>scpi</tag>
+<status status="FAIL" start="2026-07-16T14:56:23.409238" elapsed="10.123005">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t12" name="MEM-001 Repeated State Heap Stability" line="54">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:42.048545" level="INFO">MEM-001 PASS: heap decline 0 bytes; limit 2048
+Metrics: {"heap_after_bytes": 138832, "heap_before_bytes": 138832, "heap_decline_bytes": 0, "heap_stress_state_avg_ms": 69.669578, "heap_stress_state_count": 100, "heap_stress_state_max_ms": 121.7366, "heap_stress_state_min_ms": 56.5584, "heap_stress_state_p50_ms": 60.73265, "heap_stress_state_p95_ms": 99.37814499999999, "heap_stress_state_p99_ms": 117.80768600000002}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:56:33.580220" elapsed="8.468592"/>
+</kw>
+<arg>MEM-001</arg>
+<arg>Repeated-state heap stability</arg>
+<arg>test_heap_stability</arg>
+<status status="PASS" start="2026-07-16T14:56:33.579300" elapsed="8.469713"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:44.610941" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:42.050653" elapsed="2.561465">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:42.049997" elapsed="2.562464">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>MEM-001</tag>
+<tag>memory</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<tag>stress</tag>
+<status status="FAIL" start="2026-07-16T14:56:33.556058" elapsed="11.056907">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t13" name="STRESS-001 Concurrent HTTP And SCPI Polling" line="58">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:48.665359" level="INFO">STRESS-001 FAIL: AssertionError: Incomplete SCPI state response
+Metrics: {}</msg>
+<msg time="2026-07-16T14:56:48.665687" level="FAIL">STRESS-001 Concurrent HTTP and SCPI polling: AssertionError: Incomplete SCPI state response</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="FAIL" start="2026-07-16T14:56:44.632731" elapsed="4.034222">STRESS-001 Concurrent HTTP and SCPI polling: AssertionError: Incomplete SCPI state response</status>
+</kw>
+<arg>STRESS-001</arg>
+<arg>Concurrent HTTP and SCPI polling</arg>
+<arg>test_concurrent_polling</arg>
+<status status="FAIL" start="2026-07-16T14:56:44.631935" elapsed="4.035349">STRESS-001 Concurrent HTTP and SCPI polling: AssertionError: Incomplete SCPI state response</status>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:51.217951" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:48.669174" elapsed="2.549985">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:48.668438" elapsed="2.551020">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>http</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<tag>scpi</tag>
+<tag>stress</tag>
+<tag>STRESS-001</tag>
+<status status="FAIL" start="2026-07-16T14:56:44.622379" elapsed="6.598298">STRESS-001 Concurrent HTTP and SCPI polling: AssertionError: Incomplete SCPI state response
+
+Also teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t14" name="FILES-001 Calibration Bundle Download" line="62">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:51.345072" level="INFO">FILES-001 PASS: HTTP 200, 2661 bytes
+Metrics: {"calibration_bundle_bytes": 2661, "calibration_bundle_ms": 81.2502}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:56:51.237998" elapsed="0.107335"/>
+</kw>
+<arg>FILES-001</arg>
+<arg>Calibration bundle download</arg>
+<arg>test_calibration_bundle_download</arg>
+<status status="PASS" start="2026-07-16T14:56:51.237281" elapsed="0.108258"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:53.918908" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:51.347161" elapsed="2.572924">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:51.346623" elapsed="2.573874">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>calibration</tag>
+<tag>e-resistor</tag>
+<tag>files</tag>
+<tag>FILES-001</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<status status="FAIL" start="2026-07-16T14:56:51.229622" elapsed="2.691418">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t15" name="LOG-001 Log Text Export" line="66">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:54.016338" level="INFO">LOG-001 PASS: HTTP 200, content-type=text/plain; charset=utf-8
+Metrics: {"log_download_bytes": 1569, "log_download_ms": 52.8722}</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="PASS" start="2026-07-16T14:56:53.940420" elapsed="0.076186"/>
+</kw>
+<arg>LOG-001</arg>
+<arg>Log text export</arg>
+<arg>test_log_download</arg>
+<status status="PASS" start="2026-07-16T14:56:53.939624" elapsed="0.077196"/>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:56.583271" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:54.018437" elapsed="2.565651">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:54.017728" elapsed="2.566609">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>files</tag>
+<tag>LOG-001</tag>
+<tag>logs</tag>
+<tag>regression</tag>
+<tag>safe-output</tag>
+<status status="FAIL" start="2026-07-16T14:56:53.930757" elapsed="2.654025">Teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t16" name="SAFE-001 Zero Mask Command Path" line="70">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:56:57.380249" level="INFO">SAFE-001 FAIL: apply='OK'
+Metrics: {"zero_profile_apply_ms": 248.6661, "zero_profile_verify_ms": 199.9352}</msg>
+<msg time="2026-07-16T14:56:57.380677" level="FAIL">SAFE-001 Zero-mask command path: apply='OK'</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="FAIL" start="2026-07-16T14:56:56.602287" elapsed="0.780017">SAFE-001 Zero-mask command path: apply='OK'</status>
+</kw>
+<arg>SAFE-001</arg>
+<arg>Zero-mask command path</arg>
+<arg>test_zero_mask_command_path</arg>
+<status status="FAIL" start="2026-07-16T14:56:56.601576" elapsed="0.781084">SAFE-001 Zero-mask command path: apply='OK'</status>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:56:59.925825" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:56:57.384507" elapsed="2.542336">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:56:57.383792" elapsed="2.543338">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>output</tag>
+<tag>regression</tag>
+<tag>SAFE-001</tag>
+<tag>safe-output</tag>
+<tag>safety</tag>
+<status status="FAIL" start="2026-07-16T14:56:56.593411" elapsed="3.334139">SAFE-001 Zero-mask command path: apply='OK'
+
+Also teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<test id="s1-t17" name="SAFE-002 Repeated All Off Command Path" line="74">
+<kw name="Run Regression Check" owner="common">
+<kw name="Run E-Resistor Regression Check" owner="EResistor">
+<msg time="2026-07-16T14:57:04.909058" level="INFO">SAFE-002 FAIL: responses=['OK']
+Metrics: {"all_off_avg_ms": 209.19987999999998, "all_off_count": 20, "all_off_max_ms": 235.4238, "all_off_min_ms": 201.0098, "all_off_p50_ms": 204.31895, "all_off_p95_ms": 222.723155, "all_off_p99_ms": 232.883671}</msg>
+<msg time="2026-07-16T14:57:04.909442" level="FAIL">SAFE-002 Repeated all-off command path: responses=['OK']</msg>
+<arg>${test_id}</arg>
+<arg>${name}</arg>
+<arg>${method}</arg>
+<status status="FAIL" start="2026-07-16T14:56:59.945824" elapsed="4.964978">SAFE-002 Repeated all-off command path: responses=['OK']</status>
+</kw>
+<arg>SAFE-002</arg>
+<arg>Repeated all-off command path</arg>
+<arg>test_repeated_all_off</arg>
+<status status="FAIL" start="2026-07-16T14:56:59.945137" elapsed="4.965992">SAFE-002 Repeated all-off command path: responses=['OK']</status>
+</kw>
+<kw name="Safety Cleanup" owner="common" type="TEARDOWN">
+<kw name="Safety Cleanup After Test" owner="EResistor">
+<msg time="2026-07-16T14:57:07.435219" level="FAIL">Unable to verify ALL:OFF after 3 attempt(s)</msg>
+<status status="FAIL" start="2026-07-16T14:57:04.913038" elapsed="2.523628">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<status status="FAIL" start="2026-07-16T14:57:04.912255" elapsed="2.524800">Unable to verify ALL:OFF after 3 attempt(s)</status>
+</kw>
+<tag>e-resistor</tag>
+<tag>output</tag>
+<tag>regression</tag>
+<tag>SAFE-002</tag>
+<tag>safe-output</tag>
+<tag>safety</tag>
+<status status="FAIL" start="2026-07-16T14:56:59.936898" elapsed="7.500650">SAFE-002 Repeated all-off command path: responses=['OK']
+
+Also teardown failed:
+Unable to verify ALL:OFF after 3 attempt(s)</status>
+</test>
+<kw name="Finalize Regression Profile" owner="common" type="TEARDOWN">
+<kw name="Finalize E-Resistor Regression Suite" owner="EResistor">
+<msg time="2026-07-16T14:57:10.664651" level="INFO">Regression evidence finalized: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\results\robot\G0-safe_output-20260716T115504Z\e_resistor_evidence\safe_output\report.md</msg>
+<status status="PASS" start="2026-07-16T14:57:07.447998" elapsed="3.216906"/>
+</kw>
+<status status="PASS" start="2026-07-16T14:57:07.447536" elapsed="3.217532"/>
+</kw>
+<doc>Read-only regression plus explicitly authorized zero-mask and repeated ALL:OFF paths.</doc>
+<meta name="Gate">G0</meta>
+<meta name="Host">192.168.0.55</meta>
+<meta name="Profile">safe_output</meta>
+<status status="FAIL" start="2026-07-16T14:55:28.486517" elapsed="102.178632"/>
+</suite>
+<statistics>
+<total>
+<stat pass="0" fail="17" skip="0">All Tests</stat>
+</total>
+<tag>
+<stat pass="0" fail="2" skip="0">calibration</stat>
+<stat pass="0" fail="17" skip="0">e-resistor</stat>
+<stat pass="0" fail="2" skip="0">files</stat>
+<stat pass="0" fail="1" skip="0">FILES-001</stat>
+<stat pass="0" fail="1" skip="0">gui</stat>
+<stat pass="0" fail="5" skip="0">http</stat>
+<stat pass="0" fail="1" skip="0">HTTP-001</stat>
+<stat pass="0" fail="1" skip="0">HTTP-002</stat>
+<stat pass="0" fail="1" skip="0">HTTP-003</stat>
+<stat pass="0" fail="1" skip="0">LOG-001</stat>
+<stat pass="0" fail="1" skip="0">logs</stat>
+<stat pass="0" fail="1" skip="0">MEM-001</stat>
+<stat pass="0" fail="1" skip="0">memory</stat>
+<stat pass="0" fail="2" skip="0">negative</stat>
+<stat pass="0" fail="1" skip="0">NET-001</stat>
+<stat pass="0" fail="1" skip="0">network</stat>
+<stat pass="0" fail="2" skip="0">output</stat>
+<stat pass="0" fail="1" skip="0">PERF-001</stat>
+<stat pass="0" fail="1" skip="0">PERF-002</stat>
+<stat pass="0" fail="2" skip="0">performance</stat>
+<stat pass="0" fail="17" skip="0">regression</stat>
+<stat pass="0" fail="1" skip="0">SAFE-001</stat>
+<stat pass="0" fail="1" skip="0">SAFE-002</stat>
+<stat pass="0" fail="17" skip="0">safe-output</stat>
+<stat pass="0" fail="2" skip="0">safety</stat>
+<stat pass="0" fail="7" skip="0">scpi</stat>
+<stat pass="0" fail="1" skip="0">SCPI-001</stat>
+<stat pass="0" fail="1" skip="0">SCPI-002</stat>
+<stat pass="0" fail="1" skip="0">SCPI-003</stat>
+<stat pass="0" fail="1" skip="0">SCPI-004</stat>
+<stat pass="0" fail="1" skip="0">SCPI-005</stat>
+<stat pass="0" fail="2" skip="0">state</stat>
+<stat pass="0" fail="2" skip="0">stress</stat>
+<stat pass="0" fail="1" skip="0">STRESS-001</stat>
+</tag>
+<suite>
+<stat name="E-Resistor G0 safe_output" id="s1" pass="0" fail="17" skip="0">E-Resistor G0 safe_output</stat>
+</suite>
+</statistics>
+<errors>
+</errors>
+</robot>

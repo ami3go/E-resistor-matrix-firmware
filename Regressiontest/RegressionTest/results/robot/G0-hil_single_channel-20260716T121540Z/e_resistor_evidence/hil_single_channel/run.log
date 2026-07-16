@@ -1,0 +1,51 @@
+2026-07-16 15:16:13,366 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:16:16,218 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:16:18,913 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:16:22,961 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:16:26,268 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:16:29,760 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:16:32,852 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:16:36,566 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:16:39,841 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:16:47,622 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:16:57,261 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:07,737 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:11,869 ERROR Robot regression check STRESS-001 failed
+Traceback (most recent call last):
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\robot_framework\libraries\e_resistor_robot_library.py", line 400, in run_regression_check
+    status, message, metrics, details = method()
+                                        ~~~~~~^^
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 345, in test_concurrent_polling
+    scpi_values = scpi_future.result()
+  File "C:\Program Files\Python313\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Program Files\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Program Files\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 337, in scpi_worker
+    raise AssertionError("Incomplete SCPI state response")
+AssertionError: Incomplete SCPI state response
+2026-07-16 15:17:14,613 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:17,235 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:19,973 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:20,833 ERROR Robot regression check HIL-001 failed
+Traceback (most recent call last):
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\robot_framework\libraries\e_resistor_robot_library.py", line 400, in run_regression_check
+    status, message, metrics, details = method()
+                                        ~~~~~~^^
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 528, in test_hil_fixture_discovery
+    self._hil_all_off_verified()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 424, in _hil_all_off_verified
+    raise RuntimeError(f"ALL:OFF verification failed: {state}")
+RuntimeError: ALL:OFF verification failed: {}
+2026-07-16 15:17:23,383 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:26,145 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:28,742 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:31,398 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:34,070 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:36,701 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:39,298 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 15:17:41,857 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]

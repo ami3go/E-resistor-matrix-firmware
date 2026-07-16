@@ -1,0 +1,17 @@
+2026-07-16 11:37:58,676 ERROR Robot regression check STRESS-001 failed
+Traceback (most recent call last):
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\robot_framework\libraries\e_resistor_robot_library.py", line 382, in run_regression_check
+    status, message, metrics, details = method()
+                                        ~~~~~~^^
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 329, in test_concurrent_polling
+    scpi_values = scpi_future.result()
+  File "C:\Program Files\Python313\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Program Files\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Program Files\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 321, in scpi_worker
+    raise AssertionError("Incomplete SCPI state response")
+AssertionError: Incomplete SCPI state response

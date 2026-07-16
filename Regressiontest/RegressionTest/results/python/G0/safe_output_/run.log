@@ -1,0 +1,74 @@
+2026-07-16 12:04:37,476 INFO NET-001 PASS TCP reachability — HTTP and SCPI ports reachable
+2026-07-16 12:04:37,679 INFO HTTP-001 PASS HTTP ping — HTTP 200, body='pong'
+2026-07-16 12:04:37,765 WARNING HTTP-002 FAIL State schema and readiness — {"channel_count": 0, "missing": [], "readiness_failures": []}
+2026-07-16 12:04:39,201 INFO HTTP-003 PASS Required GUI pages — 9 pages valid
+2026-07-16 12:04:39,899 INFO SCPI-001 PASS SCPI identity and greeting — OpenBench,E-Resistor,E66178758B3E742A,0.4.4
+2026-07-16 12:04:40,694 WARNING SCPI-002 FAIL SCPI status and state consistency — mismatches=[]
+2026-07-16 12:04:41,229 INFO SCPI-003 PASS Calibration table integrity — 8 x 16 table valid
+2026-07-16 12:04:42,410 INFO SCPI-004 PASS Undefined-header error queue — invalid='ERR,-113,"Undefined header"', error='-113,"Undefined header"', cleared='0,"No error"'
+2026-07-16 12:04:43,124 INFO SCPI-005 PASS Oversized-line recovery — recovered=True, overflow='ERR,-350,"Input buffer overflow"\r\nERR,-113,"Undefined header"'
+2026-07-16 12:04:47,724 INFO PERF-001 PASS HTTP latency sample — 30 ping and state samples
+2026-07-16 12:04:54,802 INFO PERF-002 PASS SCPI latency sample — 30 samples
+2026-07-16 12:05:02,451 INFO MEM-001 PASS Repeated-state heap stability — heap decline 0 bytes; limit 2048
+2026-07-16 12:05:06,805 ERROR Test STRESS-001 failed with exception
+Traceback (most recent call last):
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 47, in add
+    status, message, metrics, details = function()
+                                        ~~~~~~~~^^
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 329, in test_concurrent_polling
+    scpi_values = scpi_future.result()
+  File "C:\Program Files\Python313\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Program Files\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Program Files\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 321, in scpi_worker
+    raise AssertionError("Incomplete SCPI state response")
+AssertionError: Incomplete SCPI state response
+2026-07-16 12:05:06,917 WARNING STRESS-001 FAIL Concurrent HTTP and SCPI polling — AssertionError: Incomplete SCPI state response
+2026-07-16 12:05:07,062 INFO FILES-001 PASS Calibration bundle download — HTTP 200, 2661 bytes
+2026-07-16 12:05:07,139 INFO LOG-001 PASS Log text export — HTTP 200, content-type=text/plain; charset=utf-8
+2026-07-16 12:05:07,892 WARNING SAFE-001 FAIL Zero-mask command path — apply='OK'
+2026-07-16 12:05:12,874 WARNING SAFE-002 FAIL Repeated all-off command path — responses=['OK']
+2026-07-16 12:05:13,351 INFO Cleanup ALL:OFF response: OK
+2026-07-16 12:05:13,531 INFO Overall FAIL: PASS=12 FAIL=5 SKIP=0
+2026-07-16 12:05:13,532 INFO Report: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\results\python\G0\safe_output_\report.md
+2026-07-16 12:48:27,357 INFO NET-001 PASS TCP reachability — HTTP and SCPI ports reachable
+2026-07-16 12:48:27,518 INFO HTTP-001 PASS HTTP ping — HTTP 200, body='pong'
+2026-07-16 12:48:27,600 WARNING HTTP-002 FAIL State schema and readiness — {"channel_count": 0, "missing": [], "readiness_failures": []}
+2026-07-16 12:48:29,015 INFO HTTP-003 PASS Required GUI pages — 9 pages valid
+2026-07-16 12:48:29,706 INFO SCPI-001 PASS SCPI identity and greeting — OpenBench,E-Resistor,E66178758B3E742A,0.4.4
+2026-07-16 12:48:30,479 WARNING SCPI-002 FAIL SCPI status and state consistency — mismatches=[]
+2026-07-16 12:48:31,011 INFO SCPI-003 PASS Calibration table integrity — 8 x 16 table valid
+2026-07-16 12:48:32,118 INFO SCPI-004 PASS Undefined-header error queue — invalid='ERR,-113,"Undefined header"', error='-113,"Undefined header"', cleared='0,"No error"'
+2026-07-16 12:48:32,848 INFO SCPI-005 PASS Oversized-line recovery — recovered=True, overflow='ERR,-350,"Input buffer overflow"\r\nERR,-113,"Undefined header"'
+2026-07-16 12:48:37,056 INFO PERF-001 PASS HTTP latency sample — 30 ping and state samples
+2026-07-16 12:48:43,860 INFO PERF-002 PASS SCPI latency sample — 30 samples
+2026-07-16 12:48:51,179 INFO MEM-001 PASS Repeated-state heap stability — heap decline 0 bytes; limit 2048
+2026-07-16 12:48:55,017 ERROR Test STRESS-001 failed with exception
+Traceback (most recent call last):
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 48, in add
+    status, message, metrics, details = function()
+                                        ~~~~~~~~^^
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 345, in test_concurrent_polling
+    scpi_values = scpi_future.result()
+  File "C:\Program Files\Python313\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Program Files\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Program Files\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\e_resistor_regression\suite.py", line 337, in scpi_worker
+    raise AssertionError("Incomplete SCPI state response")
+AssertionError: Incomplete SCPI state response
+2026-07-16 12:48:55,022 WARNING STRESS-001 FAIL Concurrent HTTP and SCPI polling — AssertionError: Incomplete SCPI state response
+2026-07-16 12:48:55,165 INFO FILES-001 PASS Calibration bundle download — HTTP 200, 2661 bytes
+2026-07-16 12:48:55,225 INFO LOG-001 PASS Log text export — HTTP 200, content-type=text/plain; charset=utf-8
+2026-07-16 12:48:55,954 WARNING SAFE-001 FAIL Zero-mask command path — apply='OK'
+2026-07-16 12:49:00,846 WARNING SAFE-002 FAIL Repeated all-off command path — responses=['OK']
+2026-07-16 12:49:03,334 CRITICAL Unable to verify ALL:OFF after 3 attempt(s): ["attempt 1: response='OK', state={}", "attempt 2: response='OK', state={}", "attempt 3: response='OK', state={}"]
+2026-07-16 12:49:03,515 INFO Overall FAIL: PASS=12 FAIL=6 SKIP=0
+2026-07-16 12:49:03,515 INFO Report: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\results\python\G0\safe_output_\report.md

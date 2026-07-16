@@ -1,0 +1,88 @@
+usage: run_robot.py [-h]
+                    [--profile {hil_single_channel,read_only,safe_output,source_build}]
+                    [--gate {G0,G1,G2,G3,G4,G5,G6,G7,G8,G9}] [--output OUTPUT]
+                    [--host HOST] [--http-port HTTP_PORT]
+                    [--scpi-port SCPI_PORT] [--timeout TIMEOUT]
+                    [--iterations ITERATIONS]
+                    [--stress-iterations STRESS_ITERATIONS]
+                    [--heap-drift-limit HEAP_DRIFT_LIMIT]
+                    [--latency-regression-percent LATENCY_REGRESSION_PERCENT]
+                    [--source-dir SOURCE_DIR] [--baseline BASELINE]
+                    [--gate-manifest GATE_MANIFEST]
+                    [--arduino-cli ARDUINO_CLI] [--fqbn FQBN]
+                    [--allow-output-tests] [--allow-active-output-tests]
+                    [--allow-storage-tests] [--allow-ota-tests]
+                    [--allow-watchdog-tests]
+                    [--fixture-confirmation FIXTURE_CONFIRMATION]
+                    [--serial-port SERIAL_PORT] [--serial-baud SERIAL_BAUD]
+                    [--serial-match SERIAL_MATCH]
+                    [--dmm-resource DMM_RESOURCE]
+                    [--dmm-idn-contains DMM_IDN_CONTAINS]
+                    [--dmm-backend DMM_BACKEND]
+                    [--dmm-init-commands DMM_INIT_COMMANDS]
+                    [--dmm-measure-command DMM_MEASURE_COMMAND]
+                    [--hil-channel {1,2,3,4,5,6,7,8}] [--hil-bits HIL_BITS]
+                    [--hil-combination-masks HIL_COMBINATION_MASKS]
+                    [--hil-repeat-cycles HIL_REPEAT_CYCLES]
+                    [--hil-error-limit-percent HIL_ERROR_LIMIT_PERCENT]
+                    [--hil-settle-timeout HIL_SETTLE_TIMEOUT]
+                    [--hil-sample-count HIL_SAMPLE_COUNT]
+                    [--hil-sample-interval HIL_SAMPLE_INTERVAL]
+                    [--hil-stability-percent HIL_STABILITY_PERCENT]
+                    [--hil-minimum-wait HIL_MINIMUM_WAIT]
+                    [--hil-off-min-ohm HIL_OFF_MIN_OHM]
+                    [--hil-serial-fault-patterns HIL_SERIAL_FAULT_PATTERNS]
+                    [--verbose] [--include INCLUDE] [--exclude EXCLUDE]
+                    [--robot-arg ROBOT_ARG]
+
+Run E-Resistor regression using Robot Framework
+
+options:
+  -h, --help            show this help message and exit
+  --profile {hil_single_channel,read_only,safe_output,source_build}
+  --gate {G0,G1,G2,G3,G4,G5,G6,G7,G8,G9}
+  --output OUTPUT
+  --host HOST
+  --http-port HTTP_PORT
+  --scpi-port SCPI_PORT
+  --timeout TIMEOUT
+  --iterations ITERATIONS
+  --stress-iterations STRESS_ITERATIONS
+  --heap-drift-limit HEAP_DRIFT_LIMIT
+  --latency-regression-percent LATENCY_REGRESSION_PERCENT
+  --source-dir SOURCE_DIR
+  --baseline BASELINE
+  --gate-manifest GATE_MANIFEST
+  --arduino-cli ARDUINO_CLI
+  --fqbn FQBN
+  --allow-output-tests
+  --allow-active-output-tests
+  --allow-storage-tests
+  --allow-ota-tests
+  --allow-watchdog-tests
+  --fixture-confirmation FIXTURE_CONFIRMATION
+  --serial-port SERIAL_PORT
+  --serial-baud SERIAL_BAUD
+  --serial-match SERIAL_MATCH
+  --dmm-resource DMM_RESOURCE
+  --dmm-idn-contains DMM_IDN_CONTAINS
+  --dmm-backend DMM_BACKEND
+  --dmm-init-commands DMM_INIT_COMMANDS
+  --dmm-measure-command DMM_MEASURE_COMMAND
+  --hil-channel {1,2,3,4,5,6,7,8}
+  --hil-bits HIL_BITS
+  --hil-combination-masks HIL_COMBINATION_MASKS
+  --hil-repeat-cycles HIL_REPEAT_CYCLES
+  --hil-error-limit-percent HIL_ERROR_LIMIT_PERCENT
+  --hil-settle-timeout HIL_SETTLE_TIMEOUT
+  --hil-sample-count HIL_SAMPLE_COUNT
+  --hil-sample-interval HIL_SAMPLE_INTERVAL
+  --hil-stability-percent HIL_STABILITY_PERCENT
+  --hil-minimum-wait HIL_MINIMUM_WAIT
+  --hil-off-min-ohm HIL_OFF_MIN_OHM
+  --hil-serial-fault-patterns HIL_SERIAL_FAULT_PATTERNS
+  --verbose
+  --include INCLUDE
+  --exclude EXCLUDE
+  --robot-arg ROBOT_ARG
+                        Extra raw Robot option; repeat as needed

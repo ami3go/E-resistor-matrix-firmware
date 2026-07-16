@@ -1,0 +1,9 @@
+
+[hil]
+pyserial>=3.5
+PyVISA>=1.14
+
+[robot]
+robotframework<8.0,>=7.0
+pyserial>=3.5
+PyVISA>=1.14

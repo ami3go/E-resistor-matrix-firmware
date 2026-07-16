@@ -1,0 +1,26 @@
+{
+  "host": "192.168.0.55",
+  "scpi_port": 5025,
+  "serial_port": "COM7",
+  "serial_baud": 115200,
+  "dmm_resource": "USB0::0x0957::0x0607::MY12345678::INSTR",
+  "dmm_idn_contains": "34401",
+  "dmm_init_commands": [
+    "*CLS",
+    "CONF:RES AUTO",
+    "TRIG:SOUR IMM",
+    "SAMP:COUN 1"
+  ],
+  "dmm_measure_command": "READ?",
+  "hil_channel": 1,
+  "hil_bits": "0-15",
+  "hil_combination_masks": "0003,0005,0009",
+  "hil_repeat_cycles": 10,
+  "hil_error_limit_percent": 1.0,
+  "hil_settle_timeout_s": 20.0,
+  "hil_sample_count": 5,
+  "hil_sample_interval_s": 0.25,
+  "hil_stability_percent": 0.2,
+  "hil_minimum_wait_s": 0.5,
+  "hil_off_min_ohm": 50000000.0
+}

@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="E-Resistor regression" tests="15" failures="3" skipped="0"><testcase classname="e_resistor_regression" name="NET-001 TCP reachability" time="0.081278"><system-out>{
+  "http_connect_ms": 58.8644,
+  "scpi_connect_ms": 22.3673
+}</system-out></testcase><testcase classname="e_resistor_regression" name="HTTP-001 HTTP ping" time="0.220920"><system-out>{
+  "http_ping_single_ms": 211.9455
+}</system-out></testcase><testcase classname="e_resistor_regression" name="HTTP-002 State schema and readiness" time="0.102584"><failure message="{&quot;channel_count&quot;: 0, &quot;missing&quot;: [], &quot;readiness_failures&quot;: []}">{
+  "missing": [],
+  "channel_count": 0,
+  "readiness_failures": []
+}</failure><system-out>{
+  "state_request_ms": 53.6559
+}</system-out></testcase><testcase classname="e_resistor_regression" name="HTTP-003 Required GUI pages" time="1.360252"><system-out>{
+  "gui_page_count": 9,
+  "gui_page_avg_ms": 143.83377777777775,
+  "gui_page_p50_ms": 116.8585,
+  "gui_page_p95_ms": 258.35651999999993,
+  "gui_page_p99_ms": 298.814664,
+  "gui_page_max_ms": 308.9292,
+  "gui_page_min_ms": 101.8034,
+  "gui_page_total_bytes": 127514
+}</system-out></testcase><testcase classname="e_resistor_regression" name="SCPI-001 SCPI identity and greeting" time="0.684226"><system-out>{
+  "scpi_idn_ms": 205.699,
+  "scpi_version_ms": 189.6677
+}</system-out></testcase><testcase classname="e_resistor_regression" name="SCPI-002 SCPI status and state consistency" time="0.774956"><failure message="mismatches=[]">{
+  "status": "heap_free=142104,core0_load=31.6,http_count=300,scpi_count=2099,serial=E66178758B3E742A,fw_version=0.4.4,min_ohm=300.000,max_ohm=500000.000,ch1_min_ohm=300.000,ch1_max_ohm=500000.000,ch1_max_bits=16,ch2_min_ohm=300.000,ch2_max_ohm=20000000.000,ch2_max_bits=16,ch3_min_ohm=300.000,ch3_max_ohm=20000000.000,ch3_max_bits=16,ch4_min_ohm=300.000,ch4_max_ohm=20000000.000,ch4_max_bits=16,ch5_min_ohm=300.000,ch5_max_ohm=20000000.000,ch5_max_bits=16,ch6_min_ohm=300.000,ch6_max_ohm=20000000.000,ch6_max_bits=16,ch7_min_ohm=300.000,ch7_max_ohm=20000000.000,ch7_max_bits=16,ch8_min_ohm=300.000,ch8_max_ohm=20000000.000,ch8_max_bits=16,expert=1,core1_ready=1,core1_cmds=1021,core1_overflows=0",
+  "mismatches": []
+}</failure><system-out>{
+  "scpi_status_ms": 206.1281,
+  "scpi_state_ms": 190.3123
+}</system-out></testcase><testcase classname="e_resistor_regression" name="SCPI-003 Calibration table integrity" time="0.538166"><system-out>{
+  "calibration_query_ms": 255.0253,
+  "calibration_response_bytes": 2511
+}</system-out></testcase><testcase classname="e_resistor_regression" name="SCPI-004 Undefined-header error queue" time="1.109300" /><testcase classname="e_resistor_regression" name="SCPI-005 Oversized-line recovery" time="0.723737"><system-out>{
+  "post_overflow_idn_ms": 205.1882
+}</system-out></testcase><testcase classname="e_resistor_regression" name="PERF-001 HTTP latency sample" time="4.282224"><system-out>{
+  "http_ping_count": 30,
+  "http_ping_avg_ms": 60.70723666666667,
+  "http_ping_p50_ms": 58.695750000000004,
+  "http_ping_p95_ms": 82.18473499999989,
+  "http_ping_p99_ms": 99.8862,
+  "http_ping_max_ms": 99.9268,
+  "http_ping_min_ms": 43.1301,
+  "http_state_count": 30,
+  "http_state_avg_ms": 63.60592,
+  "http_state_p50_ms": 58.666700000000006,
+  "http_state_p95_ms": 97.56738999999999,
+  "http_state_p99_ms": 107.49043800000001,
+  "http_state_max_ms": 110.6624,
+  "http_state_min_ms": 54.3937
+}</system-out></testcase><testcase classname="e_resistor_regression" name="PERF-002 SCPI latency sample" time="6.806510"><system-out>{
+  "scpi_idn_count": 30,
+  "scpi_idn_avg_ms": 201.40968,
+  "scpi_idn_p50_ms": 202.60025000000002,
+  "scpi_idn_p95_ms": 218.603795,
+  "scpi_idn_p99_ms": 219.313537,
+  "scpi_idn_max_ms": 219.4599,
+  "scpi_idn_min_ms": 186.9807
+}</system-out></testcase><testcase classname="e_resistor_regression" name="MEM-001 Repeated-state heap stability" time="7.722977"><system-out>{
+  "heap_before_bytes": 138832,
+  "heap_after_bytes": 138832,
+  "heap_decline_bytes": 0,
+  "heap_stress_state_count": 100,
+  "heap_stress_state_avg_ms": 65.969933,
+  "heap_stress_state_p50_ms": 59.605850000000004,
+  "heap_stress_state_p95_ms": 99.41692499999999,
+  "heap_stress_state_p99_ms": 100.28901100000002,
+  "heap_stress_state_max_ms": 100.7455,
+  "heap_stress_state_min_ms": 53.9541
+}</system-out></testcase><testcase classname="e_resistor_regression" name="STRESS-001 Concurrent HTTP and SCPI polling" time="4.127473"><failure message="AssertionError: Incomplete SCPI state response">{
+  "exception_type": "AssertionError",
+  "exception": "AssertionError('Incomplete SCPI state response')"
+}</failure></testcase><testcase classname="e_resistor_regression" name="FILES-001 Calibration bundle download" time="0.096618"><system-out>{
+  "calibration_bundle_bytes": 2661,
+  "calibration_bundle_ms": 90.0231
+}</system-out></testcase><testcase classname="e_resistor_regression" name="LOG-001 Log text export" time="0.114474"><system-out>{
+  "log_download_bytes": 1568,
+  "log_download_ms": 60.2716
+}</system-out></testcase></testsuite>

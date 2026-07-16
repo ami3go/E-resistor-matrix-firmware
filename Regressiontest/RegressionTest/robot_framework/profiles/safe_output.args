@@ -1,0 +1,6 @@
+--loglevel
+INFO
+--console
+verbose
+--metadata
+Safety:Zero-mask and ALL-OFF only

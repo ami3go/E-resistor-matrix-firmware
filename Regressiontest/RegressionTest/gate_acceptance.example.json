@@ -1,0 +1,51 @@
+{
+  "G0": {
+    "description": "Baseline only",
+    "max_source_serial_flush_core1": null,
+    "max_http_handlers_lines": null,
+    "required_symbols": []
+  },
+  "G1": {
+    "description": "Low-risk cleanup",
+    "max_source_serial_flush_core1": 0,
+    "max_http_handlers_lines": null,
+    "required_symbols": ["core1_separate_stack"]
+  },
+  "G2": {
+    "description": "Numeric resistor model",
+    "max_source_serial_flush_core1": 0,
+    "required_symbols": ["TARGET:CALC"],
+    "forbidden_symbols": ["fabsf(logf"]
+  },
+  "G3": {
+    "description": "Dual-core ownership",
+    "max_source_serial_flush_core1": 0,
+    "required_symbols": ["deadlineMs", "generation"]
+  },
+  "G4": {
+    "description": "Two-phase switching",
+    "required_symbols": ["two-phase"]
+  },
+  "G5": {
+    "description": "HTTP and SCPI restructure",
+    "max_http_handlers_lines": 1200,
+    "required_symbols": ["/api/v1/"]
+  },
+  "G6": {
+    "description": "Atomic storage",
+    "required_symbols": ["atomicWrite"]
+  },
+  "G7": {
+    "description": "Single-copy OTA",
+    "forbidden_symbols": ["Update.writeStream"],
+    "required_symbols": ["SHA-256"]
+  },
+  "G8": {
+    "description": "Watchdog",
+    "required_symbols": ["watchdog_enable", "watchdog_update"]
+  },
+  "G9": {
+    "description": "Release hardening",
+    "required_symbols": ["/api/v1/"]
+  }
+}
