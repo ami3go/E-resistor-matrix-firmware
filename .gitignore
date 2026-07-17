@@ -31,3 +31,7 @@
 *.out
 *.app
 *.zip
+/Regressiontest/RegressionTest/baselines
+/Regressiontest/RegressionTest/e_resistor_regression.egg-info
+/Regressiontest/RegressionTest/e_resistor_regression/__pycache__
+/Regressiontest/RegressionTest/results
