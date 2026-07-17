@@ -4,12 +4,12 @@
 
 | Profile | Suite | Robot tests |
 |---|---|---:|
-| Read only | `robot_framework/suites/read_only.robot` | 15 |
-| Safe output | `robot_framework/suites/safe_output.robot` | 17 |
-| Single-channel HIL | `robot_framework/suites/hil_single_channel.robot` | 22 |
-| Source/build | `robot_framework/suites/source_build.robot` | 2 |
+| Read only | `robot_framework/suites/read_only.robot` | 16 |
+| Safe output | `robot_framework/suites/safe_output.robot` | 18 |
+| Single-channel HIL | `robot_framework/suites/hil_single_channel.robot` | 24 |
+| Source checks | `robot_framework/suites/source_check.robot` | 1 |
 
-The suite directory contains 56 Robot test definitions. Profiles are normally executed separately, so repeated base tests are intentional.
+The suite directory contains 59 Robot test definitions. Profiles are normally executed separately, so repeated base tests are intentional.
 
 ## Reused implementation
 
@@ -34,13 +34,13 @@ Robot test cases call the existing methods in `e_resistor_regression.suite.Regre
 ## Validation completed
 
 - Python compilation passed.
-- Existing and new offline tests passed: 16/16.
-- Robot Framework dry run passed: 56/56 test definitions.
-- A live offline source-profile execution passed and produced Robot and legacy evidence.
+- Python unit and package-layout tests passed: 36/36.
+- Robot Framework dry run passed: 59/59 test definitions.
+- A live offline `source_check` execution passed and produced Robot and legacy evidence without invoking a firmware compiler.
 - A deliberately unreachable-device run produced 15 individual Robot failures and still finalized complete failure evidence.
 
 Actual Ethernet/COM/DMM HIL execution remains to be run on the user's physical bench.
 
 ## Packaging convention
 
-Package release **2.5.1** uses a descriptive, versioned ZIP filename while retaining the fixed internal root folder `RegressionTest/`. Future package releases must keep this internal folder name unchanged.
+Package release **2.5.2** uses a descriptive, versioned ZIP filename while retaining the fixed internal root folder `RegressionTest/`. Future package releases must keep this internal folder name unchanged.

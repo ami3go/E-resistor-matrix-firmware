@@ -58,8 +58,6 @@ def get_variables() -> dict[str, Any]:
         "SOURCE_DIR": _env("SOURCE_DIR", ""),
         "BASELINE": _env("BASELINE", ""),
         "GATE_MANIFEST": _env("GATE_MANIFEST", ""),
-        "ARDUINO_CLI": _env("ARDUINO_CLI", "arduino-cli"),
-        "FQBN": _env("FQBN", ""),
         "ALLOW_OUTPUT_TESTS": _bool("ALLOW_OUTPUT_TESTS", False),
         "ALLOW_ACTIVE_OUTPUT_TESTS": _bool("ALLOW_ACTIVE_OUTPUT_TESTS", False),
         "ALLOW_STORAGE_TESTS": _bool("ALLOW_STORAGE_TESTS", False),

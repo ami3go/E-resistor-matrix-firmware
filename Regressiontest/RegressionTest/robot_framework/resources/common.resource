@@ -25,8 +25,6 @@ Initialize Regression Profile
     ...    allow_storage_tests=${ALLOW_STORAGE_TESTS}
     ...    allow_ota_tests=${ALLOW_OTA_TESTS}
     ...    allow_watchdog_tests=${ALLOW_WATCHDOG_TESTS}
-    ...    arduino_cli=${ARDUINO_CLI}
-    ...    fqbn=${FQBN}
     ...    serial_port=${SERIAL_PORT}
     ...    serial_baud=${SERIAL_BAUD}
     ...    serial_match=${SERIAL_MATCH}

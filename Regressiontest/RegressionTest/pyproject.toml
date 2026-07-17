@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "e-resistor-regression"
-version = "2.5.1"
+version = "2.5.2"
 description = "Gate-based Python and Robot Framework regression harness for E-Resistor firmware"
 requires-python = ">=3.10"
 dependencies = []

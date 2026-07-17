@@ -1,0 +1,6 @@
+--loglevel
+INFO
+--console
+verbose
+--metadata
+Profile:Offline source checks

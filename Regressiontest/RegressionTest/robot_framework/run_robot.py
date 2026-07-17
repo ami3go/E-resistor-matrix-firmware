@@ -14,7 +14,7 @@ SUITES = {
     "read_only": RF_ROOT / "suites" / "read_only.robot",
     "safe_output": RF_ROOT / "suites" / "safe_output.robot",
     "hil_single_channel": RF_ROOT / "suites" / "hil_single_channel.robot",
-    "source_build": RF_ROOT / "suites" / "source_build.robot",
+    "source_check": RF_ROOT / "suites" / "source_check.robot",
 }
 
 
@@ -36,8 +36,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--source-dir", default="")
     parser.add_argument("--baseline", default="")
     parser.add_argument("--gate-manifest", default="")
-    parser.add_argument("--arduino-cli", default="arduino-cli")
-    parser.add_argument("--fqbn", default="")
     parser.add_argument("--allow-output-tests", action="store_true")
     parser.add_argument("--allow-active-output-tests", action="store_true")
     parser.add_argument("--allow-storage-tests", action="store_true")
@@ -88,8 +86,8 @@ def main(argv: list[str] | None = None) -> int:
                 "hil_single_channel requires --fixture-confirmation "
                 "E_RESISTOR_SINGLE_CHANNEL_DMM"
             )
-    if args.profile == "source_build" and not args.source_dir:
-        raise SystemExit("source_build requires --source-dir")
+    if args.profile == "source_check" and not args.source_dir:
+        raise SystemExit("source_check requires --source-dir")
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     output_dir = Path(args.output).expanduser().resolve() / f"{args.gate}-{args.profile}-{timestamp}"
@@ -109,8 +107,6 @@ def main(argv: list[str] | None = None) -> int:
         "SOURCE_DIR": args.source_dir,
         "BASELINE": args.baseline,
         "GATE_MANIFEST": args.gate_manifest,
-        "ARDUINO_CLI": args.arduino_cli,
-        "FQBN": args.fqbn,
         "ALLOW_OUTPUT_TESTS": args.allow_output_tests,
         "ALLOW_ACTIVE_OUTPUT_TESTS": args.allow_active_output_tests,
         "ALLOW_STORAGE_TESTS": args.allow_storage_tests,

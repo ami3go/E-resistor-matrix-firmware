@@ -4,7 +4,6 @@ import argparse
 import json
 import os
 import platform
-import shutil
 import sys
 import uuid
 from dataclasses import asdict
@@ -12,7 +11,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__ as REGRESSION_PACKAGE_VERSION
-from .build_check import run_arduino_build
 from .coverage import (
     coverage_counts,
     evaluate_coverage,
@@ -49,9 +47,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--allow-storage-tests", action="store_true")
     parser.add_argument("--allow-ota-tests", action="store_true")
     parser.add_argument("--allow-watchdog-tests", action="store_true")
-    parser.add_argument("--arduino-cli")
-    parser.add_argument("--fqbn")
-    parser.add_argument("--skip-device", action="store_true", help="Run only source/build checks; do not contact hardware")
+    parser.add_argument("--skip-device", action="store_true", help="Run only offline source checks; do not contact hardware")
     parser.add_argument("--serial-port", default="auto", help="RP2040 USB CDC/COM port, or auto")
     parser.add_argument("--serial-baud", type=int, default=115200)
     parser.add_argument("--serial-match", default="", help="Substring used for COM-port auto-selection")
@@ -134,8 +130,6 @@ def main(argv: list[str] | None = None) -> int:
         allow_storage_tests=args.allow_storage_tests,
         allow_ota_tests=args.allow_ota_tests,
         allow_watchdog_tests=args.allow_watchdog_tests,
-        arduino_cli=args.arduino_cli,
-        fqbn=args.fqbn,
         skip_device=args.skip_device,
         serial_port=args.serial_port,
         serial_baud=max(1, args.serial_baud),
@@ -187,28 +181,25 @@ def main(argv: list[str] | None = None) -> int:
 
     source_metrics = None
     source_results: list[TestResult] = []
-    build_result = None
     if args.source_dir:
         source_dir = Path(args.source_dir).resolve()
         source_metrics = scan_source(source_dir)
         (output_dir / "source_metrics.json").write_text(json.dumps(source_metrics, indent=2, sort_keys=True), encoding="utf-8")
         manifest_path = Path(args.gate_manifest).resolve() if args.gate_manifest else None
         checks = evaluate_gate_expectations(source_metrics, source_dir, args.gate, manifest_path)
+        if not checks:
+            checks = [{
+                "name": "Source scan completed",
+                "passed": source_metrics.get("file_count", 0) > 0,
+                "actual": source_metrics.get("file_count", 0),
+                "expected": ">= 1 source file",
+            }]
         for index, check in enumerate(checks, start=1):
             source_results.append(TestResult(
                 f"SRC-{index:03d}", check["name"], "PASS" if check["passed"] else "FAIL", 0.0,
                 f"actual={check['actual']!r}, expected={check['expected']!r}", details=check,
             ))
 
-        if args.arduino_cli and args.fqbn:
-            cli_path = shutil.which(args.arduino_cli) or args.arduino_cli
-            build_result = run_arduino_build(cli_path, args.fqbn, source_dir, output_dir)
-            source_results.append(TestResult(
-                "BUILD-001", "Arduino CLI compilation", "PASS" if build_result["passed"] else "FAIL", 0.0,
-                f"returncode={build_result['returncode']}, warnings={build_result['warnings']}, errors={build_result['errors']}",
-                metrics={key: value for key, value in build_result.items() if isinstance(value, (int, float))},
-                details=build_result,
-            ))
 
     runtime_results: list[TestResult] = []
     if not args.skip_device:
@@ -231,7 +222,6 @@ def main(argv: list[str] | None = None) -> int:
         "results": [item.to_dict() for item in results],
         "flat_metrics": flatten_metrics(results),
         "source_metrics": source_metrics,
-        "build": build_result,
     }
     baseline_path = Path(args.baseline).resolve() if args.baseline else None
     comparisons = compare_baseline(summary, baseline_path, config.latency_regression_percent)

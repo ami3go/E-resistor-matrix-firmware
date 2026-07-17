@@ -4,7 +4,6 @@ import json
 import math
 import os
 import platform
-import shutil
 import sys
 import time
 import uuid
@@ -19,7 +18,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from e_resistor_regression import __version__ as REGRESSION_PACKAGE_VERSION
-from e_resistor_regression.build_check import run_arduino_build
 from e_resistor_regression.coverage import (
     coverage_counts,
     evaluate_coverage,
@@ -84,7 +82,7 @@ class EResistorRobotLibrary:
     and then converts PASS/FAIL/SKIP into Robot Framework status.
     """
 
-    ROBOT_LIBRARY_VERSION = "2.5.1"
+    ROBOT_LIBRARY_VERSION = "2.5.2"
 
     def __init__(self) -> None:
         self.initialized = False
@@ -97,7 +95,6 @@ class EResistorRobotLibrary:
         self.suite: RegressionSuite | None = None
         self.results: list[TestResult] = []
         self.source_metrics: dict[str, Any] | None = None
-        self.build_result: dict[str, Any] | None = None
         self.baseline_path: Path | None = None
         self.gate_manifest_path: Path | None = None
 
@@ -126,8 +123,6 @@ class EResistorRobotLibrary:
         allow_storage_tests: bool = False,
         allow_ota_tests: bool = False,
         allow_watchdog_tests: bool = False,
-        arduino_cli: str = "",
-        fqbn: str = "",
         serial_port: str = "auto",
         serial_baud: int = 115200,
         serial_match: str = "",
@@ -159,7 +154,7 @@ class EResistorRobotLibrary:
         if gate not in {f"G{i}" for i in range(10)}:
             raise AssertionError(f"Unsupported optimization gate: {gate!r}")
         if profile not in {
-            "read_only", "safe_output", "hil_single_channel", "source_build",
+            "read_only", "safe_output", "hil_single_channel", "source_check",
             "active_output", "storage", "ota", "watchdog",
         }:
             raise AssertionError(f"Unsupported regression profile: {profile!r}")
@@ -211,9 +206,7 @@ class EResistorRobotLibrary:
             allow_storage_tests=self._to_bool(allow_storage_tests),
             allow_ota_tests=self._to_bool(allow_ota_tests),
             allow_watchdog_tests=self._to_bool(allow_watchdog_tests),
-            arduino_cli=str(arduino_cli).strip() or None,
-            fqbn=str(fqbn).strip() or None,
-            skip_device=(profile == "source_build"),
+            skip_device=(profile == "source_check"),
             serial_port=str(serial_port),
             serial_baud=max(1, int(serial_baud)),
             serial_match=str(serial_match),
@@ -298,7 +291,6 @@ class EResistorRobotLibrary:
                 "results": [item.to_dict() for item in all_results],
                 "flat_metrics": flatten_metrics(all_results),
                 "source_metrics": self.source_metrics,
-                "build": self.build_result,
             }
             comparisons = compare_baseline(
                 summary,
@@ -413,7 +405,7 @@ class EResistorRobotLibrary:
         return result.to_dict()
 
     # ------------------------------------------------------------------
-    # Source/build regression adapter
+    # Offline source regression adapter
     # ------------------------------------------------------------------
     @keyword("Source Gate Checks Should Pass")
     def source_gate_checks_should_pass(self) -> dict[str, Any]:
@@ -461,48 +453,6 @@ class EResistorRobotLibrary:
             raise AssertionError("; ".join(failures))
         return {"check_count": len(checks), "source_metrics": self.source_metrics}
 
-    @keyword("Arduino Build Should Pass")
-    def arduino_build_should_pass(self) -> dict[str, Any]:
-        if not self.initialized or self.config is None or self.output_dir is None:
-            raise AssertionError("Regression suite is not initialized")
-        if not self.config.source_dir:
-            result = TestResult("BUILD-001", "Arduino CLI compilation", "SKIP", 0.0, "SOURCE_DIR is not configured")
-            self.results.append(result)
-            BuiltIn().skip(result.message)
-        if not self.config.arduino_cli or not self.config.fqbn:
-            result = TestResult(
-                "BUILD-001", "Arduino CLI compilation", "SKIP", 0.0,
-                "ARDUINO_CLI and FQBN must both be configured",
-            )
-            self.results.append(result)
-            if self.logger is not None:
-                self.logger.event("test_result", **result.to_dict())
-            BuiltIn().skip(result.message)
-        cli_path = shutil.which(self.config.arduino_cli) or self.config.arduino_cli
-        self.build_result = run_arduino_build(
-            cli_path,
-            self.config.fqbn,
-            Path(self.config.source_dir).expanduser().resolve(),
-            self.output_dir,
-        )
-        result = TestResult(
-            "BUILD-001",
-            "Arduino CLI compilation",
-            "PASS" if self.build_result["passed"] else "FAIL",
-            0.0,
-            f"returncode={self.build_result['returncode']}, "
-            f"warnings={self.build_result['warnings']}, errors={self.build_result['errors']}",
-            metrics={
-                key: value for key, value in self.build_result.items()
-                if isinstance(value, (int, float))
-            },
-            details=self.build_result,
-        )
-        self.results.append(result)
-        if result.status != "PASS":
-            raise AssertionError(result.message)
-        return self.build_result
-
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -514,7 +464,7 @@ class EResistorRobotLibrary:
 
         if self.config.profile in {"safe_output", "hil_single_channel", "active_output", "ota", "watchdog"}:
             self.suite.best_effort_all_off()
-        if self.config.profile != "source_build":
+        if self.config.profile != "source_check":
             try:
                 state_text, self.suite.state_after, _ = self.suite._get_state()  # intentional shared implementation
                 (self.output_dir / "state_after.txt").write_text(state_text, encoding="utf-8")

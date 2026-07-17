@@ -44,9 +44,7 @@ rem To authorize the fixture, use exactly:
 rem set "ERESISTOR_ALLOW_ACTIVE_OUTPUT_TESTS=true"
 rem set "ERESISTOR_FIXTURE_CONFIRMATION=E_RESISTOR_SINGLE_CHANNEL_DMM"
 
-rem Source/build test settings.
+rem Offline source-check settings. No firmware compiler is invoked.
 set "ERESISTOR_SOURCE_DIR=C:\path\to\resistor_matrix_v1_dual_core"
-set "ERESISTOR_ARDUINO_CLI=arduino-cli"
-set "ERESISTOR_FQBN=rp2040:rp2040:waveshare_rp2040_zero:flash=2097152_1048576"
 set "ERESISTOR_BASELINE=%REGRESSION_ROOT%\baselines\G1_hil_single_channel_20260717T103129Z\results.json"
 set "ERESISTOR_GATE_MANIFEST=%REGRESSION_ROOT%\gate_acceptance.json"

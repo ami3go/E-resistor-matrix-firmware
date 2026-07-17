@@ -31,6 +31,7 @@ robot_framework/listeners/__init__.py
 robot_framework/listeners/evidence_listener.py
 robot_framework/scripts/generate_libdoc.py
 robot_framework/variables/bench.py
+tests/test_no_arduino_cli.py
 tests/test_offline.py
 tests/test_python_bat_layout.py
 tests/test_robot_framework_layout.py

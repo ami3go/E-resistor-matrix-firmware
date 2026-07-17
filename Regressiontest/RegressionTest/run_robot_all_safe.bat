@@ -19,10 +19,10 @@ call "%~dp0run_robot_safe_output.bat" "%RUN_GATE%"
 if errorlevel 1 set "FAILED=1"
 
 if not "%ERESISTOR_SOURCE_DIR%"=="" if exist "%ERESISTOR_SOURCE_DIR%" (
-    call "%~dp0run_robot_source_build.bat" "%RUN_GATE%"
+    call "%~dp0run_robot_source_check.bat" "%RUN_GATE%"
     if errorlevel 1 set "FAILED=1"
 ) else (
-    echo Source/build profile skipped because ERESISTOR_SOURCE_DIR is not configured.
+    echo Source-check profile skipped because ERESISTOR_SOURCE_DIR is not configured.
 )
 
 if "%FAILED%"=="0" (

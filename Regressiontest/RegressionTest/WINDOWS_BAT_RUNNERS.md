@@ -25,8 +25,8 @@ Edit that local file with the IP address, COM port, DMM VISA resource, source di
 | `run_robot_read_only.bat` | HTTP, SCPI, calibration, timing, stress and file-download checks | No |
 | `run_robot_safe_output.bat` | Read-only checks plus zero-mask and repeated `ALL:OFF` tests | No nonzero mask |
 | `run_robot_hil_single_channel.bat` | SCPI + USB serial + DMM physical regression | Yes, selected channel |
-| `run_robot_source_build.bat` | Source metrics and optional Arduino CLI build | No hardware output |
-| `run_robot_all_safe.bat` | Read-only, safe-output and configured source/build profiles | No nonzero mask |
+| `run_robot_source_check.bat` | Offline source metrics and gate checks | No hardware output |
+| `run_robot_all_safe.bat` | Read-only, safe-output and configured source-check profiles | No nonzero mask |
 | `run_robot_custom.bat` | Pass custom arguments directly to `run_robot.py` | Depends on arguments |
 | `validate_robot_suites.bat` | Robot dry-run/syntax validation | No |
 | `generate_robot_keyword_docs.bat` | Regenerate Robot library HTML documentation | No |
@@ -37,7 +37,7 @@ Pass a gate as the first argument to the standard runners:
 run_robot_read_only.bat G3
 run_robot_safe_output.bat G3
 run_robot_hil_single_channel.bat G3
-run_robot_source_build.bat G3
+run_robot_source_check.bat G3
 run_robot_all_safe.bat G3
 ```
 

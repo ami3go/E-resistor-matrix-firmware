@@ -14,7 +14,7 @@ The adapter additionally writes the existing E-Resistor evidence under:
 <robot-output>/e_resistor_evidence/<profile>/
 ```
 
-That directory contains SCPI, HTTP, DMM and serial transcripts, HIL measurements, metrics, source/build results, baseline comparison, coverage reports and a SHA-256 evidence manifest.
+That directory contains SCPI, HTTP, DMM and serial transcripts, HIL measurements, metrics, source-check results, baseline comparison, coverage reports and a SHA-256 evidence manifest.
 
 ## Folder layout
 
@@ -26,12 +26,12 @@ robot_framework/
 │   └── evidence_listener.py
 ├── resources/
 │   ├── common.resource
-│   └── source_build.resource
+│   └── source_check.resource
 ├── suites/
 │   ├── read_only.robot
 │   ├── safe_output.robot
 │   ├── hil_single_channel.robot
-│   └── source_build.robot
+│   └── source_check.robot
 ├── variables/
 │   └── bench.py
 ├── profiles/
@@ -118,18 +118,15 @@ USB DMM resistance input ─ selected E-Resistor channel
 
 The selected channel is active only during its measurement. Every mask application verifies through SCPI that all other channels remain `0000`. `ALL:OFF` cleanup runs after every Robot test and again during suite teardown.
 
-## Run source and build checks
+## Run offline source checks
 
 ```powershell
 python .\robot_framework\run_robot.py `
-  --profile source_build `
+  --profile source_check `
   --gate G2 `
   --source-dir C:\path\to\resistor_matrix_v1_dual_core `
-  --arduino-cli arduino-cli `
-  --fqbn "rp2040:rp2040:waveshare_rp2040_zero:flash=2097152_1048576"
 ```
 
-When `--fqbn` is omitted, the Arduino build test is skipped while source checks still run.
 
 ## Bench configuration through environment variables
 
@@ -254,7 +251,7 @@ setup_robot_environment.bat
 run_robot_read_only.bat G2
 run_robot_safe_output.bat G2
 run_robot_hil_single_channel.bat G2
-run_robot_source_build.bat G2
+run_robot_source_check.bat G2
 run_robot_all_safe.bat G2
 ```
 

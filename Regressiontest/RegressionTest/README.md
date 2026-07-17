@@ -19,7 +19,7 @@ This package contains:
 - `gate_acceptance.example.json` — per-gate thresholds and source expectations.
 
 
-## v2.5.1 harness corrections
+## v2.5.2 harness corrections
 
 - HTTP and SCPI channel masks accept both `0000` and `0x0000`.
 - `STATE?` parsing uses bounded retries and records raw excerpts on failure.
@@ -54,7 +54,7 @@ python run_regression.py \
   --output results/G2
 ```
 
-## Source and optional Arduino CLI build checks
+## Offline source checks
 
 ```bash
 python run_regression.py \
@@ -62,12 +62,12 @@ python run_regression.py \
   --gate G2 \
   --profile read_only \
   --source-dir ../resistor_matrix_v1_dual_core \
-  --arduino-cli arduino-cli \
-  --fqbn rp2040:rp2040:waveshare_rp2040_zero:flash=2097152_1048576 \
+  --gate-manifest gate_acceptance.json \
+  --skip-device \
   --output results/G2
 ```
 
-Use the actual board FQBN installed on the development system.
+Firmware compilation is intentionally outside this regression package.
 
 ## Compare with a previous accepted gate
 
@@ -97,7 +97,6 @@ python run_regression.py \
 - `evidence_manifest.sha256`
 - `evidence_manifest_verification.json`
 - `source_metrics.json` when `--source-dir` is used
-- `build.log` when Arduino CLI build is enabled
 
 ## Safety
 
@@ -191,7 +190,7 @@ setup_robot_environment.bat
 run_robot_read_only.bat G2
 run_robot_safe_output.bat G2
 run_robot_hil_single_channel.bat G2
-run_robot_source_build.bat G2
+run_robot_source_check.bat G2
 run_robot_all_safe.bat G2
 ```
 
@@ -207,7 +206,7 @@ setup_python_environment.bat
 run_python_read_only.bat G2
 run_python_safe_output.bat G2
 run_python_hil_single_channel.bat G2
-run_python_source_build.bat G2
+run_python_source_check.bat G2
 run_python_all_safe.bat G2
 ```
 

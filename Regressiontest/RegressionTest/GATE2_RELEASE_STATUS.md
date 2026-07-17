@@ -1,10 +1,10 @@
 # Gate 2 Release Status
 
-- Regression package: **2.5.1**
+- Regression package: **2.5.2**
 - Firmware target: **0.5.0**
 - Internal ZIP root: exactly `RegressionTest/`
 
-## Harness correction release v2.5.1
+## Harness correction release v2.5.2
 
 - Restored optional `0x` mask parsing for HTTP and SCPI state.
 - Added bounded `STATE?` retry and raw-response evidence.
@@ -25,7 +25,7 @@
 
 ## Pending gate-exit evidence
 
-- Successful Arduino-Pico 5.6.1 compilation and image-size report.
+- Successful external firmware compilation and image-size report from the firmware repository.
 - G2 read-only, safe-output, and single-channel HIL runs on the real bench.
 - Structured Core 1 events and SERIAL_TEST event captured with zero drops.
 - Target-search timing measured on the RP2040.

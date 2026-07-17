@@ -38,8 +38,6 @@ class RunConfig:
     allow_storage_tests: bool = False
     allow_ota_tests: bool = False
     allow_watchdog_tests: bool = False
-    arduino_cli: str | None = None
-    fqbn: str | None = None
     skip_device: bool = False
     serial_port: str = "auto"
     serial_baud: int = 115200

@@ -42,8 +42,8 @@ Create a reproducible baseline before changing runtime behavior.
 
 ## Required implementation
 
-- Add a pinned Arduino-Pico core version and library inventory.
-- Add an Arduino CLI build script or equivalent reproducible build command.
+- Keep the firmware toolchain version and library inventory in the firmware repository.
+- Perform reproducible firmware compilation outside this regression package.
 - Enable compiler warnings suitable for the selected core.
 - Add build metadata to the firmware identity response.
 - Add a read-only capability query, preferably `SYST:CAPS?`.

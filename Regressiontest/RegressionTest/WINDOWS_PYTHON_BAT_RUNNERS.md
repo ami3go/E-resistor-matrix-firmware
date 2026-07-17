@@ -27,8 +27,8 @@ The same local bench file is deliberately shared by the Python and Robot launche
 | `run_python_read_only.bat` | HTTP, SCPI, timing, stress, calibration and file checks | No |
 | `run_python_safe_output.bat` | Read-only checks plus zero-mask and repeated `ALL:OFF` tests | No nonzero mask |
 | `run_python_hil_single_channel.bat` | SCPI + USB serial + DMM physical regression | Yes, selected channel |
-| `run_python_source_build.bat` | Source metrics and optional Arduino CLI build | No device access |
-| `run_python_all_safe.bat` | Read-only, safe-output and configured source/build profiles | No nonzero mask |
+| `run_python_source_check.bat` | Offline source metrics and gate checks | No device access |
+| `run_python_all_safe.bat` | Read-only, safe-output and configured source-check profiles | No nonzero mask |
 | `run_python_custom.bat` | Pass arbitrary arguments to `run_regression.py` | Depends on arguments |
 | `validate_python_harness.bat` | Unit tests and CLI validation | No |
 
@@ -38,7 +38,7 @@ Pass the gate as the first argument:
 run_python_read_only.bat G2
 run_python_safe_output.bat G1
 run_python_hil_single_channel.bat G2
-run_python_source_build.bat G3
+run_python_source_check.bat G3
 run_python_all_safe.bat G3
 ```
 

@@ -57,7 +57,7 @@ if errorlevel 1 exit /b %errorlevel%
 if not exist "robot_framework\variables\bench_config.local.bat" (
     copy /Y "robot_framework\variables\bench_config.example.bat" "robot_framework\variables\bench_config.local.bat" >nul
     echo Created robot_framework\variables\bench_config.local.bat
-    echo Edit that file before running HIL or source/build tests.
+    echo Edit that file before running HIL or source-check tests.
 )
 
 if /I "%SETUP_KIND%"=="robot" (

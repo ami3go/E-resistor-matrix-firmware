@@ -8,4 +8,4 @@ run_python_safe_output.bat G2
 run_python_hil_single_channel.bat G2
 ```
 
-Robot Framework equivalents are also available. Gate 2 is closed only after SCPI-006, HIL-008, source/build checks, and the complete single-channel HIL suite pass.
+Robot Framework equivalents are also available. Gate 2 is closed only after SCPI-006, HIL-008, source checks, and the complete single-channel HIL suite pass.

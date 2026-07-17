@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: e-resistor-regression
-Version: 2.5.1
+Version: 2.5.2
 Summary: Gate-based Python and Robot Framework regression harness for E-Resistor firmware
 Requires-Python: >=3.10
 Provides-Extra: hil

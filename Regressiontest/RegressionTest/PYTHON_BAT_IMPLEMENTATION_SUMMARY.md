@@ -1,6 +1,6 @@
 # Pure Python BAT Implementation Summary
 
-Package version: **2.5.1**
+Package version: **2.5.2**
 
 The package now includes native Windows BAT launchers that execute `run_regression.py` directly without using Robot Framework.
 
@@ -10,7 +10,7 @@ The package now includes native Windows BAT launchers that execute `run_regressi
 - `run_python_read_only.bat`
 - `run_python_safe_output.bat`
 - `run_python_hil_single_channel.bat`
-- `run_python_source_build.bat`
+- `run_python_source_check.bat`
 - `run_python_all_safe.bat`
 - `run_python_custom.bat`
 - `validate_python_harness.bat`
@@ -23,12 +23,12 @@ The package now includes native Windows BAT launchers that execute `run_regressi
 - The Python and Robot runners share `robot_framework\variables\bench_config.local.bat`.
 - HIL BAT execution retains the explicit active-output and fixture-confirmation interlocks.
 - Pipe-delimited BAT values are supported for DMM initialization commands and USB serial fault patterns.
-- Package version advanced to 2.5.1 while the archive root remains exactly `RegressionTest/`.
+- Package version advanced to 2.5.2 while the archive root remains exactly `RegressionTest/`.
 
 ## Validation
 
-- Python unit and package-layout tests: **23/23 passed**.
-- Native Python offline execution: **passed**.
-- Python source compilation: **passed**.
+- Python unit and package-layout tests: **36/36 passed**.
+- Native Python offline source-check execution: **passed**.
+- Python module syntax/bytecode compilation: **passed**.
 - CRLF validation for BAT files: **passed**.
 - Windows execution was not performed because this environment does not provide `cmd.exe`.

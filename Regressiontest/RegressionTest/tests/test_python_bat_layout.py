@@ -15,7 +15,7 @@ class PythonBatLayoutTests(unittest.TestCase):
             "run_python_read_only.bat",
             "run_python_safe_output.bat",
             "run_python_hil_single_channel.bat",
-            "run_python_source_build.bat",
+            "run_python_source_check.bat",
             "run_python_all_safe.bat",
             "run_python_custom.bat",
             "validate_python_harness.bat",

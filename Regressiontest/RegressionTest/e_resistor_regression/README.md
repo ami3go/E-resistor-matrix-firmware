@@ -14,7 +14,6 @@ The `hil_single_channel` profile additionally uses:
 - `parsers.py` — firmware state and calibration parsers.
 - `suite.py` — protocol, performance, safety, and HIL tests.
 - `source_checks.py` — architecture and legacy-pattern scans.
-- `build_check.py` — optional Arduino CLI build.
 - `reports.py` — JSON/JUnit/CSV/Markdown outputs and baseline comparison.
 - `logging_ext.py` — detailed structured and protocol logging.
 - `cli.py` — command-line entry point.

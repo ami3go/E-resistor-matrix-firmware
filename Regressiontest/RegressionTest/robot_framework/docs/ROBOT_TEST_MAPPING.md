@@ -44,7 +44,6 @@
 | Robot test | Existing implementation | Result mapping | Evidence |
 |---|---|---|---|
 | SRC Gate Structure Checks | `scan_source()` and `evaluate_gate_expectations()` | Generates `SRC-nnn` result records | source metrics and source checks JSON |
-| BUILD-001 Arduino CLI Compilation | `run_arduino_build()` | Generates `BUILD-001` | build stdout/stderr and result JSON |
 
 ## Runner-level evidence
 
