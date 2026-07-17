@@ -58,3 +58,10 @@
 | `results.json` | Existing unified result schema |
 | `test_coverage.*` | Requirement-to-test traceability |
 | `evidence_manifest.sha256` | Integrity hashes for every evidence file |
+
+## Gate 2 mappings
+
+| Test ID | Robot method | Purpose |
+|---|---|---|
+| SCPI-006 | `test_scpi_target_calculation` | Validate dry-run target masks against host calibration math and verify outputs remain unchanged. |
+| HIL-008 | `test_hil_serial_diagnostic` | Trigger and capture a deterministic structured USB serial event. |

@@ -7,12 +7,12 @@ set "ERESISTOR_HOST=192.168.0.55"
 set "ERESISTOR_HTTP_PORT=80"
 set "ERESISTOR_SCPI_PORT=5025"
 set "ERESISTOR_TIMEOUT=3.0"
-set "ERESISTOR_GATE=G0"
+set "ERESISTOR_GATE=G2"
 set "ERESISTOR_OUTPUT_DIR=%REGRESSION_ROOT%\results\robot"
 set "ERESISTOR_PYTHON_OUTPUT_DIR=%REGRESSION_ROOT%\results\python"
 
 rem RP2040 USB CDC diagnostic port.
-set "ERESISTOR_SERIAL_PORT=COM7"
+set "ERESISTOR_SERIAL_PORT=COM17"
 set "ERESISTOR_SERIAL_BAUD=115200"
 set "ERESISTOR_SERIAL_MATCH="
 
@@ -46,7 +46,7 @@ set "ERESISTOR_FIXTURE_CONFIRMATION=E_RESISTOR_SINGLE_CHANNEL_DMM"
 
 rem Source/build test settings.
 rem Example: set "ERESISTOR_SOURCE_DIR=C:\path\to\resistor_matrix_v1_dual_core"
-set "ERESISTOR_SOURCE_DIR="
+set "ERESISTOR_SOURCE_DIR=C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Stable\resistor_matrix_v1_dual_core"
 set "ERESISTOR_ARDUINO_CLI=arduino-cli"
 set "ERESISTOR_FQBN=rp2040:rp2040:waveshare_rp2040_zero:flash=2097152_1048576"
 set "ERESISTOR_BASELINE="

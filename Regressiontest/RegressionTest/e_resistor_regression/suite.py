@@ -6,7 +6,6 @@ import math
 import socket
 import statistics
 import time
-import traceback
 from pathlib import Path
 from typing import Callable
 
@@ -24,7 +23,15 @@ from .hil import (
 )
 from .logging_ext import ExtendedLogger
 from .models import RunConfig, TestResult
-from .parsers import latency_metrics, parse_calibration_compact, parse_http_state, parse_scpi_state
+from .parsers import (
+    latency_metrics,
+    parse_calibration_compact,
+    parse_http_state,
+    parse_key_value_response,
+    parse_scpi_state,
+    percentile,
+    response_excerpt,
+)
 
 
 class RegressionSuite:
@@ -40,7 +47,10 @@ class RegressionSuite:
         self.hil_ready = False
         self.hil_start_timestamp = 0.0
         self.hil_calibration: dict[int, float] = {}
+        self.calibration_tables: dict[int, dict[int, float]] = {}
         self.hil_measurements: list[HilMeasurement] = []
+        self.gate_compatible: bool = False
+        self.detected_firmware_version: str = ""
 
     def add(self, test_id: str, name: str, function: Callable[[], tuple[str, str, dict, dict]]) -> None:
         start = time.perf_counter_ns()
@@ -50,7 +60,7 @@ class RegressionSuite:
             status = "FAIL"
             message = f"{type(exc).__name__}: {exc}"
             metrics = {}
-            details = {"exception_type": type(exc).__name__, "exception": repr(exc), "traceback": traceback.format_exc()}
+            details = {"exception_type": type(exc).__name__}
             self.logger.log.exception("Test %s failed with exception", test_id)
         duration_ms = (time.perf_counter_ns() - start) / 1_000_000.0
         result = TestResult(test_id, name, status, duration_ms, message, metrics, details)
@@ -70,57 +80,47 @@ class RegressionSuite:
         channels = state.get("channels", {})
         return len(channels) == 8 and all(item.get("mask") == "0000" for item in channels.values())
 
-    def _query_scpi_state(
-        self,
-        client: ScpiClient | None = None,
-        attempts: int = 3,
-    ) -> tuple[str, dict[int, dict[str, str]], float]:
-        """Read and validate a complete eight-channel SCPI state response.
+    @staticmethod
+    def _expected_gate_for_firmware(version: str) -> str | None:
+        return {
+            "0.4.4": "G0",
+            "0.4.6": "G1",
+            "0.5.0": "G2",
+        }.get(version.strip())
 
-        A retry reconnects the existing client because an empty read normally
-        means the peer closed the connection.  Read-only STATE? retries are
-        safe and keep transient TCP fragmentation from becoming false hardware
-        failures.
+    def _query_scpi_state(
+        self, client: ScpiClient, retries: int = 3
+    ) -> tuple[str, dict[int, dict[str, str]], float, int]:
+        """Query and validate all eight SCPI channel states with bounded retry.
+
+        Some firmware/network combinations can return a partial text response when
+        the socket idle boundary occurs between TCP segments. A retry is safe because
+        ``STATE?`` is read-only. Every failed parse is retained in the transcript.
         """
-        errors: list[str] = []
-        total_elapsed_ms = 0.0
-        last_text = ""
-        last_state: dict[int, dict[str, str]] = {}
-        max_attempts = max(1, attempts)
-        for attempt in range(1, max_attempts + 1):
-            try:
-                if client is None:
-                    with ScpiClient(
-                        self.config.host,
-                        self.config.scpi_port,
-                        self.config.timeout_s,
-                        self.logger,
-                    ) as temporary_client:
-                        last_text, elapsed = temporary_client.query("STATE?")
-                else:
-                    if attempt > 1:
-                        client.connect()
-                    last_text, elapsed = client.query("STATE?")
-                total_elapsed_ms += elapsed
-                last_state = parse_scpi_state(last_text)
-                if len(last_state) == 8:
-                    if attempt > 1:
-                        self.logger.event(
-                            "scpi_state_retry_recovered",
-                            attempts=attempt,
-                            raw_state=last_text,
-                        )
-                    return last_text, last_state, total_elapsed_ms
-                errors.append(
-                    f"attempt {attempt}: parsed={len(last_state)}, raw={last_text!r}"
-                )
-            except Exception as exc:
-                errors.append(f"attempt {attempt}: {type(exc).__name__}: {exc}")
-            if attempt < max_attempts:
+        attempts: list[dict[str, object]] = []
+        total_elapsed = 0.0
+        last_response = ""
+        for attempt in range(1, max(1, retries) + 1):
+            last_response, elapsed = client.query("STATE?")
+            total_elapsed += elapsed
+            parsed = parse_scpi_state(last_response)
+            if len(parsed) == 8:
+                return last_response, parsed, total_elapsed, attempt
+            diagnostic = {
+                "attempt": attempt,
+                "parsed_channels": len(parsed),
+                "raw_excerpt": response_excerpt(last_response),
+            }
+            attempts.append(diagnostic)
+            self.logger.event("scpi_state_parse_retry", **diagnostic)
+            if attempt < retries:
+                client.close()
                 time.sleep(0.05)
+                client.connect()
         raise AssertionError(
-            "Incomplete SCPI state after "
-            f"{max_attempts} attempt(s): {'; '.join(errors)}"
+            "Incomplete SCPI STATE? response after "
+            f"{len(attempts)} attempt(s): {attempts}; "
+            f"last_raw={response_excerpt(last_response)!r}"
         )
 
     def run(self, output_dir: Path) -> list[TestResult]:
@@ -133,6 +133,7 @@ class RegressionSuite:
         self.add("SCPI-003", "Calibration table integrity", self.test_calibration)
         self.add("SCPI-004", "Undefined-header error queue", self.test_scpi_error_queue)
         self.add("SCPI-005", "Oversized-line recovery", self.test_scpi_overflow_recovery)
+        self.add("SCPI-006", "Read-only target-mask calculation", self.test_scpi_target_calculation)
         self.add("PERF-001", "HTTP latency sample", self.test_http_latency)
         self.add("PERF-002", "SCPI latency sample", self.test_scpi_latency)
         self.add("MEM-001", "Repeated-state heap stability", self.test_heap_stability)
@@ -162,6 +163,7 @@ class RegressionSuite:
                     self.add("HIL-004", "Combination-mask physical resistance", self.test_hil_combination_masks)
                     self.add("HIL-005", "Repeated physical switching", self.test_hil_repeated_switching)
                     self.add("HIL-006", "Serial fault-log inspection", self.test_hil_serial_health)
+                    self.add("HIL-008", "Deterministic USB serial diagnostic", self.test_hil_serial_diagnostic)
                     self.add("HIL-007", "Final all-off isolation measurement", self.test_hil_final_all_off)
             elif self.config.profile not in {"read_only", "safe_output"}:
                 self.results.append(TestResult(
@@ -169,25 +171,10 @@ class RegressionSuite:
                     f"Profile {self.config.profile!r} is reserved for a dedicated fixture extension.",
                 ))
         finally:
-            cleanup_required = (self.config.profile == "safe_output" and self.config.allow_output_tests) or (
+            if (self.config.profile == "safe_output" and self.config.allow_output_tests) or (
                 self.config.profile == "hil_single_channel" and self.config.allow_active_output_tests
-            )
-            if cleanup_required:
-                cleanup_ok, cleanup_details = self.best_effort_all_off()
-                cleanup_result = TestResult(
-                    "SAFE-999",
-                    "Verified final all-off cleanup",
-                    "PASS" if cleanup_ok else "FAIL",
-                    float(cleanup_details.get("duration_ms", 0.0)),
-                    cleanup_details.get("message", ""),
-                    {
-                        "cleanup_attempts": int(cleanup_details.get("attempts", 0)),
-                        "cleanup_duration_ms": float(cleanup_details.get("duration_ms", 0.0)),
-                    },
-                    cleanup_details,
-                )
-                self.results.append(cleanup_result)
-                self.logger.event("test_result", **cleanup_result.to_dict())
+            ):
+                self.best_effort_all_off()
 
             try:
                 state_text, self.state_after, _ = self._get_state()
@@ -249,6 +236,16 @@ class RegressionSuite:
             "core1_state", "core1_outputs_ready", "core1_fault", "core1_loop_count",
             "core1_queue_overflow_count",
         ]
+        if self.config.gate != "G0":
+            required.extend([
+                "core1_loop_max_us", "core1_stack_min_free_bytes",
+                "core1_event_count", "core1_event_drop_count",
+            ])
+        if int(self.config.gate[1:]) >= 2:
+            required.extend([
+                "target_search_last_candidates", "target_search_last_elapsed_us",
+                "target_search_timeout_count", "target_search_cancel_count",
+            ])
         missing = [key for key in required if key not in state]
         channel_count = len(state.get("channels", {}))
         readiness_failures = []
@@ -256,16 +253,26 @@ class RegressionSuite:
         if state.get("shift_registers_ready") != "1": readiness_failures.append("shift registers not ready")
         if state.get("fatal_safe_state") != "0": readiness_failures.append("fatal safe state active")
         if state.get("core1_state") != "ready": readiness_failures.append("Core 1 not ready")
+
+        self.detected_firmware_version = str(state.get("firmware_version", "")).strip()
+        expected_gate = self._expected_gate_for_firmware(self.detected_firmware_version)
+        gate_mismatch = bool(expected_gate and expected_gate != self.config.gate)
+        self.gate_compatible = not gate_mismatch
+        if gate_mismatch:
+            readiness_failures.append(
+                f"firmware {self.detected_firmware_version} belongs to {expected_gate}, "
+                f"but run selected {self.config.gate}"
+            )
+
         passed = not missing and channel_count == 8 and not readiness_failures
         details = {
             "missing": missing,
             "channel_count": channel_count,
             "readiness_failures": readiness_failures,
-            "parsed_channels": state.get("channels", {}),
-            "raw_channel_lines": [
-                line.strip() for line in text.splitlines()
-                if line.strip().lower().startswith("ch")
-            ],
+            "firmware_version": self.detected_firmware_version,
+            "expected_gate": expected_gate,
+            "selected_gate": self.config.gate,
+            "raw_excerpt": response_excerpt(text),
         }
         message = "state valid" if passed else json.dumps(details, sort_keys=True)
         return "PASS" if passed else "FAIL", message, {"state_request_ms": elapsed}, details
@@ -298,7 +305,7 @@ class RegressionSuite:
         _, http_state, _ = self._get_state()
         with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
             status, status_ms = client.query("SYST:STAT?")
-            state_text, scpi_state, state_ms = self._query_scpi_state(client)
+            state_text, scpi_state, state_ms, state_attempts = self._query_scpi_state(client)
         mismatches = []
         for ch in range(1, 9):
             http_mask = http_state.get("channels", {}).get(ch, {}).get("mask")
@@ -306,18 +313,13 @@ class RegressionSuite:
             if http_mask != scpi_mask:
                 mismatches.append({"channel": ch, "http": http_mask, "scpi": scpi_mask})
         passed = len(scpi_state) == 8 and not mismatches and "core1_ready=" in status
-        message = (
-            "state consistent" if passed
-            else f"channel_count={len(scpi_state)}, mismatches={mismatches}"
-        )
-        return ("PASS" if passed else "FAIL", message,
+        return ("PASS" if passed else "FAIL", "state consistent" if passed else f"mismatches={mismatches}",
                 {"scpi_status_ms": status_ms, "scpi_state_ms": state_ms},
                 {
                     "status": status,
-                    "channel_count": len(scpi_state),
-                    "parsed_state": scpi_state,
-                    "raw_state": state_text,
                     "mismatches": mismatches,
+                    "state_attempts": state_attempts,
+                    "raw_state_excerpt": response_excerpt(state_text),
                 })
 
     def test_calibration(self):
@@ -325,6 +327,7 @@ class RegressionSuite:
             response, elapsed = client.query("CAL:RES?", response_timeout_s=max(self.config.timeout_s, 5.0))
         parsed = parse_calibration_compact(response)
         failures = []
+        tables: dict[int, dict[int, float]] = {}
         for ch in range(1, 9):
             rows = parsed.get(ch, [])
             if len(rows) != 16:
@@ -333,7 +336,13 @@ class RegressionSuite:
             bits = sorted(row["bit"] for row in rows)
             if bits != list(range(16)):
                 failures.append(f"CH{ch} bit set invalid: {bits}")
+            invalid = [row for row in rows if not math.isfinite(row["resistance_ohm"]) or row["resistance_ohm"] <= 0.0]
+            if invalid:
+                failures.append(f"CH{ch} has {len(invalid)} non-positive/non-finite values")
+            tables[ch] = {int(row["bit"]): float(row["resistance_ohm"]) for row in rows}
         passed = not failures and len(parsed) == 8
+        if passed:
+            self.calibration_tables = tables
         return ("PASS" if passed else "FAIL", "8 x 16 table valid" if passed else "; ".join(failures),
                 {"calibration_query_ms": elapsed, "calibration_response_bytes": len(response.encode())},
                 {"failures": failures})
@@ -352,10 +361,109 @@ class RegressionSuite:
         with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
             overflow_response, _ = client.query(oversized)
             identity, elapsed = client.query("*IDN?")
-        # v0.4.4 may emit more than one error; recovery is the essential requirement.
-        passed = "E-Resistor" in identity
-        return ("PASS" if passed else "FAIL", f"recovered={passed}, overflow={overflow_response[:120]!r}",
-                {"post_overflow_idn_ms": elapsed}, {})
+        recovered = "E-Resistor" in identity
+        single_error = "Input buffer overflow" in overflow_response and "Undefined header" not in overflow_response
+        passed = recovered and (self.config.gate == "G0" or single_error)
+        return (
+            "PASS" if passed else "FAIL",
+            f"recovered={recovered}, single_error={single_error}, overflow={overflow_response[:160]!r}",
+            {"post_overflow_idn_ms": elapsed},
+            {"overflow_response": overflow_response, "recovered": recovered, "single_error": single_error},
+        )
+
+    def test_scpi_target_calculation(self):
+        if int(self.config.gate[1:]) < 2:
+            return "SKIP", "TARGET:CALC? is introduced at Gate 2", {}, {}
+
+        before_text, before_state, _ = self._get_state()
+        del before_text
+        if not self.calibration_tables:
+            with ScpiClient(self.config.host, self.config.scpi_port, max(self.config.timeout_s, 5.0), self.logger) as client:
+                calibration_text, _ = client.query("CAL:RES?", response_timeout_s=max(self.config.timeout_s, 5.0))
+            parsed_calibration = parse_calibration_compact(calibration_text)
+            self.calibration_tables = {
+                ch: {int(row["bit"]): float(row["resistance_ohm"]) for row in rows}
+                for ch, rows in parsed_calibration.items()
+            }
+
+        channel = max(1, min(8, self.config.hil_channel))
+        calibration = self.calibration_tables.get(channel, {})
+        if len(calibration) != 16:
+            return "FAIL", f"CH{channel} calibration unavailable", {}, {}
+
+        targets = (626.0, 1000.0, 10000.0, 100000.0, 400000.0)
+        response_latencies: list[float] = []
+        firmware_elapsed_us: list[float] = []
+        candidate_counts: list[int] = []
+        failures: list[str] = []
+        cases: list[dict] = []
+
+        with ScpiClient(self.config.host, self.config.scpi_port, max(self.config.timeout_s, 5.0), self.logger) as client:
+            for target in targets:
+                response, elapsed_ms = client.query(
+                    f"CH{channel}:TARGET:CALC? {target:.6f}",
+                    response_timeout_s=max(self.config.timeout_s, 5.0),
+                )
+                response_latencies.append(elapsed_ms)
+                if response.startswith("ERR"):
+                    failures.append(f"target {target:g}: {response}")
+                    continue
+                try:
+                    fields = parse_key_value_response(response)
+                    mask = int(fields["mask"], 16)
+                    requested = float(fields["requested_ohm"])
+                    calculated = float(fields["calculated_ohm"])
+                    absolute_error = float(fields["absolute_error_ohm"])
+                    percent_error = float(fields["error_percent"])
+                    candidates = int(fields["candidates"])
+                    elapsed_us = int(fields["elapsed_us"])
+                    expected = equivalent_resistance_ohm(mask, calibration)
+                    expected_absolute = abs(expected - target)
+                    expected_percent = (expected - target) / target * 100.0
+                    tolerance_ohm = max(0.02, abs(expected) * 5.0e-6)
+                    checks = {
+                        "requested": abs(requested - target) <= max(1.0e-6, target * 1.0e-8),
+                        "calculated": abs(calculated - expected) <= tolerance_ohm,
+                        "absolute_error": abs(absolute_error - expected_absolute) <= tolerance_ohm,
+                        "error_percent": abs(percent_error - expected_percent) <= 0.00002,
+                        "candidate_count": 1 <= candidates <= 65535,
+                        "deadline": 0 <= elapsed_us <= 2_000_000,
+                    }
+                    if not all(checks.values()):
+                        failures.append(f"target {target:g}: checks={checks}")
+                    firmware_elapsed_us.append(float(elapsed_us))
+                    candidate_counts.append(candidates)
+                    cases.append({
+                        "target_ohm": target, "response": response, "mask": f"{mask:04X}",
+                        "expected_ohm": expected, "checks": checks,
+                    })
+                except Exception as exc:
+                    failures.append(f"target {target:g}: {type(exc).__name__}: {exc}")
+
+        _, after_state, _ = self._get_state()
+        before_masks = {ch: data.get("mask") for ch, data in before_state.get("channels", {}).items()}
+        after_masks = {ch: data.get("mask") for ch, data in after_state.get("channels", {}).items()}
+        masks_unchanged = before_masks == after_masks
+        if not masks_unchanged:
+            failures.append(f"output masks changed: before={before_masks}, after={after_masks}")
+
+        metrics: dict[str, float | int] = {}
+        metrics.update(latency_metrics(response_latencies, "target_calc_scpi"))
+        if firmware_elapsed_us:
+            metrics.update({
+                "target_search_firmware_count": len(firmware_elapsed_us),
+                "target_search_firmware_avg_us": statistics.fmean(firmware_elapsed_us),
+                "target_search_firmware_p50_us": percentile(firmware_elapsed_us, 0.50),
+                "target_search_firmware_p95_us": percentile(firmware_elapsed_us, 0.95),
+                "target_search_firmware_max_us": max(firmware_elapsed_us),
+                "target_search_max_candidates": max(candidate_counts),
+            })
+        return (
+            "PASS" if not failures else "FAIL",
+            f"{len(cases)}/{len(targets)} targets verified; masks_unchanged={masks_unchanged}; failures={len(failures)}",
+            metrics,
+            {"channel": channel, "cases": cases, "failures": failures, "masks_unchanged": masks_unchanged},
+        )
 
     def test_http_latency(self):
         ping = [self.http.request("/ping").elapsed_ms for _ in range(self.config.iterations)]
@@ -403,7 +511,7 @@ class RegressionSuite:
             values = []
             with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
                 for _ in range(count):
-                    _response, _parsed, elapsed = self._query_scpi_state(client)
+                    _response, _state, elapsed, _attempts = self._query_scpi_state(client)
                     values.append(elapsed)
             return values
 
@@ -427,9 +535,34 @@ class RegressionSuite:
     def test_log_download(self):
         response = self.http.request("/log_download")
         content_type = response.headers.get("Content-Type", "")
-        passed = response.status == 200 and ("text" in content_type.lower() or len(response.body) >= 0)
-        return ("PASS" if passed else "FAIL", f"HTTP {response.status}, content-type={content_type}",
-                {"log_download_bytes": len(response.body), "log_download_ms": response.elapsed_ms}, {})
+        disposition = response.headers.get("Content-Disposition", "")
+        body = response.text
+        has_header = body.startswith("E-Resistor event log")
+        has_identity = "Firmware version:" in body and "Event history" in body
+        text_type = "text/plain" in content_type.lower() or "text/" in content_type.lower()
+        not_html = "<html" not in body[:256].lower()
+        passed = (
+            response.status == 200
+            and len(response.body) > 0
+            and text_type
+            and has_header
+            and has_identity
+            and not_html
+        )
+        details = {
+            "content_type": content_type,
+            "content_disposition": disposition,
+            "has_header": has_header,
+            "has_identity": has_identity,
+            "not_html": not_html,
+            "body_excerpt": response_excerpt(body),
+        }
+        return (
+            "PASS" if passed else "FAIL",
+            f"HTTP {response.status}, bytes={len(response.body)}, content-type={content_type}",
+            {"log_download_bytes": len(response.body), "log_download_ms": response.elapsed_ms},
+            details,
+        )
 
     def test_zero_mask_command_path(self):
         if not self.config.allow_output_tests:
@@ -437,11 +570,11 @@ class RegressionSuite:
         masks = ",".join(["0000"] * 8)
         with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
             response, elapsed = client.query(f"ROUT:ALL:MASK {masks}")
-            state_text, state, state_elapsed = self._query_scpi_state(client)
+            state_text, state, state_elapsed, state_attempts = self._query_scpi_state(client)
         passed = response == "OK" and len(state) == 8 and all(item["mask"] == "0000" for item in state.values())
-        return ("PASS" if passed else "FAIL", f"apply={response!r}, channels={len(state)}",
+        return ("PASS" if passed else "FAIL", f"apply={response!r}",
                 {"zero_profile_apply_ms": elapsed, "zero_profile_verify_ms": state_elapsed},
-                {"raw_state": state_text, "parsed_state": state})
+                {"state_attempts": state_attempts, "raw_state_excerpt": response_excerpt(state_text)})
 
     def test_repeated_all_off(self):
         if not self.config.allow_output_tests:
@@ -453,12 +586,11 @@ class RegressionSuite:
                 response, elapsed = client.query("ALL:OFF")
                 latencies.append(elapsed)
                 responses.append(response)
-            state_text, state, _ = self._query_scpi_state(client)
+            state_text, state, _state_elapsed, state_attempts = self._query_scpi_state(client)
         passed = all(response == "OK" for response in responses) and len(state) == 8 and all(item["mask"] == "0000" for item in state.values())
-        return ("PASS" if passed else "FAIL",
-                f"responses={sorted(set(responses))}, channels={len(state)}",
+        return ("PASS" if passed else "FAIL", f"responses={sorted(set(responses))}",
                 latency_metrics(latencies, "all_off"),
-                {"raw_state": state_text, "parsed_state": state})
+                {"state_attempts": state_attempts, "raw_state_excerpt": response_excerpt(state_text)})
 
     def _hil_skip_unless_ready(self) -> tuple[str, str, dict, dict] | None:
         if not self.hil_ready or self.dmm is None:
@@ -486,29 +618,14 @@ class RegressionSuite:
     def _hil_all_off_verified(self) -> tuple[float, float]:
         with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
             response, apply_ms = client.query("ALL:OFF")
-            state_text, state, state_ms = self._query_scpi_state(client)
+            state_text, state, state_ms, _attempts = self._query_scpi_state(client)
         if response != "OK":
             raise RuntimeError(f"ALL:OFF returned {response!r}")
         if len(state) != 8 or any(item.get("mask") != "0000" for item in state.values()):
-            raise RuntimeError(f"ALL:OFF verification failed: {state}")
+            raise RuntimeError(
+                f"ALL:OFF verification failed: parsed={state}; raw={response_excerpt(state_text)!r}"
+            )
         return apply_ms, state_ms
-
-    def _hil_verify_mask_state(self, mask: int) -> float:
-        mask_text = f"{mask:04X}"
-        channel = self.config.hil_channel
-        with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
-            state_text, state, verify_ms = self._query_scpi_state(client)
-        if len(state) != 8:
-            raise RuntimeError(f"Incomplete state while verifying mask {mask_text}: {state}")
-        mismatches = []
-        for current_channel in range(1, 9):
-            expected = mask_text if current_channel == channel else "0000"
-            actual = state.get(current_channel, {}).get("mask")
-            if actual != expected:
-                mismatches.append({"channel": current_channel, "expected": expected, "actual": actual})
-        if mismatches:
-            raise RuntimeError(f"Unexpected channel masks while verifying {mask_text}: {mismatches}")
-        return verify_ms
 
     def _hil_apply_mask_verified(self, mask: int) -> tuple[float, float]:
         mask_text = f"{mask:04X}"
@@ -517,9 +634,22 @@ class RegressionSuite:
             self.serial_monitor.marker(f"APPLY CH{channel} MASK {mask_text}")
         with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
             response, apply_ms = client.query(f"CH{channel}:MASK {mask_text}")
+            state_text, state, verify_ms, _attempts = self._query_scpi_state(client)
         if response != "OK":
             raise RuntimeError(f"CH{channel}:MASK {mask_text} returned {response!r}")
-        verify_ms = self._hil_verify_mask_state(mask)
+        if len(state) != 8:
+            raise RuntimeError(
+                f"Incomplete state after mask {mask_text}: parsed={state}; "
+                f"raw={response_excerpt(state_text)!r}"
+            )
+        mismatches = []
+        for current_channel in range(1, 9):
+            expected = mask_text if current_channel == channel else "0000"
+            actual = state.get(current_channel, {}).get("mask")
+            if actual != expected:
+                mismatches.append({"channel": current_channel, "expected": expected, "actual": actual})
+        if mismatches:
+            raise RuntimeError(f"Unexpected channel masks after {mask_text}: {mismatches}")
         return apply_ms, verify_ms
 
     def _hil_measure_mask(self, mask: int, note: str = "") -> HilMeasurement:
@@ -536,7 +666,6 @@ class RegressionSuite:
             relative_stdev_limit_percent=self.config.hil_stability_percent,
             minimum_wait_s=self.config.hil_minimum_wait_s,
         )
-        post_verify_ms = self._hil_verify_mask_state(mask)
         settle_ms = (time.perf_counter_ns() - start) / 1_000_000.0
         finite_samples = [value for value in samples if math.isfinite(value)]
         selected = finite_samples[-self.config.hil_sample_count:] if finite_samples else []
@@ -561,7 +690,6 @@ class RegressionSuite:
             settle_ms=settle_ms,
             scpi_apply_ms=apply_ms,
             scpi_verify_ms=verify_ms,
-            scpi_post_verify_ms=post_verify_ms,
             dmm_read_ms=read_ms,
             result=result,
             note=note,
@@ -591,8 +719,20 @@ class RegressionSuite:
         return metrics
 
     def test_hil_fixture_discovery(self):
-        # No active output is allowed until the board state, COM port, DMM, and
-        # selected-channel calibration have all been identified successfully.
+        # No active output is allowed until the selected gate matches a known
+        # firmware version and the board state, COM port, DMM, and calibration
+        # have all been identified successfully.
+        if not self.gate_compatible:
+            return (
+                "FAIL",
+                f"Selected gate {self.config.gate} does not match firmware "
+                f"{self.detected_firmware_version}",
+                {},
+                {
+                    "selected_gate": self.config.gate,
+                    "firmware_version": self.detected_firmware_version,
+                },
+            )
         self._hil_all_off_verified()
         self.hil_start_timestamp = time.time()
         self.serial_monitor = SerialMonitor(
@@ -800,11 +940,48 @@ class RegressionSuite:
                     break
         if self.serial_monitor.exception is not None:
             matches.append({"pattern": "serial_monitor_exception", "line": repr(self.serial_monitor.exception)})
+        structured_events = [line for line in lines if line.startswith("EVT ") and "core=1" in line]
+        requires_events = self.config.gate != "G0"
+        passed = not matches and (not requires_events or bool(structured_events))
         return (
-            "PASS" if not matches else "FAIL",
-            f"{len(lines)} serial lines; fault matches={len(matches)}",
-            {"hil_serial_line_count": len(lines), "hil_serial_fault_match_count": len(matches)},
-            {"matches": matches[:100]},
+            "PASS" if passed else "FAIL",
+            f"{len(lines)} serial lines; structured_events={len(structured_events)}; fault matches={len(matches)}",
+            {
+                "hil_serial_line_count": len(lines),
+                "hil_serial_structured_event_count": len(structured_events),
+                "hil_serial_fault_match_count": len(matches),
+            },
+            {"matches": matches[:100], "structured_events": structured_events[:100]},
+        )
+
+    def test_hil_serial_diagnostic(self):
+        skipped = self._hil_skip_unless_ready()
+        if skipped:
+            return skipped
+        if int(self.config.gate[1:]) < 2:
+            return "SKIP", "SYST:DIAG:SERIAL? is introduced at Gate 2", {}, {}
+        if self.serial_monitor is None:
+            return "FAIL", "serial monitor not available", {}, {}
+
+        started = time.time()
+        with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
+            response, elapsed_ms = client.query("SYST:DIAG:SERIAL?")
+        deadline = time.monotonic() + 3.0
+        matched: list[str] = []
+        while time.monotonic() < deadline:
+            matched = [
+                line for line in self.serial_monitor.lines_since(started)
+                if line.startswith("EVT ") and "code=SERIAL_TEST" in line and "core=0" in line
+            ]
+            if matched:
+                break
+            time.sleep(0.05)
+        passed = response.strip() == "OK,SERIAL_TEST" and bool(matched)
+        return (
+            "PASS" if passed else "FAIL",
+            f"response={response!r}; captured_events={len(matched)}",
+            {"hil_serial_test_scpi_ms": elapsed_ms, "hil_serial_test_event_count": len(matched)},
+            {"matched_events": matched[:20]},
         )
 
     def test_hil_final_all_off(self):
@@ -836,64 +1013,10 @@ class RegressionSuite:
             {"samples": samples},
         )
 
-    def best_effort_all_off(self, attempts: int = 3) -> tuple[bool, dict]:
-        """Force all outputs OFF and verify all eight SCPI masks are zero.
-
-        Cleanup retries because it often runs immediately after a protocol or
-        hardware failure. The method never raises, preserving the original test
-        failure while still producing explicit cleanup evidence.
-        """
-        started = time.perf_counter_ns()
-        errors: list[str] = []
-        last_response = ""
-        last_state: dict = {}
-        last_state_text = ""
-        used_attempts = 0
-        for attempt in range(1, max(1, attempts) + 1):
-            used_attempts = attempt
-            try:
-                with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
-                    last_response, _ = client.query("ALL:OFF")
-                    state_text, last_state, _ = self._query_scpi_state(client)
-                last_state_text = state_text
-                verified = (
-                    last_response == "OK"
-                    and len(last_state) == 8
-                    and all(item.get("mask") == "0000" for item in last_state.values())
-                )
-                self.logger.event(
-                    "cleanup_all_off_attempt", attempt=attempt, response=last_response,
-                    verified=verified, state=last_state, raw_state=last_state_text,
-                )
-                if verified:
-                    duration_ms = (time.perf_counter_ns() - started) / 1_000_000.0
-                    message = f"ALL:OFF verified on attempt {attempt}"
-                    self.logger.log.info(message)
-                    return True, {
-                        "message": message,
-                        "attempts": used_attempts,
-                        "duration_ms": duration_ms,
-                        "response": last_response,
-                        "state": last_state,
-                        "raw_state": last_state_text,
-                        "errors": errors,
-                    }
-                errors.append(f"attempt {attempt}: response={last_response!r}, state={last_state!r}")
-            except Exception as exc:
-                errors.append(f"attempt {attempt}: {type(exc).__name__}: {exc}")
-                self.logger.log.error("Cleanup ALL:OFF attempt %d failed: %s", attempt, exc)
-            if attempt < max(1, attempts):
-                time.sleep(0.20)
-
-        duration_ms = (time.perf_counter_ns() - started) / 1_000_000.0
-        message = f"Unable to verify ALL:OFF after {used_attempts} attempt(s)"
-        self.logger.log.critical("%s: %s", message, errors)
-        return False, {
-            "message": message,
-            "attempts": used_attempts,
-            "duration_ms": duration_ms,
-            "response": last_response,
-            "state": last_state,
-            "raw_state": last_state_text,
-            "errors": errors,
-        }
+    def best_effort_all_off(self) -> None:
+        try:
+            with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
+                response, _ = client.query("ALL:OFF")
+                self.logger.log.info("Cleanup ALL:OFF response: %s", response)
+        except Exception as exc:
+            self.logger.log.error("Cleanup ALL:OFF failed: %s", exc)

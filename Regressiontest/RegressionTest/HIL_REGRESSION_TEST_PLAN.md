@@ -207,7 +207,7 @@ Windows PowerShell:
 ```powershell
 python .\run_regression.py `
   --host 192.168.0.55 `
-  --gate G0 `
+  --gate G2 `
   --profile hil_single_channel `
   --allow-active-output-tests `
   --fixture-confirmation E_RESISTOR_SINGLE_CHANNEL_DMM `
@@ -227,7 +227,7 @@ Linux:
 ```bash
 python run_regression.py \
   --host 192.168.0.55 \
-  --gate G0 \
+  --gate G2 \
   --profile hil_single_channel \
   --allow-active-output-tests \
   --fixture-confirmation E_RESISTOR_SINGLE_CHANNEL_DMM \

@@ -74,7 +74,7 @@ A vendor VISA runtime is recommended for the USB DMM. `PyVISA-py` can be used fo
 ```powershell
 python .\robot_framework\run_robot.py `
   --profile read_only `
-  --gate G0 `
+  --gate G2 `
   --host 192.168.0.55
 ```
 
@@ -251,11 +251,11 @@ Windows users can run the test profiles directly from the fixed `RegressionTest`
 
 ```bat
 setup_robot_environment.bat
-run_robot_read_only.bat G0
-run_robot_safe_output.bat G0
-run_robot_hil_single_channel.bat G0
-run_robot_source_build.bat G0
-run_robot_all_safe.bat G0
+run_robot_read_only.bat G2
+run_robot_safe_output.bat G2
+run_robot_hil_single_channel.bat G2
+run_robot_source_build.bat G2
+run_robot_all_safe.bat G2
 ```
 
 Bench-specific values are stored in `robot_framework\variables\bench_config.local.bat`. See `WINDOWS_BAT_RUNNERS.md` for setup, safety authorization, and launcher details.

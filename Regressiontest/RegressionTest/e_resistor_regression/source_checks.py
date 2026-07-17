@@ -42,9 +42,10 @@ def scan_source(source_dir: Path) -> dict[str, Any]:
     # For setup_loop.cpp, inspect only setup1()/loop1() rather than counting
     # Core 0 setup/loop Serial diagnostics.
     core1_text_parts: list[str] = []
-    shift_path = source_dir / "shift_registers.cpp"
-    if shift_path.exists():
-        core1_text_parts.append(shift_path.read_text(encoding="utf-8", errors="replace"))
+    for file_name in ("shift_registers.cpp", "core_command.cpp", "core1_event_queue.cpp"):
+        core1_path = source_dir / file_name
+        if core1_path.exists():
+            core1_text_parts.append(core1_path.read_text(encoding="utf-8", errors="replace"))
     setup_path = source_dir / "setup_loop.cpp"
     if setup_path.exists():
         setup_text = setup_path.read_text(encoding="utf-8", errors="replace")
@@ -91,6 +92,13 @@ def scan_source(source_dir: Path) -> dict[str, Any]:
         "core1_serial_call_count": core1_serial_calls,
         "logf_count": len(re.findall(r"\blogf\s*\(", combined)),
         "update_write_stream_count": combined.count("Update.writeStream"),
+        "runtime_resistor_info_count": combined.count("RuntimeResistorInfo"),
+        "channel_resistor_table_count": combined.count("channelResistorTable"),
+        "channel_default_tables_count": combined.count("CHANNEL_DEFAULT_TABLES"),
+        "numeric_resistor_model": "channelResistorOhms[CHANNEL_COUNT][BIT_COUNT]" in combined,
+        "shared_default_resistor_table": "DEFAULT_RESISTOR_OHMS[BIT_COUNT]" in combined,
+        "target_calc_scpi": "TARGET:CALC?" in combined,
+        "target_search_result": "TargetSearchResult" in combined,
         "mutation_get_routes": mutation_get_routes,
         "per_file": per_file,
     }
@@ -113,6 +121,16 @@ def evaluate_gate_expectations(metrics: dict[str, Any], source_dir: Path, gate: 
             "passed": actual <= maximum,
             "actual": actual,
             "expected": f"<= {maximum}",
+        })
+
+    maximum_calls = cfg.get("max_source_serial_calls_core1")
+    if maximum_calls is not None:
+        actual = metrics["core1_serial_call_count"]
+        checks.append({
+            "name": "Core 1 Serial call limit",
+            "passed": actual <= maximum_calls,
+            "actual": actual,
+            "expected": f"<= {maximum_calls}",
         })
 
     max_http = cfg.get("max_http_handlers_lines")

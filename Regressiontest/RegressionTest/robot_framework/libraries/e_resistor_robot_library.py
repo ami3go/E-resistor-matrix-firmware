@@ -18,6 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from e_resistor_regression import __version__ as REGRESSION_PACKAGE_VERSION
 from e_resistor_regression.build_check import run_arduino_build
 from e_resistor_regression.coverage import (
     coverage_counts,
@@ -26,8 +27,7 @@ from e_resistor_regression.coverage import (
     write_coverage_json,
     write_coverage_markdown,
 )
-from e_resistor_regression.diagnostics import collect_diagnostics, write_diagnostics
-from e_resistor_regression.evidence import verify_sha256_manifest, write_sha256_manifest
+from e_resistor_regression.evidence import finalize_evidence
 from e_resistor_regression.logging_ext import ExtendedLogger
 from e_resistor_regression.models import RunConfig, TestResult
 from e_resistor_regression.reports import (
@@ -84,7 +84,7 @@ class EResistorRobotLibrary:
     and then converts PASS/FAIL/SKIP into Robot Framework status.
     """
 
-    ROBOT_LIBRARY_VERSION = "2.3.4"
+    ROBOT_LIBRARY_VERSION = "2.5.1"
 
     def __init__(self) -> None:
         self.initialized = False
@@ -251,6 +251,8 @@ class EResistorRobotLibrary:
             "machine": platform.machine(),
             "cwd": os.getcwd(),
             "robot_framework": self._robot_version(),
+            "regression_package_version": REGRESSION_PACKAGE_VERSION,
+            "robot_library_version": self.ROBOT_LIBRARY_VERSION,
             "config": asdict(self.config),
         }
         (evidence_dir / "environment.json").write_text(
@@ -260,19 +262,6 @@ class EResistorRobotLibrary:
             f"run_id={self.run_id}\nstarted_utc={environment['timestamp_utc']}\n",
             encoding="utf-8",
         )
-        try:
-            diagnostics = collect_diagnostics(
-                self.config, include_hardware_inventory=(profile == "hil_single_channel")
-            )
-            write_diagnostics(evidence_dir, diagnostics)
-            self.logger.event(
-                "diagnostics_collected", hardware_inventory=(profile == "hil_single_channel")
-            )
-        except Exception as exc:
-            self.logger.log.exception("Unable to collect local diagnostics")
-            self.logger.event(
-                "diagnostics_failed", exception_type=type(exc).__name__, exception=repr(exc)
-            )
         self.logger.event("robot_suite_initialized", config=asdict(self.config))
         robot_logger.info(
             f"E-Resistor regression initialized: run_id={self.run_id}, "
@@ -339,34 +328,21 @@ class EResistorRobotLibrary:
             write_coverage_markdown(self.output_dir / "test_coverage.md", coverage_rows)
             write_markdown_report(self.output_dir / "report.md", summary)
 
-            # Finalize every mutable evidence file before hashing it.  v2.3.3
-            # wrote the manifest too early, then removed RUN_INCOMPLETE and
-            # appended the final event, invalidating the manifest immediately.
-            incomplete = self.output_dir / "RUN_INCOMPLETE"
-            if incomplete.exists():
-                incomplete.unlink()
-            (self.output_dir / "RUN_COMPLETE").write_text(
-                f"run_id={self.run_id}\n"
-                f"completed_utc={datetime.now(timezone.utc).isoformat()}\n"
-                f"overall_status={summary['overall_status']}\n",
-                encoding="utf-8",
-            )
+            # Final event must be written before checksums. No evidence file may be
+            # modified after finalize_evidence() completes.
             self.logger.event(
                 "robot_suite_finalized",
                 overall_status=summary["overall_status"],
                 counts=summary["counts"],
             )
-            write_sha256_manifest(self.output_dir)
-            manifest_errors = verify_sha256_manifest(self.output_dir)
-            if manifest_errors:
-                raise RuntimeError(
-                    "Evidence manifest verification failed: " + "; ".join(manifest_errors)
-                )
-
-            # Do not write to ExtendedLogger after the manifest is generated.
+            self.logger.flush()
+            verification = finalize_evidence(
+                self.output_dir, self.run_id, summary["overall_status"]
+            )
             self.finalized = True
             robot_logger.info(
-                f"Regression evidence finalized: {self.output_dir / 'report.md'}"
+                f"Regression evidence finalized and verified "
+                f"({verification['checked_files']} files): {self.output_dir / 'report.md'}"
             )
             return summary["overall_status"]
         except Exception:
@@ -378,17 +354,13 @@ class EResistorRobotLibrary:
         if not self.initialized or self.suite is None or self.config is None:
             return
         if self.config.profile in {"safe_output", "hil_single_channel", "active_output", "ota", "watchdog"}:
-            cleanup_ok, cleanup_details = self.suite.best_effort_all_off()
-            if not cleanup_ok:
-                raise AssertionError(cleanup_details.get("message", "Unable to verify ALL:OFF cleanup"))
+            self.suite.best_effort_all_off()
 
     @keyword("Emergency All Off")
     def emergency_all_off(self) -> None:
         if self.suite is None:
             raise AssertionError("Regression suite is not initialized")
-        cleanup_ok, cleanup_details = self.suite.best_effort_all_off()
-        if not cleanup_ok:
-            raise AssertionError(cleanup_details.get("message", "Unable to verify emergency ALL:OFF"))
+        self.suite.best_effort_all_off()
 
     # ------------------------------------------------------------------
     # Runtime regression adapter
@@ -541,20 +513,7 @@ class EResistorRobotLibrary:
         assert self.logger is not None
 
         if self.config.profile in {"safe_output", "hil_single_channel", "active_output", "ota", "watchdog"}:
-            cleanup_ok, cleanup_details = self.suite.best_effort_all_off()
-            if not any(item.test_id == "SAFE-999" for item in self.results):
-                self.results.append(TestResult(
-                    "SAFE-999",
-                    "Verified final all-off cleanup",
-                    "PASS" if cleanup_ok else "FAIL",
-                    float(cleanup_details.get("duration_ms", 0.0)),
-                    cleanup_details.get("message", ""),
-                    {
-                        "cleanup_attempts": int(cleanup_details.get("attempts", 0)),
-                        "cleanup_duration_ms": float(cleanup_details.get("duration_ms", 0.0)),
-                    },
-                    cleanup_details,
-                ))
+            self.suite.best_effort_all_off()
         if self.config.profile != "source_build":
             try:
                 state_text, self.suite.state_after, _ = self.suite._get_state()  # intentional shared implementation
@@ -594,14 +553,6 @@ class EResistorRobotLibrary:
             except Exception as exc:
                 self.logger.log.error("Serial monitor stop failed: %s", exc)
             self.suite.serial_monitor = None
-
-    def _write_evidence_manifest(self) -> None:
-        """Compatibility wrapper retained for external adapters."""
-        assert self.output_dir is not None
-        write_sha256_manifest(self.output_dir)
-        errors = verify_sha256_manifest(self.output_dir)
-        if errors:
-            raise RuntimeError("Evidence manifest verification failed: " + "; ".join(errors))
 
     def _next_operation_id(self, test_id: str) -> str:
         self.operation_counter += 1

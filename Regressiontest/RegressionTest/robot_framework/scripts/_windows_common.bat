@@ -2,9 +2,6 @@
 rem Shared initialization for E-Resistor Windows launchers.
 rem This file is intended to be called from another batch file.
 
-set "REGRESSION_ENV_KIND=%~1"
-if "%REGRESSION_ENV_KIND%"=="" set "REGRESSION_ENV_KIND=python"
-
 set "REGRESSION_ROOT=%~dp0..\.."
 for %%I in ("%REGRESSION_ROOT%") do set "REGRESSION_ROOT=%%~fI"
 set "ROBOT_ROOT=%REGRESSION_ROOT%\robot_framework"
@@ -15,7 +12,7 @@ if not defined ERESISTOR_HOST set "ERESISTOR_HOST=192.168.0.55"
 if not defined ERESISTOR_HTTP_PORT set "ERESISTOR_HTTP_PORT=80"
 if not defined ERESISTOR_SCPI_PORT set "ERESISTOR_SCPI_PORT=5025"
 if not defined ERESISTOR_TIMEOUT set "ERESISTOR_TIMEOUT=3.0"
-if not defined ERESISTOR_GATE set "ERESISTOR_GATE=G0"
+if not defined ERESISTOR_GATE set "ERESISTOR_GATE=G2"
 if not defined ERESISTOR_OUTPUT_DIR set "ERESISTOR_OUTPUT_DIR=%REGRESSION_ROOT%\results\robot"
 if not defined ERESISTOR_PYTHON_OUTPUT_DIR set "ERESISTOR_PYTHON_OUTPUT_DIR=%REGRESSION_ROOT%\results\python"
 if not defined ERESISTOR_ITERATIONS set "ERESISTOR_ITERATIONS=30"
@@ -47,20 +44,17 @@ if not defined ERESISTOR_FIXTURE_CONFIRMATION set "ERESISTOR_FIXTURE_CONFIRMATIO
 if not defined ERESISTOR_SOURCE_DIR set "ERESISTOR_SOURCE_DIR="
 if not defined ERESISTOR_ARDUINO_CLI set "ERESISTOR_ARDUINO_CLI=arduino-cli"
 if not defined ERESISTOR_FQBN set "ERESISTOR_FQBN="
-if not defined ERESISTOR_BASELINE set "ERESISTOR_BASELINE="
-if not defined ERESISTOR_GATE_MANIFEST set "ERESISTOR_GATE_MANIFEST="
+if not defined ERESISTOR_BASELINE set "ERESISTOR_BASELINE=%REGRESSION_ROOT%\baselines\G1_hil_single_channel_20260717T103129Z\results.json"
+if not defined ERESISTOR_GATE_MANIFEST set "ERESISTOR_GATE_MANIFEST=%REGRESSION_ROOT%\gate_acceptance.json"
 
 if exist "%LOCAL_BENCH_CONFIG%" call "%LOCAL_BENCH_CONFIG%"
-
-rem Every launcher validates and repairs the environment before use.
-call "%REGRESSION_ROOT%\scripts\setup_windows_environment.bat" "%REGRESSION_ENV_KIND%" ensure
-if errorlevel 1 exit /b %errorlevel%
 
 set "REGRESSION_PYTHON=%REGRESSION_ROOT%\.venv\Scripts\python.exe"
 set "ROBOT_PYTHON=%REGRESSION_PYTHON%"
 if not exist "%REGRESSION_PYTHON%" (
-    echo ERROR: Python virtual environment repair did not produce:
+    echo ERROR: Python virtual environment not found:
     echo   %REGRESSION_PYTHON%
+    echo Run setup_python_environment.bat or setup_robot_environment.bat first.
     exit /b 2
 )
 

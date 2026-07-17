@@ -43,6 +43,10 @@ SCPI-005 Oversized Line Recovery
     [Tags]    SCPI-005    scpi    negative
     Run Regression Check    SCPI-005    Oversized-line recovery    test_scpi_overflow_recovery
 
+SCPI-006 Read-Only Target-Mask Calculation
+    [Tags]    SCPI-006    scpi    target-search    gate2
+    Run Regression Check    SCPI-006    Read-only target-mask calculation    test_scpi_target_calculation
+
 PERF-001 HTTP Latency Sample
     [Tags]    PERF-001    performance    http
     Run Regression Check    PERF-001    HTTP latency sample    test_http_latency

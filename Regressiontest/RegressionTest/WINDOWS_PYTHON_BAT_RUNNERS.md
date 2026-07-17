@@ -12,12 +12,11 @@ setup_python_environment.bat
 
 The setup script:
 
-1. Validates `.venv` and recreates it when it is missing, moved, broken, or uses an unsupported Python.
+1. Creates or repairs `.venv`.
 2. Restores pip with `ensurepip` when the environment was created without pip.
 3. Installs the package with the HIL dependencies (`pyserial` and `PyVISA`).
 4. Creates `robot_framework\variables\bench_config.local.bat` when missing.
 5. Runs the Python self-tests.
-6. Writes `results\setup\last_setup_diagnostics.txt`.
 
 The same local bench file is deliberately shared by the Python and Robot launchers, so IP, COM, DMM and source settings need to be maintained only once.
 
@@ -36,7 +35,7 @@ The same local bench file is deliberately shared by the Python and Robot launche
 Pass the gate as the first argument:
 
 ```bat
-run_python_read_only.bat G0
+run_python_read_only.bat G2
 run_python_safe_output.bat G1
 run_python_hil_single_channel.bat G2
 run_python_source_build.bat G3
@@ -67,13 +66,5 @@ The directory contains the native regression evidence, including `report.md`, `r
 ## Direct custom example
 
 ```bat
-run_python_custom.bat --profile read_only --gate G0 --host 192.168.0.55 --output results\python\manual_G0
+run_python_custom.bat --profile read_only --gate G2 --host 192.168.0.55 --output results\python\manual_G2
 ```
-
-## Automatic launcher repair
-
-Every pure-Python BAT launcher runs a lightweight environment check before the regression starts. A missing or broken `.venv`, missing pip, missing HIL dependencies, or a package-version mismatch triggers automatic repair. A full manual setup is still recommended after extracting a new release.
-
-## Final safety evidence
-
-Output-capable profiles create result `SAFE-999`. Cleanup retries `ALL:OFF` and reads `STATE?`; success requires all eight channel masks to be `0000`. A cleanup verification failure fails the regression even when earlier measurements passed.

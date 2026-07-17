@@ -23,7 +23,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Run E-Resistor regression using Robot Framework"
     )
     parser.add_argument("--profile", choices=sorted(SUITES), default="read_only")
-    parser.add_argument("--gate", choices=[f"G{i}" for i in range(10)], default="G0")
+    parser.add_argument("--gate", choices=[f"G{i}" for i in range(10)], default="G2")
     parser.add_argument("--output", default=str(ROOT / "results" / "robot"))
     parser.add_argument("--host", default="192.168.0.55")
     parser.add_argument("--http-port", type=int, default=80)

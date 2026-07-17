@@ -1,6 +1,6 @@
 # Pure Python BAT Implementation Summary
 
-Package version: **2.3.4**
+Package version: **2.5.1**
 
 The package now includes native Windows BAT launchers that execute `run_regression.py` directly without using Robot Framework.
 
@@ -23,7 +23,7 @@ The package now includes native Windows BAT launchers that execute `run_regressi
 - The Python and Robot runners share `robot_framework\variables\bench_config.local.bat`.
 - HIL BAT execution retains the explicit active-output and fixture-confirmation interlocks.
 - Pipe-delimited BAT values are supported for DMM initialization commands and USB serial fault patterns.
-- Package version advanced to 2.3.4 while the archive root remains exactly `RegressionTest/`.
+- Package version advanced to 2.5.1 while the archive root remains exactly `RegressionTest/`.
 
 ## Validation
 
@@ -32,13 +32,3 @@ The package now includes native Windows BAT launchers that execute `run_regressi
 - Python source compilation: **passed**.
 - CRLF validation for BAT files: **passed**.
 - Windows execution was not performed because this environment does not provide `cmd.exe`.
-
-## v2.3.4 reliability update
-
-- Every BAT launcher now performs automatic environment validation and repair.
-- Broken or moved virtual environments are deleted and recreated safely.
-- Missing pip is repaired with `ensurepip`; stale `%errorlevel%` exits inside parenthesized CMD blocks were removed.
-- Setup state is captured in `results\setup\last_setup_diagnostics.txt`.
-- Native runs create `diagnostics.json`, `diagnostics.md`, lifecycle events, and a `RUN_INCOMPLETE` marker.
-- Output-capable runs add verified, retrying final cleanup result `SAFE-999`.
-- DMM auto-discovery closes every probed VISA resource even when `*IDN?` fails.

@@ -1,9 +1,10 @@
 @echo off
 setlocal EnableExtensions
-call "%~dp0robot_framework\scripts\_windows_common.bat" python
+call "%~dp0robot_framework\scripts\_windows_common.bat"
 if errorlevel 1 exit /b %errorlevel%
-set "RUN_GATE=%ERESISTOR_GATE%"
+set "RUN_GATE=G2"
 if not "%~1"=="" set "RUN_GATE=%~1"
+if /I not "%ERESISTOR_GATE%"=="%RUN_GATE%" echo NOTE: package default gate is %RUN_GATE%; bench_config.local.bat contains %ERESISTOR_GATE%.
 set "FAILED=0"
 echo ============================================================
 echo Running all non-active pure Python profiles for %RUN_GATE%

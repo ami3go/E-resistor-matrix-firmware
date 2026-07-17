@@ -40,7 +40,7 @@ class RobotFrameworkLayoutTests(unittest.TestCase):
     def test_runtime_ids_are_mapped(self) -> None:
         expected = {
             "NET-001", "HTTP-001", "HTTP-002", "HTTP-003",
-            "SCPI-001", "SCPI-002", "SCPI-003", "SCPI-004", "SCPI-005",
+            "SCPI-001", "SCPI-002", "SCPI-003", "SCPI-004", "SCPI-005", "SCPI-006",
             "PERF-001", "PERF-002", "MEM-001", "STRESS-001",
             "FILES-001", "LOG-001",
         }
@@ -49,7 +49,7 @@ class RobotFrameworkLayoutTests(unittest.TestCase):
 
     def test_hil_ids_are_mapped(self) -> None:
         text = (RF / "suites" / "hil_single_channel.robot").read_text(encoding="utf-8")
-        self.assertTrue(all(f"HIL-{index:03d}" in text for index in range(1, 8)))
+        self.assertTrue(all(f"HIL-{index:03d}" in text for index in range(1, 9)))
 
     def test_launcher_imports_without_running(self) -> None:
         path = RF / "run_robot.py"
@@ -68,11 +68,15 @@ class RobotFrameworkLayoutTests(unittest.TestCase):
         self.assertIn("E_RESISTOR_SINGLE_CHANNEL_DMM", hil)
         self.assertIn("--allow-active-output-tests", hil)
 
-    def test_robot_library_collects_run_diagnostics(self) -> None:
-        text = (RF / "libraries" / "e_resistor_robot_library.py").read_text(encoding="utf-8")
-        self.assertIn("collect_diagnostics", text)
-        self.assertIn("write_diagnostics", text)
-        self.assertIn('profile == "hil_single_channel"', text)
+
+    def test_gate2_release_bat_defaults(self) -> None:
+        for name in (
+            "run_robot_read_only.bat",
+            "run_robot_safe_output.bat",
+            "run_robot_hil_single_channel.bat",
+        ):
+            text = (ROOT / name).read_text(encoding="utf-8")
+            self.assertIn('set "RUN_GATE=G2"', text, name)
 
     def test_windows_bat_stable_root_usage(self) -> None:
         common = (RF / "scripts" / "_windows_common.bat").read_text(encoding="utf-8")

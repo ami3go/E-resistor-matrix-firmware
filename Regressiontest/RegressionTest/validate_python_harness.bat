@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-call "%~dp0robot_framework\scripts\_windows_common.bat" python
+call "%~dp0robot_framework\scripts\_windows_common.bat"
 if errorlevel 1 exit /b %errorlevel%
 cd /d "%REGRESSION_ROOT%"
 "%REGRESSION_PYTHON%" -m unittest discover -s tests -v

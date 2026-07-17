@@ -43,6 +43,10 @@ SCPI-005 Oversized Line Recovery
     [Tags]    SCPI-005    scpi    negative
     Run Regression Check    SCPI-005    Oversized-line recovery    test_scpi_overflow_recovery
 
+SCPI-006 Read-Only Target-Mask Calculation
+    [Tags]    SCPI-006    scpi    target-search    gate2
+    Run Regression Check    SCPI-006    Read-only target-mask calculation    test_scpi_target_calculation
+
 PERF-001 HTTP Latency Sample
     [Tags]    PERF-001    performance    http
     Run Regression Check    PERF-001    HTTP latency sample    test_http_latency
@@ -95,6 +99,10 @@ HIL-005 Repeated Physical Switching
 HIL-006 Serial Fault Log Inspection
     [Tags]    HIL-006    serial    diagnostics
     Run Regression Check    HIL-006    Serial fault-log inspection    test_hil_serial_health
+
+HIL-008 Deterministic USB Serial Diagnostic
+    [Tags]    HIL-008    hil    serial    diagnostics    gate2
+    Run Regression Check    HIL-008    Deterministic USB serial diagnostic    test_hil_serial_diagnostic
 
 HIL-007 Final All Off Isolation Measurement
     [Tags]    HIL-007    safety    dmm

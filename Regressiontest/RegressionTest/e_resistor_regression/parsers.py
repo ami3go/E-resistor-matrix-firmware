@@ -5,19 +5,27 @@ import re
 from typing import Any
 
 
-# Firmware v0.4.4 emits masks with a ``0x`` prefix while older builds and
-# several stored baselines use four bare hexadecimal digits.  Accept both
-# forms and always normalize the parsed mask to four uppercase digits.
+# Firmware revisions have emitted both ``0000`` and ``0x0000`` mask forms.
+# Whitespace is intentionally permissive because SCPI and HTTP are human-readable
+# diagnostic interfaces rather than fixed-width binary protocols.
 CHANNEL_STATE_RE = re.compile(
-    r"^ch(?P<channel>[1-8])=(?:0[xX])?(?P<mask>[0-9A-Fa-f]{4})"
-    r"\s+resistance=(?P<resistance>.*?)\s+count=(?P<count>\d+)$",
+    r"^ch(?P<channel>[1-8])\s*=\s*(?:0x)?(?P<mask>[0-9A-Fa-f]{4})\s+"
+    r"resistance\s*=\s*(?P<resistance>.*?)\s+count\s*=\s*(?P<count>\d+)\s*$",
     re.IGNORECASE,
 )
 SCPI_STATE_RE = re.compile(
-    r"\bCH(?P<channel>[1-8])=(?:0[xX])?(?P<mask>[0-9A-Fa-f]{4}),"
+    r"CH(?P<channel>[1-8])\s*=\s*(?:0x)?(?P<mask>[0-9A-Fa-f]{4})\s*,\s*"
     r"(?P<resistance>[^;\r\n]+)",
     re.IGNORECASE,
 )
+
+
+def response_excerpt(text: str, limit: int = 512) -> str:
+    """Return a single-line, bounded diagnostic excerpt from a protocol response."""
+    normalized = " ".join(text.replace("\x00", "\\0").split())
+    if len(normalized) <= limit:
+        return normalized
+    return normalized[: max(0, limit - 3)] + "..."
 
 
 def parse_http_state(text: str) -> dict[str, Any]:
@@ -73,6 +81,21 @@ def parse_calibration_compact(text: str) -> dict[int, list[dict[str, Any]]]:
             rows.append({"bit": bit, "mosfet": mosfet, "resistance_ohm": resistance})
         channels[channel] = rows
     return channels
+
+
+def parse_key_value_response(text: str) -> dict[str, str]:
+    """Parse a compact comma-delimited ``key=value`` SCPI response."""
+    result: dict[str, str] = {}
+    for field in text.strip().split(","):
+        key, sep, value = field.partition("=")
+        if not sep:
+            raise ValueError(f"Invalid key/value field: {field!r}")
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            raise ValueError(f"Empty key in field: {field!r}")
+        result[key] = value
+    return result
 
 
 def percentile(values: list[float], q: float) -> float:

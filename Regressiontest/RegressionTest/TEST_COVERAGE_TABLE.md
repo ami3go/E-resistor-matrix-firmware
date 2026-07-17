@@ -38,10 +38,9 @@ This is the master traceability table for the optimization program. The regressi
 | COV-022 | G0,G1,G2,G3,G4,G5,G6,G7,G8,G9 | Repeatability | Repeated ON/OFF switching remains accurate and repeatable | HIL | Implemented | hil_single_channel | HIL-005 | USB DMM on selected channel | All cycles pass accuracy, mask verification and repeatability limits | hil_measurements.csv, metrics.csv |
 | COV-023 | G0,G1,G2,G3,G4,G5,G6,G7,G8,G9 | Diagnostics | USB serial stream contains no fatal firmware fault patterns | HIL | Implemented | hil_single_channel | HIL-006 | RP2040 USB COM | No configured panic, assert, hardfault or queue-overflow pattern is detected | serial_console.log |
 | COV-024 | G0,G1,G2,G3,G4,G5,G6,G7,G8,G9 | HIL safety | Final ALL:OFF produces physical channel isolation | HIL | Implemented | hil_single_channel | HIL-007 | USB DMM on selected channel | Final masks are zero and measured OFF resistance exceeds configured minimum | hil_measurements.csv, state_after.txt |
-| COV-024A | G0,G1,G2,G3,G4,G5,G6,G7,G8,G9 | HIL/output safety | Final cleanup command is retried and all eight software masks are verified OFF | Automated/HIL | Implemented | safe_output,hil_single_channel | SAFE-999 | E-Resistor Ethernet | ALL:OFF returns OK and STATE? reports eight `0000` masks | scpi_transcript.log, events.jsonl, results.json, state_after.txt |
 | COV-025 | G0,G1,G2,G3,G4,G5,G6,G7,G8,G9 | Source quality | Gate-specific source expectations and legacy-pattern limits pass | Source | Implemented | read_only,safe_output,hil_single_channel | SRC-* | Source tree | Every source expectation in the gate manifest passes | source_metrics.json, results.json |
 | COV-026 | G0,G1,G2,G3,G4,G5,G6,G7,G8,G9 | Build | Firmware compiles using the pinned Arduino CLI environment | Build | Implemented | read_only,safe_output,hil_single_channel | BUILD-001 | Arduino CLI toolchain | Compile return code is zero and gate warning/error limits pass | build.log, results.json |
-| COV-027 | G2,G3,G4,G5,G6,G7,G8,G9 | Numeric model | Numeric resistance model is equivalent to the previous implementation | Combined | Implemented | read_only,hil_single_channel | SCPI-003,HIL-003,HIL-004 | Ethernet + selected-channel DMM | Calibration parsing and physical bit/combination results pass; host oracle comparison is still recommended | scpi_transcript.log, hil_measurements.csv |
+| COV-027 | G2,G3,G4,G5,G6,G7,G8,G9 | Numeric model | Numeric resistance model is equivalent to the previous implementation | Combined | Implemented | read_only,hil_single_channel | SCPI-003,SCPI-006,HIL-003,HIL-004 | Ethernet + selected-channel DMM | Calibration parsing and physical bit/combination results pass; host oracle comparison is still recommended | scpi_transcript.log, hil_measurements.csv |
 | COV-028 | G3,G4,G5,G6,G7,G8,G9 | Command transport | Expired or timed-out commands cannot actuate later | Fault injection | Planned | active_output | — | Test firmware + safe load | Injected timeout is followed by no late mask change and verified ALL:OFF | future active-output fault log |
 | COV-029 | G3,G4,G5,G6,G7,G8,G9 | Dual core | Core 1 remains a deterministic hardware-only engine | Combined | Implemented | read_only,hil_single_channel | SRC-*,HIL-005,HIL-006 | Source tree + USB COM + DMM | Source checks find no prohibited Core-1 services; repeat tests show no fault or timing regression | source_metrics.json, serial_console.log, metrics.csv |
 | COV-030 | G4,G5,G6,G7,G8,G9 | Profile switching | Two-phase eight-channel profile update avoids mixed states | HIL | Planned | active_output | — | Eight-channel state trace or logic analyzer | All channels first become OFF, one BBM delay occurs, then the complete new profile appears | future profile transition trace |
@@ -53,6 +52,8 @@ This is the master traceability table for the optimization program. The regressi
 | COV-036 | G8,G9 | Watchdog | Core 0 freeze causes physical safe state and reset | HIL fault injection | Planned | watchdog | — | Test firmware + USB DMM | Core 1 forces OFF, DMM confirms isolation, watchdog reset reason identifies Core 0 fault | future watchdog trace and DMM log |
 | COV-037 | G8,G9 | Watchdog | Core 1 freeze is detected and leads to reset | HIL fault injection | Planned | watchdog | — | Test firmware + USB DMM | Core 0 latches fault, stops feeding watchdog, reboot occurs and startup forces OFF | future watchdog report |
 | COV-038 | G8,G9 | Recovery | Repeated watchdog failures enter recovery mode | Fault injection | Planned | watchdog | — | Test firmware | Configured reset count activates recovery mode and output commands are rejected | future recovery-mode log |
+| COV-041 | G2,G3,G4,G5,G6,G7,G8,G9 | Target search | Read-only target-mask calculation matches the calibrated host oracle and never changes outputs | Automated | Implemented | read_only,safe_output,hil_single_channel | SCPI-006 | E-Resistor Ethernet | Multiple targets return valid masks, resistance/error fields agree with host calculation, deadlines pass, and masks remain unchanged | scpi_transcript.log, metrics.csv, state_before.txt, state_after.txt |
+| COV-042 | G2,G3,G4,G5,G6,G7,G8,G9 | Diagnostics | A deterministic firmware event is observable on the configured RP2040 USB COM port | HIL | Implemented | hil_single_channel | HIL-008 | RP2040 USB COM | SYST:DIAG:SERIAL? returns OK and the matching structured SERIAL_TEST event is captured | serial_console.log, scpi_transcript.log |
 | COV-039 | G9 | Physical scope | All eight output channels receive physical resistance verification | Manual fixture expansion | Manual | hil_single_channel | — | DMM relay/multiplexer or manual rewiring | Full bit and combination HIL passes independently on CH1-CH8 | eight-channel HIL archive |
 | COV-040 | G9 | Soak | Production candidate completes extended stability soak | Automated/manual | Planned | read_only,hil_single_channel | — | E-Resistor + DMM | 24-hour run has no reset, heap drift, protocol failure or unexplained resistance drift | soak report and complete logs |
 
@@ -62,16 +63,3 @@ This is the master traceability table for the optimization program. The regressi
 - Full physical CH1–CH8 coverage requires manual rewiring or a relay/multiplexer fixture and remains a G9 manual requirement.
 - OTA, watchdog, interrupted-write, timeout-cancellation, and two-phase transition fault tests are explicitly marked planned until their gate-specific hooks exist.
 - A skipped or not-run test is not treated as covered for gate acceptance.
-
-## Robot Framework execution coverage
-
-Every currently implemented runtime, safe-output, HIL, source and build test is also mapped to an individual Robot Framework test case. The acceptance rules remain unchanged because the Robot library calls the same Python `RegressionSuite` methods.
-
-| Profile | Robot suite | Test coverage |
-|---|---|---|
-| Read only | `robot_framework/suites/read_only.robot` | NET-001 through LOG-001 |
-| Safe output | `robot_framework/suites/safe_output.robot` | NET-001 through LOG-001 plus SAFE-001 and SAFE-002 |
-| Single-channel HIL | `robot_framework/suites/hil_single_channel.robot` | NET-001 through LOG-001 plus HIL-001 through HIL-007 |
-| Source/build | `robot_framework/suites/source_build.robot` | SRC-* and BUILD-001 |
-
-A Robot run adds `output.xml`, `log.html`, `report.html`, and `robot_events.jsonl` to the existing evidence. Full mapping is documented in `robot_framework/docs/ROBOT_TEST_MAPPING.md`.

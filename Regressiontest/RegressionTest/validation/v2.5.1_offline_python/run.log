@@ -1,0 +1,3 @@
+2026-07-17 12:45:15,629 INFO Device tests skipped by --skip-device
+2026-07-17 12:45:15,633 INFO Overall PASS: PASS=0 FAIL=0 SKIP=1
+2026-07-17 12:45:15,633 INFO Report: /mnt/data/regtest_v251_validation/report.md

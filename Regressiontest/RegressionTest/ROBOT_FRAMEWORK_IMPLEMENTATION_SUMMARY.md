@@ -43,4 +43,4 @@ Actual Ethernet/COM/DMM HIL execution remains to be run on the user's physical b
 
 ## Packaging convention
 
-Package release **2.3.4** uses a descriptive, versioned ZIP filename while retaining the fixed internal root folder `RegressionTest/`. Future package releases must keep this internal folder name unchanged.
+Package release **2.5.1** uses a descriptive, versioned ZIP filename while retaining the fixed internal root folder `RegressionTest/`. Future package releases must keep this internal folder name unchanged.

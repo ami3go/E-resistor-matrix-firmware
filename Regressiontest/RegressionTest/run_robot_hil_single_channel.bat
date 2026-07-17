@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-call "%~dp0robot_framework\scripts\_windows_common.bat" robot
+call "%~dp0robot_framework\scripts\_windows_common.bat"
 if errorlevel 1 exit /b %errorlevel%
 
 if /I not "%ERESISTOR_ALLOW_ACTIVE_OUTPUT_TESTS%"=="true" (
@@ -16,8 +16,9 @@ if not "%ERESISTOR_FIXTURE_CONFIRMATION%"=="E_RESISTOR_SINGLE_CHANNEL_DMM" (
     exit /b 3
 )
 
-set "RUN_GATE=%ERESISTOR_GATE%"
+set "RUN_GATE=G2"
 if not "%~1"=="" set "RUN_GATE=%~1"
+if /I not "%ERESISTOR_GATE%"=="%RUN_GATE%" echo NOTE: package default gate is %RUN_GATE%; bench_config.local.bat contains %ERESISTOR_GATE%.
 
 echo ============================================================
 echo ACTIVE HARDWARE TEST

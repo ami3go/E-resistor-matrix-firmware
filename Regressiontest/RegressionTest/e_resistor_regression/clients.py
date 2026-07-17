@@ -53,8 +53,10 @@ class HttpClient:
             )
             raise
         elapsed_ms = (time.perf_counter_ns() - start) / 1_000_000.0
-        self.logger.transcript("http", "response", body.decode("utf-8", "replace"),
-                               status=status, elapsed_ms=elapsed_ms, url=url)
+        self.logger.transcript(
+            "http", "response", body.decode("utf-8", "replace"),
+            status=status, elapsed_ms=elapsed_ms, url=url, headers=response_headers,
+        )
         return HttpResponse(status, response_headers, body, elapsed_ms)
 
 
@@ -102,36 +104,15 @@ class ScpiClient:
             finally:
                 self.sock = None
 
-    def _read_until_idle(
-        self,
-        idle_s: float = 0.12,
-        total_timeout_s: float | None = None,
-        fragment_idle_s: float = 0.75,
-    ) -> str:
-        """Read one or more newline-terminated SCPI response lines.
-
-        Firmware can transmit a long response in multiple TCP fragments.  In a
-        captured firmware 0.4.4 run the first fragment was only ``b"CH"`` and
-        the rest arrived after the old 120 ms idle cutoff.  Before a CR/LF is
-        seen, allow a longer fragmentation gap.  After a terminator is seen,
-        retain the short idle window so multi-line error responses are drained
-        without adding significant latency to normal queries.
-        """
+    def _read_until_idle(self, idle_s: float = 0.12, total_timeout_s: float | None = None) -> str:
         if self.sock is None:
             raise RuntimeError("SCPI socket is not connected")
         deadline = time.monotonic() + (total_timeout_s or self.timeout_s)
         chunks: list[bytes] = []
         received_any = False
-        saw_terminator = False
         while time.monotonic() < deadline:
             remaining = max(0.01, deadline - time.monotonic())
-            if not received_any:
-                receive_timeout = remaining
-            elif saw_terminator:
-                receive_timeout = min(idle_s, remaining)
-            else:
-                receive_timeout = min(fragment_idle_s, remaining)
-            self.sock.settimeout(receive_timeout)
+            self.sock.settimeout(min(idle_s if received_any else remaining, remaining))
             try:
                 chunk = self.sock.recv(4096)
             except socket.timeout:
@@ -142,8 +123,6 @@ class ScpiClient:
                 break
             received_any = True
             chunks.append(chunk)
-            if b"\n" in chunk or b"\r" in chunk:
-                saw_terminator = True
         return b"".join(chunks).decode("utf-8", errors="replace")
 
     def query(self, command: str, response_timeout_s: float | None = None) -> tuple[str, float]:

@@ -11,6 +11,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import __version__ as REGRESSION_PACKAGE_VERSION
 from .build_check import run_arduino_build
 from .coverage import (
     coverage_counts,
@@ -19,8 +20,7 @@ from .coverage import (
     write_coverage_json,
     write_coverage_markdown,
 )
-from .diagnostics import collect_diagnostics, write_diagnostics
-from .evidence import verify_sha256_manifest, write_sha256_manifest
+from .evidence import finalize_evidence
 from .logging_ext import ExtendedLogger
 from .models import RunConfig, TestResult
 from .reports import compare_baseline, flatten_metrics, write_junit, write_markdown_report, write_metrics_csv
@@ -38,7 +38,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--stress-iterations", type=int, default=100)
     parser.add_argument("--heap-drift-limit", type=int, default=2048)
     parser.add_argument("--latency-regression-percent", type=float, default=15.0)
-    parser.add_argument("--gate", choices=[f"G{i}" for i in range(10)], default="G0")
+    parser.add_argument("--gate", choices=[f"G{i}" for i in range(10)], default="G2")
     parser.add_argument("--profile", choices=["read_only", "safe_output", "hil_single_channel", "active_output", "storage", "ota", "watchdog"], default="read_only")
     parser.add_argument("--output", required=True)
     parser.add_argument("--source-dir")
@@ -96,14 +96,8 @@ def main(argv: list[str] | None = None) -> int:
     output_dir = Path(args.output).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     logger = ExtendedLogger(output_dir, verbose=args.verbose)
-    run_id = uuid.uuid4().hex
-    logger.set_context(run_id=run_id, gate=args.gate, profile=args.profile)
-    incomplete_path = output_dir / "RUN_INCOMPLETE"
-    incomplete_path.write_text(
-        f"run_id={run_id}\nstarted_utc={datetime.now(timezone.utc).isoformat()}\n",
-        encoding="utf-8",
-    )
-    logger.event("run_started", argv=list(argv) if argv is not None else sys.argv[1:])
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = f"{args.gate}-{args.profile}-{timestamp}-{uuid.uuid4().hex[:6]}"
 
     if args.profile == "safe_output" and not args.allow_output_tests:
         logger.log.warning("safe_output profile requested without --allow-output-tests; output tests will be skipped")
@@ -172,25 +166,24 @@ def main(argv: list[str] | None = None) -> int:
 
     environment = {
         "schema_version": 2,
+        "runner": "pure_python",
         "run_id": run_id,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "python": sys.version,
-        "python_executable": sys.executable,
         "platform": platform.platform(),
         "machine": platform.machine(),
         "cwd": os.getcwd(),
+        "regression_package_version": REGRESSION_PACKAGE_VERSION,
         "config": asdict(config),
     }
-    (output_dir / "environment.json").write_text(json.dumps(environment, indent=2, sort_keys=True), encoding="utf-8")
-    try:
-        diagnostics = collect_diagnostics(
-            config, include_hardware_inventory=(config.profile == "hil_single_channel")
-        )
-        write_diagnostics(output_dir, diagnostics)
-        logger.event("diagnostics_collected", hardware_inventory=config.profile == "hil_single_channel")
-    except Exception as exc:
-        logger.log.exception("Unable to collect local diagnostics")
-        logger.event("diagnostics_failed", exception_type=type(exc).__name__, exception=repr(exc))
+    (output_dir / "environment.json").write_text(
+        json.dumps(environment, indent=2, sort_keys=True), encoding="utf-8"
+    )
+    (output_dir / "RUN_INCOMPLETE").write_text(
+        f"run_id={run_id}\nstarted_utc={environment['timestamp_utc']}\n",
+        encoding="utf-8",
+    )
+    logger.event("suite_initialized", run_id=run_id, gate=args.gate, profile=args.profile)
 
     source_metrics = None
     source_results: list[TestResult] = []
@@ -228,7 +221,10 @@ def main(argv: list[str] | None = None) -> int:
 
     counts = {status: sum(1 for item in results if item.status == status) for status in ("PASS", "FAIL", "SKIP")}
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "runner": "pure_python",
+        "run_id": run_id,
+        "regression_package_version": REGRESSION_PACKAGE_VERSION,
         "config": asdict(config),
         "counts": counts,
         "overall_status": "FAIL" if counts["FAIL"] else "PASS",
@@ -262,18 +258,14 @@ def main(argv: list[str] | None = None) -> int:
     logger.log.info("Overall %s: PASS=%d FAIL=%d SKIP=%d", summary["overall_status"],
                     summary["counts"]["PASS"], summary["counts"]["FAIL"], summary["counts"]["SKIP"])
     logger.log.info("Report: %s", output_dir / "report.md")
-    if incomplete_path.exists():
-        incomplete_path.unlink()
-    (output_dir / "RUN_COMPLETE").write_text(
-        f"run_id={run_id}\n"
-        f"completed_utc={datetime.now(timezone.utc).isoformat()}\n"
-        f"overall_status={summary['overall_status']}\n",
-        encoding="utf-8",
+    logger.event(
+        "suite_finalized", run_id=run_id, gate=args.gate, profile=args.profile,
+        overall_status=summary["overall_status"], counts=summary["counts"],
     )
-    logger.event("run_finished", overall_status=summary["overall_status"], counts=summary["counts"])
-    write_sha256_manifest(output_dir)
-    manifest_errors = verify_sha256_manifest(output_dir)
-    if manifest_errors:
-        raise RuntimeError("Evidence manifest verification failed: " + "; ".join(manifest_errors))
-    # No ExtendedLogger writes are allowed after the manifest is generated.
+    logger.flush()
+    verification = finalize_evidence(output_dir, run_id, summary["overall_status"])
+    print(
+        f"Evidence manifest verified: {verification['checked_files']} files; "
+        f"report={output_dir / 'report.md'}"
+    )
     return 0 if summary["overall_status"] == "PASS" else 1

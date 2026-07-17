@@ -4,21 +4,21 @@ Setup mode: ensure
 Root: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest
 Base launcher: py -3
 Venv Python: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Scripts\python.exe
-Timestamp UTC: 2026-07-16T12:15:07.109471+00:00
+Timestamp UTC: 2026-07-17T11:13:57.577121+00:00
 Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
 Executable: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Scripts\python.exe
 Platform: Windows-11-10.0.22631-SP0
 pip 26.1.2 from C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Lib\site-packages\pip (python 3.13)
 Name: e-resistor-regression
-Version: 2.3.3
-Summary: Gate-based Python and Robot Framework regression harness for E-Resistor firmware
+Version: 2.4.1
+Summary: Robot Framework regression suite for E-Resistor firmware and HIL verification
 Home-page: 
 Author: 
 Author-email: 
 License: 
 Location: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Lib\site-packages
 Editable project location: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest
-Requires: 
+Requires: pyserial, PyVISA, robotframework
 Required-by: 
 ---
 Name: pyserial
@@ -30,7 +30,7 @@ Author-email: cliechti@gmx.net
 License: BSD
 Location: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Lib\site-packages
 Requires: 
-Required-by: 
+Required-by: e-resistor-regression
 ---
 Name: PyVISA
 Version: 1.16.2
@@ -62,7 +62,7 @@ SOFTWARE.
 
 Location: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Lib\site-packages
 Requires: typing_extensions
-Required-by: 
+Required-by: e-resistor-regression
 ---
 Name: robotframework
 Version: 7.4.2
@@ -73,4 +73,4 @@ Author-email: peke@eliga.fi
 License: Apache License 2.0
 Location: C:\Users\achestni\Documents\GitHub\E-Resistors\E-resistor-matrix-firmware\Regressiontest\RegressionTest\.venv\Lib\site-packages
 Requires: 
-Required-by: robotframework-ride
+Required-by: e-resistor-regression, robotframework-dashboard, robotframework-ride

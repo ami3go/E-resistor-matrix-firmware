@@ -30,7 +30,6 @@ class HilMeasurement:
     settle_ms: float
     scpi_apply_ms: float
     scpi_verify_ms: float
-    scpi_post_verify_ms: float
     dmm_read_ms: float
     result: str
     note: str = ""
@@ -289,19 +288,13 @@ class VisaDmm:
         probes: list[dict[str, str]] = []
         for resource in resources:
             identity = ""
-            instrument = None
             try:
                 instrument = self.rm.open_resource(resource)
                 instrument.timeout = max(1000, int(self.timeout_s * 1000))
                 identity = str(instrument.query("*IDN?")).strip()
+                instrument.close()
             except Exception as exc:
                 identity = f"<query failed: {type(exc).__name__}: {exc}>"
-            finally:
-                if instrument is not None:
-                    try:
-                        instrument.close()
-                    except Exception:
-                        pass
             probes.append({"resource": str(resource), "identity": identity})
             if self.idn_contains and self.idn_contains.lower() in identity.lower():
                 matches.append(str(resource))

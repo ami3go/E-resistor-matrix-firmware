@@ -10,7 +10,7 @@ Run:
 setup_robot_environment.bat
 ```
 
-This validates or recreates `.venv`, repairs missing pip, installs the Robot/HIL dependencies, validates the Robot suites, writes setup diagnostics, and creates:
+This creates `.venv`, installs the Robot/HIL dependencies, validates the Robot suites, and creates:
 
 ```text
 robot_framework\variables\bench_config.local.bat
@@ -65,7 +65,3 @@ Each run creates a timestamped directory containing `report.html`, `log.html`, `
 ## Pure Python runners
 
 Native Python BAT launchers are also included. They do not require Robot Framework and write their evidence to `results\python`. See `WINDOWS_PYTHON_BAT_RUNNERS.md`.
-
-## Automatic launcher repair
-
-Every Robot BAT launcher performs a lightweight `.venv`, pip, package, and dependency check. Missing or broken environments are repaired automatically before Robot Framework starts.

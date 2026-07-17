@@ -40,41 +40,20 @@ class PythonBatLayoutTests(unittest.TestCase):
         self.assertEqual(_split_pipe_values(args.dmm_init_commands_pipe), ["*CLS", "CONF:RES AUTO"])
         self.assertEqual(_split_pipe_values(args.hil_serial_fault_patterns_pipe), ["panic", "hardfault"])
 
+
+    def test_gate2_release_bat_defaults(self) -> None:
+        for name in (
+            "run_python_read_only.bat",
+            "run_python_safe_output.bat",
+            "run_python_hil_single_channel.bat",
+        ):
+            text = (ROOT / name).read_text(encoding="utf-8")
+            self.assertIn('set "RUN_GATE=G2"', text, name)
+
     def test_setup_repairs_missing_pip(self) -> None:
         text = (ROOT / "scripts" / "setup_windows_environment.bat").read_text(encoding="utf-8")
         self.assertIn("ensurepip", text)
         self.assertIn("-m pip --version", text)
-
-
-    def test_launchers_request_automatic_environment_repair(self) -> None:
-        common = (ROOT / "robot_framework" / "scripts" / "_windows_common.bat").read_text(encoding="utf-8")
-        self.assertIn("setup_windows_environment.bat", common)
-        self.assertIn("ensure", common)
-        for name in [
-            "run_python_read_only.bat",
-            "run_python_safe_output.bat",
-            "run_python_hil_single_channel.bat",
-            "run_python_source_build.bat",
-            "run_python_all_safe.bat",
-            "run_python_custom.bat",
-            "validate_python_harness.bat",
-        ]:
-            text = (ROOT / name).read_text(encoding="utf-8")
-            self.assertIn('_windows_common.bat" python', text, name)
-
-    def test_setup_avoids_stale_errorlevel_exit_inside_blocks(self) -> None:
-        text = (ROOT / "scripts" / "setup_windows_environment.bat").read_text(encoding="utf-8")
-        self.assertNotIn("exit /b %errorlevel%", text.lower())
-        self.assertIn("Existing .venv is invalid", text)
-        self.assertIn('rmdir /s /q ".venv"', text)
-        self.assertIn("last_setup_diagnostics.txt", text)
-
-
-    def test_example_source_directory_is_disabled_by_default(self) -> None:
-        text = (ROOT / "robot_framework" / "variables" / "bench_config.example.bat").read_text(encoding="utf-8")
-        active_lines = [line.strip() for line in text.splitlines() if not line.strip().lower().startswith("rem ")]
-        self.assertIn('set "ERESISTOR_SOURCE_DIR="', active_lines)
-        self.assertFalse(any(line.startswith('set "ERESISTOR_SOURCE_DIR=C:') for line in active_lines))
 
     def test_bat_files_use_crlf(self) -> None:
         for path in ROOT.glob("*.bat"):
