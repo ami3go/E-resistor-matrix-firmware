@@ -60,6 +60,7 @@ void initCoreCommandEngine() {
   spin_unlock(responseSpinLock, responseIrq);
 
   nextRequestId = 1;
+  initCore1EventQueue();
 }
 
 /**
@@ -345,7 +346,16 @@ bool requestAllOff(char* reason, size_t reasonLen) {
   uint32_t startMs = millis();
   while ((millis() - startMs) < CORE_COMMAND_TIMEOUT_MS) {
     if (!emergencyOffRequested && outputsKnownSafe) {
-      return true;
+      bool allZero = true;
+      for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+        if (channelMask[ch] != 0U) {
+          allZero = false;
+          break;
+        }
+      }
+      if (allZero) {
+        return true;
+      }
     }
     updateHeartbeat();
     delay(1);
@@ -358,10 +368,22 @@ bool requestAllOff(char* reason, size_t reasonLen) {
 
   CoreResponse response;
   bool ok = submitCoreCommandWait(command, response, CORE_COMMAND_TIMEOUT_MS);
-  if (!ok && reasonLen > 0U) {
-    snprintf(reason, reasonLen, "%s", response.message[0] ? response.message : "Core 1 all-off failed");
+  if (!ok) {
+    if (reasonLen > 0U) {
+      snprintf(reason, reasonLen, "%s", response.message[0] ? response.message : "Core 1 all-off failed");
+    }
+    return false;
   }
-  return ok;
+
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    if (channelMask[ch] != 0U) {
+      if (reasonLen > 0U) {
+        snprintf(reason, reasonLen, "CH%u remained active after all-off", unsigned(ch + 1));
+      }
+      return false;
+    }
+  }
+  return outputsKnownSafe;
 }
 
 /**
@@ -409,13 +431,44 @@ bool applyAllMasksSafely(const uint16_t masks[CHANNEL_COUNT], char* reason, size
 
 /**
  * @brief Core-0-safe wrapper that requests an emergency/normal all-OFF transition.
+ * @param reason Optional output buffer for the failure reason.
+ * @param reasonLen Size of the optional failure buffer.
+ * @return true only when Core 1 acknowledges the operation and all shadow masks are zero.
  */
-void forceAllOff() {
-  char reason[128];
-  if (!requestAllOff(reason, sizeof(reason))) {
-    setLastError(reason[0] ? reason : "-500,\"Core 1 all-off failed\"");
+bool forceAllOff(char* reason, size_t reasonLen) {
+  char localReason[128] = {0};
+  bool ok = requestAllOff(localReason, sizeof(localReason));
+
+  if (!ok) {
+    const char* message = localReason[0] ? localReason : "Core 1 all-off failed";
+    setLastError(message);
     setLedMode(LED_FAULT);
+    if (reason != nullptr && reasonLen > 0U) {
+      snprintf(reason, reasonLen, "%s", message);
+    }
+    return false;
   }
+
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+    if (channelMask[ch] != 0U) {
+      const char* message = "Core 1 all-off acknowledged but mask verification failed";
+      setLastError(message);
+      setLedMode(LED_FAULT);
+      if (reason != nullptr && reasonLen > 0U) {
+        snprintf(reason, reasonLen, "%s", message);
+      }
+      return false;
+    }
+  }
+
+  setStatus("All channels OFF");
+  if (!fatalSafeStateActive) {
+    setLedMode(LED_OK);
+  }
+  if (reason != nullptr && reasonLen > 0U) {
+    reason[0] = '\0';
+  }
+  return true;
 }
 
 /**
@@ -454,8 +507,11 @@ static void processCoreCommand(const CoreCommand& command) {
       return;
 
     case CORE_CMD_CLEAR_ALL:
-      forceAllOffPhysical();
-      fillResponse(response, command, CORE_RESP_OK, "OK");
+      if (forceAllOffPhysical()) {
+        fillResponse(response, command, CORE_RESP_OK, "OK");
+      } else {
+        fillResponse(response, command, CORE_RESP_IO_ERROR, "physical all-off failed");
+      }
       pushResponse(response);
       return;
 
@@ -490,9 +546,12 @@ void core1ProcessEngineOnce() {
   core1LoopCounter++;
 
   if (emergencyOffRequested) {
-    forceAllOffPhysical();
+    bool offOk = forceAllOffPhysical();
     emergencyOffRequested = false;
-    core1OutputsReady = outputsKnownSafe;
+    core1OutputsReady = offOk && outputsKnownSafe;
+    if (!offOk) {
+      core1Fault = true;
+    }
   }
 
   CoreCommand command;

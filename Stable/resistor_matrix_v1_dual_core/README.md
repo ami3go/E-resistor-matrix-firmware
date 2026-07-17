@@ -14,7 +14,7 @@ This package is the documented version of the dual-core Arduino RP2040 firmware.
 
 ## Main files
 
-- `rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen.ino` — Arduino sketch entry file.
+- `resistor_matrix_v1_dual_core.ino` — Arduino sketch entry file.
 - `app.h` — documented shared API and global declarations.
 - `core_command.cpp` — dual-core command engine.
 - `shift_registers.cpp` — Core 1 physical output driver.
@@ -132,6 +132,32 @@ CAL:ALL:FILES?
 The browser **Files** tab places LittleFS capacity and its combined file inventory at the top. Its **Download All** button saves the eight-table bundle as a `.txt` file on the PC. **Import from file** restores all eight tables from that same bundle format. Import is accepted only while all channels are OFF; all channel blocks are validated and staged before the runtime calibration is replaced.
 
 
+
+## 2026-07-17 optimization Gate 2 — v0.5.0
+
+- Replaced the 8 × 16 text-heavy runtime resistor table with a direct numeric `float` table indexed by channel and bit.
+- Stores the common bit-to-MOSFET mapping once and generates display names at text boundaries.
+- Replaced eight duplicate compile-time default tables with one shared 16-value default table.
+- Preserved the existing CSV, header-initializer, SCPI calibration, browser backup, and import/export formats.
+- Added strict finite, positive, bounded calibration parsing and rejection of trailing resistance text.
+- Removed per-candidate `logf()` from nearest-mask search and compares relative resistance error using conductance cross-products.
+- Added target-search deadline, cancellation checkpoint, candidate count, elapsed-time, timeout, and cancellation telemetry.
+- Added the read-only SCPI command `CH<n>:TARGET:CALC? <ohm>`; it returns a mask and calculation diagnostics without changing outputs.
+- Added `SYST:DIAG:SERIAL?` to emit a deterministic structured USB diagnostic event for regression testing.
+- Added Gate 2 host oracle vectors from the accepted Gate 1 calibration snapshot and automated source acceptance checks.
+- Estimated static RAM reduction from the runtime calibration model is 2,688 bytes; exact linked RAM and firmware size remain build acceptance measurements.
+
+## 2026-07-16 optimization Gate 1 — v0.4.6
+
+- Removed direct `Serial.print`, `Serial.println`, and `Serial.flush` calls from Core 1 production paths.
+- Added a compact fixed-size Core 1 event queue; Core 0 formats diagnostic lines as structured `EVT` records.
+- Changed all-OFF wrappers and physical handling to return verified success/failure and preserved the failure reason in HTTP, SCPI, startup, safe-state, and OTA paths.
+- Fixed oversized SCPI-line recovery so the remainder of an invalid line is discarded until newline and cannot execute as a second command.
+- Enabled a separate Core 1 stack and added Core 1 loop, stack, event, and event-drop telemetry.
+- Centralized the default device address as `192.168.0.55`.
+- Removed obsolete split-from-monolithic-sketch comments and moved algorithm history to `docs/performance_history.md`.
+- Added `tools/check_gate1_source.py` for automated Gate 1 source acceptance checks.
+
 ## 2026-07-15 calibration bundle backup update — v0.4.4
 
 - The Files tab now shows LittleFS storage and file inventory before calibration backup controls.
@@ -188,3 +214,17 @@ For web `.bin` update, select an Arduino-Pico **Tools > Flash Size** option that
 - Replaced the SCPI tab's plain command list with a two-column **Command / Description** table.
 - Kept descriptions short and grouped equivalent command aliases in the same row.
 - Documented channel placeholders as `CH<n>` for channels 1 through 8.
+
+## Arduino CLI reproducible Windows build
+
+Gate 1 packages include local Arduino CLI setup, build, and UF2 upload scripts. From the sketch root run:
+
+```bat
+setup_arduino_cli_environment.bat
+build_firmware.bat
+flash_firmware_COM17.bat
+```
+
+The normal build prints a periodic elapsed-time heartbeat; `build_firmware_verbose.bat` streams every compiler command live.
+
+The configuration matches the documented Waveshare RP2040 Zero IDE settings: 2 MB flash split as 1 MB sketch plus 1 MB LittleFS, 200 MHz CPU, IPv4-only 32 KB lwIP, `-Os`, Pico SDK USB, no OS, exceptions, RTTI, profiling, stack protector, or debug output. See `tools/arduino_cli/README.md`.

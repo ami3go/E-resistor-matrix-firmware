@@ -5,9 +5,6 @@
 
 #include "app.h"
 
-// 01_utility.ino
-// Split from rp2040_w5500_resistor_matrix_v1_safety_logic.ino.
-// Keep all files in the same Arduino sketch folder.
 
 // ============================================================
 // Utility
@@ -266,7 +263,13 @@ void safeState(const char* reason) {
   fatalSafeStateActive = true;
 
   if (shiftRegistersReady) {
-    forceAllOff();
+    char allOffReason[128] = {0};
+    if (!forceAllOff(allOffReason, sizeof(allOffReason))) {
+      char msg[180];
+      snprintf(msg, sizeof(msg), "SAFE STATE all-OFF failed: %s",
+               allOffReason[0] ? allOffReason : "unknown failure");
+      appendLogEvent(msg);
+    }
   } else {
     outputsKnownSafe = false;
     Serial.println("SAFE STATE WARNING: shift-register GPIOs not ready yet");

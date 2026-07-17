@@ -3,14 +3,13 @@
  * @brief Resistance parsing, equivalent-resistance calculation, mask safety checks,
  *        profile handling, and UI helper rendering.
  *
- * RP2040 OPTIMISATIONS OVER ORIGINAL
+ * RP2040 PERFORMANCE NOTES
  * ====================================
  *
  *  1. Conductance cache  (s_cond[][])
- *     parseResistanceOhms() is slow: it constructs a String, calls trim/toUpperCase,
- *     and runs strtod on every call.  rebuildConductanceCache() runs it once per
- *     resistor slot at startup (or on config change) and stores the result as a float.
- *     Every hot-path call then reads a single array element instead of parsing a string.
+ *     Runtime calibration is stored as float resistance values. rebuildConductanceCache()
+ *     converts each value to 1/R after startup or a calibration change. Hot-path
+ *     calculations therefore read compact numeric arrays without String parsing.
  *
  *  2. float instead of double in the inner loop
  *     The RP2040 Cortex-M0+ has NO hardware FPU.  All floating-point is emulated via
@@ -46,7 +45,7 @@
 #include <math.h>
 
 // ============================================================
-// CONDUCTANCE CACHE  (NEW)
+// Conductance cache
 // ============================================================
 
 // Pre-computed conductance (1/R) in Siemens for each (channel, bit) pair.
@@ -56,20 +55,19 @@ static float s_cond[CHANNEL_COUNT][BIT_COUNT];
 static bool  s_condValid = false;
 
 /**
- * @brief Build (or rebuild) the conductance cache from nominal_resistance strings.
+ * @brief Build (or rebuild) the conductance cache from numeric resistance values.
  *
- * Call once after setup() has populated RuntimeResistorInfo data, and again
+ * Call once after setup() has populated channelResistorOhms, and again
  * whenever that data changes at runtime.  Declared extern in app.h.
  */
 void rebuildConductanceCache() {
     for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
         for (uint8_t bit = 0; bit < BIT_COUNT; bit++) {
-            RuntimeResistorInfo* info = getRuntimeResistorInfoForBit(ch, bit);
-            double rOhm = 0.0;
-            if (info != nullptr && parseResistanceOhms(info->nominal_resistance, rOhm)) {
-                s_cond[ch][bit] = float(1.0 / rOhm);
+            const float resistanceOhm = channelResistorOhms[ch][bit];
+            if (isfinite(resistanceOhm) && resistanceOhm > 0.0f) {
+                s_cond[ch][bit] = 1.0f / resistanceOhm;
             } else {
-                s_cond[ch][bit] = -1.0f;   // sentinel: invalid / unpopulated
+                s_cond[ch][bit] = -1.0f;
             }
         }
     }
@@ -88,7 +86,7 @@ void invalidateConductanceCache() {
 }
 
 // ============================================================
-// RESISTANCE PARSING & FORMATTING  (UNCHANGED)
+// Resistance parsing and formatting
 // ============================================================
 
 /**
@@ -113,13 +111,24 @@ bool parseResistanceOhms(const char* text, double& ohms) {
     while (*endPtr == ' ') endPtr++;
 
     double multiplier = 1.0;
-    if      (*endPtr == 'R' || *endPtr == '\0') multiplier = 1.0;
-    else if (*endPtr == 'K')                    multiplier = 1000.0;
-    else if (*endPtr == 'M')                    multiplier = 1000000.0;
-    else                                        return false;
+    if (*endPtr == 'R') {
+        multiplier = 1.0;
+        ++endPtr;
+    } else if (*endPtr == 'K') {
+        multiplier = 1000.0;
+        ++endPtr;
+    } else if (*endPtr == 'M') {
+        multiplier = 1000000.0;
+        ++endPtr;
+    } else if (*endPtr != '\0') {
+        return false;
+    }
+
+    while (*endPtr == ' ') ++endPtr;
+    if (*endPtr != '\0') return false;
 
     ohms = value * multiplier;
-    return (ohms > 0.0);
+    return isfinite(ohms) && ohms > 0.0;
 }
 
 /**
@@ -137,7 +146,7 @@ String formatResistanceOhms(double ohms) {
 }
 
 // ============================================================
-// FAST RESISTANCE CALCULATION CORE  (NEW – private)
+// Fast resistance calculation core
 // ============================================================
 
 /**
@@ -282,7 +291,7 @@ String resistanceCssClass(uint8_t channelIndex, uint16_t mask) {
 }
 
 // ============================================================
-// PATH HELPERS  (UNCHANGED)
+// Path helpers
 // ============================================================
 
 /** @brief Return the LittleFS path to the safety configuration CSV. */
@@ -297,7 +306,7 @@ String calibrationMetaPath(uint8_t channelIndex) {
 }
 
 // ============================================================
-// EVENT LOG  (UNCHANGED)
+// Event log
 // ============================================================
 
 /**
@@ -314,7 +323,7 @@ void appendLogEvent(const char* text) {
 }
 
 // ============================================================
-// NAME / PATH SANITISATION  (UNCHANGED)
+// Name and path sanitisation
 // ============================================================
 
 /**
@@ -346,7 +355,7 @@ String profilePathFromName(String name) {
 }
 
 // ============================================================
-// SAFETY CONFIG – LittleFS  (UNCHANGED)
+// Safety configuration in LittleFS
 // ============================================================
 
 /**
@@ -455,32 +464,9 @@ bool loadSafetyConfigFromLittleFS() {
  * @brief Search for the switch mask that produces the closest equivalent
  *        resistance to targetOhm, respecting current safety limits.
  *
- * ORIGINAL (slow)
- * ---------------
- *  Iterated all 65,535 non-zero masks.  For every mask it called
- *  checkMaskSafety() → calculateEquivalentOhms() → parseResistanceOhms()
- *  per active bit – over 1 million String operations in the worst case.
- *  On the RP2040 M0+ this could take many seconds.
- *
- * OPTIMISED
- * ---------
- *  a) Gosper's hack  – enumerate only masks with exactly k set bits,
- *     for k = 1 … maxK.  safetyMaxActiveBits = 4 → 2,516 masks visited
- *     instead of 65,535 (~26× fewer iterations before even touching math).
- *
- *  b) Conductance cache  – the inner loop reads 1/R from s_cond[][] (one
- *     float load) instead of calling parseResistanceOhms() (String + strtod).
- *
- *  c) float arithmetic and logf()  – faster than double on M0+.
- *
- *  d) Inlined safety check  – the bit-count limit is implicit in the k-loop
- *     (no masks with too many bits are ever generated); only the min-ohm
- *     limit needs a runtime comparison (gSum <= maxGSafe).
- *
- *  e) Early exit  – stops immediately if an exact match is found (score == 0).
- *
- *  Scoring: |log(R_candidate / R_target)| = |log(G_target / G_candidate)|
- *           = |logf(gTarget) – logf(gSum)|, identical to the original metric.
+ * Uses fixed-popcount mask enumeration and cached conductance values.
+ * Historical algorithm and performance notes are kept in
+ * docs/performance_history.md rather than in the production source.
  *
  * @param channelIndex     Zero-based channel index.
  * @param targetOhm        Desired resistance in ohms.
@@ -489,19 +475,37 @@ bool loadSafetyConfigFromLittleFS() {
  * @param bestErrorPercent Output: signed % error vs targetOhm.
  * @return true if at least one safe, valid mask was found.
  */
-bool findNearestMaskForTarget(uint8_t channelIndex, double targetOhm,
-                               uint16_t& bestMask, double& bestOhm,
-                               double& bestErrorPercent) {
-    if (channelIndex >= CHANNEL_COUNT || targetOhm <= 0.0) return false;
+namespace {
+volatile bool s_targetSearchCancelRequested = false;
+constexpr uint32_t TARGET_SEARCH_CHECK_INTERVAL = 256U;
+}
+
+void requestTargetSearchCancel() {
+    s_targetSearchCancelRequested = true;
+}
+
+void clearTargetSearchCancel() {
+    s_targetSearchCancelRequested = false;
+}
+
+bool calculateNearestMaskForTarget(
+    uint8_t channelIndex,
+    double targetOhm,
+    TargetSearchResult& result,
+    uint32_t deadlineUs
+) {
+    result = {};
+    result.requestedOhm = targetOhm;
+    result.calculatedOhm = NAN;
+    result.absoluteErrorOhm = NAN;
+    result.errorPercent = NAN;
+
+    if (channelIndex >= CHANNEL_COUNT || !isfinite(targetOhm) || targetOhm <= 0.0) return false;
     if (!s_condValid) rebuildConductanceCache();
 
-    // Constants computed once for the entire search
-    const float gTarget  = float(1.0 / targetOhm);
-    const float logGTgt  = logf(gTarget);
-
-    // Safety conductance window:
-    //   R_eq >= safetyMinOhm  ↔  gSum <= 1/safetyMinOhm
-    //   R_eq <= safetyMaxOhm  ↔  gSum >= 1/safetyMaxOhm
+    clearTargetSearchCancel();
+    const uint32_t startedUs = micros();
+    const float gTarget = float(1.0 / targetOhm);
     const float maxGSafe = (safetyExpertMode || safetyMinOhm[channelIndex] <= 0.0)
                                ? 1.0e30f
                                : float(1.0 / safetyMinOhm[channelIndex]);
@@ -509,65 +513,101 @@ bool findNearestMaskForTarget(uint8_t channelIndex, double targetOhm,
                                ? 0.0f
                                : float(1.0 / (safetyMaxOhm[channelIndex] * 1.000001));
 
-    // Outer loop upper bound: respect safetyMaxActiveBits (unless expert mode).
-    // Clamp defensively so corrupted settings cannot generate invalid bit patterns.
     uint8_t maxK = safetyExpertMode ? uint8_t(BIT_COUNT) : safetyMaxActiveBits[channelIndex];
     if (maxK > BIT_COUNT) maxK = BIT_COUNT;
     if (maxK == 0) return false;
 
-    float bestScore = 1.0e30f;
-    bool  found     = false;
+    float bestDiff = 0.0f;
+    float bestG = 0.0f;
+    bool found = false;
 
-    for (uint8_t k = 1; k <= maxK; k++) {
-
-        // Gosper's hack: start with the k lowest bits set (smallest k-bit number)
+    for (uint8_t k = 1; k <= maxK; ++k) {
         uint32_t mask = (1u << k) - 1u;
-
         while (mask <= 0xFFFFu) {
+            ++result.candidatesVisited;
 
-            // ── Compute conductance sum for this mask ─────────────────────────
-            float    gSum  = 0.0f;
-            bool     valid = true;
-            uint32_t m     = mask;
-
-            while (m) {
-                uint8_t bit = uint8_t(__builtin_ctz(m));   // lowest set bit; compiler-optimised
-                float   g   = s_cond[channelIndex][bit];
-                if (g < 0.0f) { valid = false; break; }    // unpopulated slot
-                gSum += g;
-                m &= m - 1u;                                // clear lowest bit
+            float gSum = 0.0f;
+            bool valid = true;
+            uint32_t active = mask;
+            while (active) {
+                const uint8_t bit = uint8_t(__builtin_ctz(active));
+                const float conductance = s_cond[channelIndex][bit];
+                if (conductance <= 0.0f || !isfinite(conductance)) {
+                    valid = false;
+                    break;
+                }
+                gSum += conductance;
+                active &= active - 1u;
             }
 
-            // ── Safety check + log-scale scoring ─────────────────────────────
             if (valid && gSum > 0.0f && gSum >= minGSafe && gSum <= maxGSafe) {
-                float score = fabsf(logf(gSum) - logGTgt);
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestMask  = uint16_t(mask);
-                    bestOhm   = double(1.0f / gSum);
-                    found     = true;
-                    if (bestScore == 0.0f) goto search_done;   // exact – can't do better
+                const float diff = fabsf(gTarget - gSum);
+                // Relative resistance error is |gTarget-g|/g. Compare two
+                // candidates by cross multiplication to avoid logf and division.
+                const bool better = !found ||
+                    (diff * bestG < bestDiff * gSum) ||
+                    (diff * bestG == bestDiff * gSum && uint16_t(mask) < result.mask);
+                if (better) {
+                    found = true;
+                    bestDiff = diff;
+                    bestG = gSum;
+                    result.mask = uint16_t(mask);
+                    if (diff == 0.0f) goto search_complete;
                 }
             }
 
-            // ── Gosper's hack: advance to the next mask with exactly k bits set ─
-            {
-                uint32_t c  = mask & (0u - mask);   // isolate lowest set bit
-                uint32_t r  = mask + c;
-                mask = (((r ^ mask) >> 2u) / c) | r;
-                // When all k bits have shifted past bit 15, mask > 0xFFFF → loop ends.
+            if ((result.candidatesVisited % TARGET_SEARCH_CHECK_INTERVAL) == 0U) {
+                const uint32_t elapsedUs = micros() - startedUs;
+                if (s_targetSearchCancelRequested) {
+                    result.cancelled = true;
+                    ++targetSearchCancelCount;
+                    goto search_complete;
+                }
+                if (deadlineUs > 0U && elapsedUs >= deadlineUs) {
+                    result.timedOut = true;
+                    ++targetSearchTimeoutCount;
+                    goto search_complete;
+                }
+                updateHeartbeat();
+                drainCore1Events();
+                yield();
             }
+
+            const uint32_t lowest = mask & (0u - mask);
+            const uint32_t next = mask + lowest;
+            mask = (((next ^ mask) >> 2u) / lowest) | next;
         }
     }
 
-search_done:
-    if (!found) return false;
-    bestErrorPercent = (bestOhm - targetOhm) / targetOhm * 100.0;
+search_complete:
+    result.elapsedUs = micros() - startedUs;
+    targetSearchLastCandidates = result.candidatesVisited;
+    targetSearchLastElapsedUs = result.elapsedUs;
+
+    if (!found || result.timedOut || result.cancelled) return false;
+    result.calculatedOhm = double(1.0f / bestG);
+    result.absoluteErrorOhm = fabs(result.calculatedOhm - targetOhm);
+    result.errorPercent = (result.calculatedOhm - targetOhm) / targetOhm * 100.0;
+    return true;
+}
+
+bool findNearestMaskForTarget(
+    uint8_t channelIndex,
+    double targetOhm,
+    uint16_t& bestMask,
+    double& bestOhm,
+    double& bestErrorPercent
+) {
+    TargetSearchResult result{};
+    if (!calculateNearestMaskForTarget(channelIndex, targetOhm, result)) return false;
+    bestMask = result.mask;
+    bestOhm = result.calculatedOhm;
+    bestErrorPercent = result.errorPercent;
     return true;
 }
 
 // ============================================================
-// PROFILE MANAGEMENT  (UNCHANGED)
+// Profile management
 // ============================================================
 
 /**
@@ -629,7 +669,7 @@ bool loadProfileMasks(String profileName, uint16_t masks[CHANNEL_COUNT]) {
 
         int      ch   = left.substring(2).toInt();
         uint16_t mask = 0;
-        if (ch >= 1 && ch <= 8 && parseHex16String(right, mask)) {
+        if (ch >= 1 && ch <= int(CHANNEL_COUNT) && parseHex16String(right, mask)) {
             masks[ch - 1] = mask;
         }
     }
@@ -657,7 +697,7 @@ bool saveCurrentProfile(String profileName) {
 }
 
 // ============================================================
-// HTML HELPERS  (UNCHANGED)
+// HTML helpers
 // ============================================================
 
 /**
@@ -744,18 +784,16 @@ void appendCombinedChannelResistorTable(String& html) {
     html += "</tr>";
 
     for (uint8_t bit = 0; bit < BIT_COUNT; bit++) {
-        RuntimeResistorInfo* mappingInfo = getRuntimeResistorInfoForBit(0, bit);
-
         html += "<tr><td><code>";
         html += String(bit);
         html += "</code></td><td><code>";
-        html += mappingInfo ? mappingInfo->mosfet_name : "-";
+        html += mosfetNameForBit(bit);
         html += "</code></td>";
 
         for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-            RuntimeResistorInfo* info = getRuntimeResistorInfoForBit(ch, bit);
+            const float resistanceOhm = getRuntimeResistanceOhms(ch, bit);
             html += "<td class='resistor-cell'><span>";
-            html += info ? info->nominal_resistance : "-";
+            html += isfinite(resistanceOhm) ? String(double(resistanceOhm), 6) : String("-");
             html += "</span></td>";
         }
         html += "</tr>";
@@ -784,7 +822,7 @@ void appendBitIndicator(String& html, uint8_t channelIndex, uint16_t mask) {
     html += "<div class='bits'>";
     for (int bit = 15; bit >= 0; bit--) {
         bool on = (mask & (uint16_t(1) << bit)) != 0;
-        RuntimeResistorInfo* info = getRuntimeResistorInfoForBit(channelIndex, uint8_t(bit));
+        const float resistanceOhm = getRuntimeResistanceOhms(channelIndex, uint8_t(bit));
 
         html += "<a class='bit "; html += on ? "on" : "off";
         html += "' href='/toggle_bit?ch="; html += String(channelIndex + 1);
@@ -792,9 +830,10 @@ void appendBitIndicator(String& html, uint8_t channelIndex, uint16_t mask) {
         html += "' title='Click to "; html += on ? "turn OFF" : "turn ON";
         html += " bit "; html += String(bit);
 
-        if (info != nullptr) {
-            html += " / "; html += info->mosfet_name;
-            html += " / "; html += info->nominal_resistance;
+        if (isfinite(resistanceOhm) && resistanceOhm > 0.0f) {
+            html += " / "; html += mosfetNameForBit(uint8_t(bit));
+            html += " / "; html += String(double(resistanceOhm), 6);
+            html += " Ohm";
         }
         html += "'>"; html += String(bit); html += "</a>";
     }

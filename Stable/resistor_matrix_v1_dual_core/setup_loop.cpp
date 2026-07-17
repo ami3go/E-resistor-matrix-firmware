@@ -159,7 +159,11 @@ void setup() {
   Serial.println("STEP 7: request all channels OFF via Core 1");
   Serial.flush();
 
-  forceAllOff();
+  char allOffReason[128] = {0};
+  if (!forceAllOff(allOffReason, sizeof(allOffReason))) {
+    safeState(allOffReason[0] ? allOffReason : "Startup all-OFF failed");
+    return;
+  }
 
   Serial.println("STEP 8: all channels OFF done");
   Serial.flush();
@@ -176,6 +180,7 @@ void loop() {
   uint32_t busyStartUs = micros();
 
   updateHeartbeat();
+  drainCore1Events();
 
   if (!ethernetFault) {
     server.handleClient();
@@ -196,16 +201,38 @@ void setup1() {
   // Ethernet or accepts any remote command.
   delay(20);
   setupShiftRegisters();
-  forceAllOffPhysical();
-  core1OutputsReady = outputsKnownSafe;
-  core1EngineReady = true;
+  bool offOk = forceAllOffPhysical();
+  core1OutputsReady = offOk && outputsKnownSafe;
+  core1EngineReady = core1OutputsReady;
   core1HeartbeatMs = millis();
+  int freeStack = rp2040.getFreeStack();
+  if (freeStack > 0) {
+    core1MinFreeStackBytes = uint32_t(freeStack);
+  }
+  core1EmitEvent(
+    offOk ? CORE1_EVT_ENGINE_READY : CORE1_EVT_ALL_OFF_FAILED,
+    offOk ? FW_LOG_INFO : FW_LOG_ERROR,
+    0xFF, 0, 0, 0
+  );
 }
 
 /**
  * @brief Arduino Core 1 loop that runs the hardware command engine.
  */
 void loop1() {
+  uint32_t startUs = micros();
   core1ProcessEngineOnce();
+
+  if ((core1LoopCounter & 0xFFU) == 0U) {
+    int freeStack = rp2040.getFreeStack();
+    if (freeStack > 0 && uint32_t(freeStack) < core1MinFreeStackBytes) {
+      core1MinFreeStackBytes = uint32_t(freeStack);
+    }
+  }
+
+  uint32_t elapsedUs = micros() - startUs;
+  if (elapsedUs > core1LoopMaxUs) {
+    core1LoopMaxUs = elapsedUs;
+  }
   delayMicroseconds(100);
 }

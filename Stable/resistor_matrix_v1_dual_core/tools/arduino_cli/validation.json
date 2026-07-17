@@ -1,0 +1,32 @@
+{
+  "passed": true,
+  "checks": {
+    "rp2040:rp2040:waveshare_rp2040_zero": true,
+    "flash=2097152_1048576": true,
+    "freq=200": true,
+    "ipbtstack=ipv4onlybig": true,
+    "opt=Small": true,
+    "os=none": true,
+    "profile=Disabled": true,
+    "rtti=Disabled": true,
+    "stackprotect=Disabled": true,
+    "exceptions=Disabled": true,
+    "dbgport=Disabled": true,
+    "dbglvl=None": true,
+    "uploadmethod=default": true,
+    "usbstack=picosdk": true,
+    "actions": true,
+    "clean_before_build": true,
+    "brace_balance": true,
+    "paren_balance": true,
+    "bat_crlf": true
+  },
+  "script_version": "1.1.0",
+  "live_progress": true,
+  "heartbeat_seconds_default": 3,
+  "verbose_launcher": "build_firmware_verbose.bat",
+  "verbose_build_flash_launcher": "build_and_flash_COM17_verbose.bat",
+  "native_output_streaming": "background_job_incremental",
+  "package_revision": "v0.5.0-gate2",
+  "runner_script_version": "1.1.1"
+}

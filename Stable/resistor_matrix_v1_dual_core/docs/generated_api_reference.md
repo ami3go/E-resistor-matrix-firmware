@@ -129,7 +129,7 @@ bool applyAllMasksSafely(const uint16_t masks[CHANNEL_COUNT], char* reason, size
 Core-0-safe wrapper that requests an emergency/normal all-OFF transition.
 
 ```cpp
-void forceAllOff()
+bool forceAllOff(char* reason = nullptr, size_t reasonLen = 0)
 ```
 
 ### `processCoreCommand`
@@ -520,6 +520,31 @@ bool parseMask(uint16_t& mask)
 
 ## `resistance_calculation.cpp`
 
+### `calculateNearestMaskForTarget`
+
+Calculate the nearest safe resistance mask without changing hardware outputs.
+
+```cpp
+bool calculateNearestMaskForTarget(uint8_t channelIndex, double targetOhm, TargetSearchResult& result, uint32_t deadlineUs = 2000000UL)
+```
+
+### `requestTargetSearchCancel`
+
+Request cancellation at the next target-search checkpoint.
+
+```cpp
+void requestTargetSearchCancel()
+```
+
+### `clearTargetSearchCancel`
+
+Clear the cancellation request.
+
+```cpp
+void clearTargetSearchCancel()
+```
+
+
 ### `parseResistanceOhms`
 
 Parse Resistance Ohms.
@@ -706,12 +731,20 @@ Copy compile-time resistor branch definitions into the mutable runtime table.
 void copyDefaultConfigToRuntime()
 ```
 
-### `getRuntimeResistorInfoForBit`
+### `mosfetNameForBit`
 
-Get Runtime Resistor Info For Bit.
+Return the fixed MOSFET branch name for a bit index.
 
 ```cpp
-RuntimeResistorInfo* getRuntimeResistorInfoForBit(uint8_t channelIndex, uint8_t bit)
+const char* mosfetNameForBit(uint8_t bit)
+```
+
+### `getRuntimeResistanceOhms`
+
+Return the numeric calibrated branch resistance for one channel and bit.
+
+```cpp
+float getRuntimeResistanceOhms(uint8_t channelIndex, uint8_t bit)
 ```
 
 ### `channelConfigPath`
@@ -743,7 +776,7 @@ String channelConfigToText(uint8_t channelIndex)
 Parse Csv Config Line.
 
 ```cpp
-bool parseCsvConfigLine(const String& line, RuntimeResistorInfo& out)
+bool parseCsvConfigLine(const String& line, ParsedResistorInfo& out)
 ```
 
 ### `parseHeaderInitializerLine`
@@ -751,7 +784,7 @@ bool parseCsvConfigLine(const String& line, RuntimeResistorInfo& out)
 Parse Header Initializer Line.
 
 ```cpp
-bool parseHeaderInitializerLine(const String& line, RuntimeResistorInfo& out)
+bool parseHeaderInitializerLine(const String& line, ParsedResistorInfo& out)
 ```
 
 ### `parseChannelConfigText`
@@ -973,7 +1006,7 @@ void setupShiftRegisters()
 Physically latch 0x0000 into all eight output channels.
 
 ```cpp
-void forceAllOffPhysical()
+bool forceAllOffPhysical()
 ```
 
 ## `status_led.cpp`
@@ -1228,7 +1261,7 @@ bool w5500SoftwareResetAndProbe()
 This package integrates an optimized `resistance_calculation.cpp` implementation.  Equivalent-resistance calculations now use a cached conductance table (`1/R`) and the firmware-side nearest-mask search uses combination enumeration instead of brute-forcing every 16-bit mask.  The cache is rebuilt at startup after runtime resistor configuration loading and invalidated after any runtime resistor table update.  The firmware-side nearest function is kept for web/manual use, but PC-side drivers should still prefer downloading `CAL:RES?` and calculating nearest masks on the host.
 
 
-## Calibration bundle backup and restore (v0.4.4)
+## Calibration bundle backup and restore (v0.4.6)
 
 ### `restoreAllChannelConfigsFromBundleText`
 

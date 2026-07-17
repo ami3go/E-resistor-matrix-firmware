@@ -18,10 +18,22 @@ uint32_t lastLedUpdateMs = 0;
 uint32_t ledIdentifyUntilMs = 0;
 uint8_t ledIdentifyPatternStep = 0;
 
-IPAddress DEVICE_IP(192, 168, 7, 50);
-IPAddress DEVICE_DNS(0, 0, 0, 0);
-IPAddress DEVICE_GATEWAY(0, 0, 0, 0);
-IPAddress DEVICE_SUBNET(255, 255, 255, 0);
+IPAddress DEVICE_IP(
+  DEFAULT_DEVICE_IP_OCTETS[0], DEFAULT_DEVICE_IP_OCTETS[1],
+  DEFAULT_DEVICE_IP_OCTETS[2], DEFAULT_DEVICE_IP_OCTETS[3]
+);
+IPAddress DEVICE_DNS(
+  DEFAULT_DEVICE_DNS_OCTETS[0], DEFAULT_DEVICE_DNS_OCTETS[1],
+  DEFAULT_DEVICE_DNS_OCTETS[2], DEFAULT_DEVICE_DNS_OCTETS[3]
+);
+IPAddress DEVICE_GATEWAY(
+  DEFAULT_DEVICE_GATEWAY_OCTETS[0], DEFAULT_DEVICE_GATEWAY_OCTETS[1],
+  DEFAULT_DEVICE_GATEWAY_OCTETS[2], DEFAULT_DEVICE_GATEWAY_OCTETS[3]
+);
+IPAddress DEVICE_SUBNET(
+  DEFAULT_DEVICE_SUBNET_OCTETS[0], DEFAULT_DEVICE_SUBNET_OCTETS[1],
+  DEFAULT_DEVICE_SUBNET_OCTETS[2], DEFAULT_DEVICE_SUBNET_OCTETS[3]
+);
 
 Wiznet5500lwIP eth(ETH_CS);
 WebServer server(HTTP_TCP_PORT);
@@ -30,8 +42,9 @@ WiFiClient scpiClient;
 
 char scpiLine[160] = {0};
 size_t scpiLineLen = 0;
+bool scpiDiscardUntilNewline = false;
 
-RuntimeResistorInfo channelResistorTable[CHANNEL_COUNT][BIT_COUNT] = {};
+float channelResistorOhms[CHANNEL_COUNT][BIT_COUNT] = {};
 
 bool ethernetFault = false;
 bool littleFsReady = false;
@@ -91,3 +104,16 @@ volatile uint32_t core1LoopCounter = 0;
 volatile uint32_t core1CommandCounter = 0;
 volatile uint32_t core1QueueOverflowCounter = 0;
 volatile uint32_t core1LastCommandMs = 0;
+volatile uint32_t core1LoopMaxUs = 0;
+volatile uint32_t core1MinFreeStackBytes = UINT32_MAX;
+volatile uint32_t core1EventCounter = 0;
+volatile uint32_t core1EventDropCounter = 0;
+
+uint32_t targetSearchLastCandidates = 0;
+uint32_t targetSearchLastElapsedUs = 0;
+uint32_t targetSearchTimeoutCount = 0;
+uint32_t targetSearchCancelCount = 0;
+
+// Arduino-Pico: allocate an independent 8 KiB Core 1 stack instead of
+// splitting the default 8 KiB stack into two 4 KiB regions.
+bool core1_separate_stack = true;

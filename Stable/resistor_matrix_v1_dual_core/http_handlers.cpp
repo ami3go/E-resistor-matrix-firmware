@@ -51,9 +51,6 @@ static void setFirmwareUpdateFsStatus(const char* prefix) {
 }
 
 
-// 11_http_handlers.ino
-// Split from rp2040_w5500_resistor_matrix_v1_safety_logic.ino.
-// Keep all files in the same Arduino sketch folder.
 
 // ============================================================
 // HTTP handlers
@@ -208,6 +205,35 @@ void handleState() {
 
   text += "core1_queue_overflow_count=";
   text += String((uint32_t)core1QueueOverflowCounter);
+  text += "\n";
+
+  text += "core1_loop_max_us=";
+  text += String((uint32_t)core1LoopMaxUs);
+  text += "\n";
+
+  text += "core1_stack_min_free_bytes=";
+  text += String((uint32_t)core1MinFreeStackBytes);
+  text += "\n";
+
+  text += "core1_event_count=";
+  text += String((uint32_t)core1EventCounter);
+  text += "\n";
+
+  text += "core1_event_drop_count=";
+  text += String((uint32_t)core1EventDropCounter);
+  text += "\n";
+
+  text += "target_search_last_candidates=";
+  text += String(targetSearchLastCandidates);
+  text += "\n";
+  text += "target_search_last_elapsed_us=";
+  text += String(targetSearchLastElapsedUs);
+  text += "\n";
+  text += "target_search_timeout_count=";
+  text += String(targetSearchTimeoutCount);
+  text += "\n";
+  text += "target_search_cancel_count=";
+  text += String(targetSearchCancelCount);
   text += "\n";
 
   text += "configured_ip=";
@@ -510,7 +536,9 @@ void appendNetworkSettingsForm(String& html) {
   html += "</form>";
 
   html += "<div class='notice'>";
-  html += "<b>Default safe values:</b> IP 192.168.7.50, subnet 255.255.255.0, gateway 0.0.0.0, DNS 0.0.0.0. ";
+  html += "<b>Default safe values:</b> IP ";
+  html += DEFAULT_DEVICE_IP_TEXT;
+  html += ", subnet 255.255.255.0, gateway 0.0.0.0, DNS 0.0.0.0. ";
   html += "If you set an unreachable IP, reflash or erase LittleFS to return to defaults.";
   html += "</div>";
 
@@ -613,7 +641,7 @@ void handleNetworkDelete() {
   }
 
   LittleFS.remove(networkConfigPath());
-  DEVICE_IP = IPAddress(192, 168, 7, 50);
+  DEVICE_IP = IPAddress(DEFAULT_DEVICE_IP_OCTETS[0], DEFAULT_DEVICE_IP_OCTETS[1], DEFAULT_DEVICE_IP_OCTETS[2], DEFAULT_DEVICE_IP_OCTETS[3]);
   DEVICE_SUBNET = IPAddress(255, 255, 255, 0);
   DEVICE_GATEWAY = IPAddress(0, 0, 0, 0);
   DEVICE_DNS = IPAddress(0, 0, 0, 0);
@@ -762,7 +790,15 @@ void handleFirmwareUpdateUpload() {
     snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Starting firmware upload: %s", upload.filename.c_str());
     appendLogEvent("Firmware update: upload started");
 
-    forceAllOff();
+    char allOffReason[128] = {0};
+    if (!forceAllOff(allOffReason, sizeof(allOffReason))) {
+      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus),
+               "Rejected: could not confirm all outputs OFF: %s",
+               allOffReason[0] ? allOffReason : "unknown all-off failure");
+      appendLogEvent(firmwareUpdateStatus);
+      firmwareUpdateInProgress = false;
+      return;
+    }
     delay(100);
 
     if (!littleFsReady) {
@@ -1801,6 +1837,8 @@ void handleScpiPage() {
   html += "<tr><td><code>CH&lt;n&gt;:MASK &lt;hex&gt;</code></td><td>Set a channel's 16-bit resistor mask.</td></tr>";
   html += "<tr><td><code>CH&lt;n&gt;:MASK?</code></td><td>Read a channel's active mask.</td></tr>";
   html += "<tr><td><code>CH&lt;n&gt;:RES?</code></td><td>Read calculated channel resistance.</td></tr>";
+  html += "<tr><td><code>CH&lt;n&gt;:TARGET:CALC? &lt;ohm&gt;</code></td><td>Calculate the nearest safe mask without changing outputs.</td></tr>";
+  html += "<tr><td><code>SYST:DIAG:SERIAL?</code></td><td>Emit a structured USB serial test event.</td></tr>";
   html += "<tr><td><code>CH&lt;n&gt;:CONF?</code></td><td>Read the channel calibration configuration.</td></tr>";
   html += "<tr><td><code>CAL:RES?</code> / <code>CAL:RESISTORS?</code></td><td>Read branch values for all channels.</td></tr>";
   html += "<tr><td><code>CAL:RES? CH&lt;n&gt;</code></td><td>Read branch values for one channel.</td></tr>";
@@ -2195,10 +2233,17 @@ void handleAllOff() {
   Serial.println("HTTP /alloff");
   Serial.flush();
 
-  forceAllOff();
+  char reason[128] = {0};
+  if (!forceAllOff(reason, sizeof(reason))) {
+    char msg[180];
+    snprintf(msg, sizeof(msg), "ALL OFF by HTTP failed: %s", reason[0] ? reason : "unknown failure");
+    appendLogEvent(msg);
+    server.send(500, "text/plain", String(msg) + "\n");
+    return;
+  }
+
   appendLogEvent("ALL OFF by HTTP");
   clearLastError();
-
   redirectToRoot();
 }
 

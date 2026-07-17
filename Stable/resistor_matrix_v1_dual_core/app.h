@@ -45,9 +45,6 @@ inline constexpr uint8_t SR_DATA  = 11;
 inline constexpr uint8_t SR_CLOCK = 12;
 inline constexpr uint8_t SR_RESET = 15;  // active low
 
-inline constexpr uint8_t CHANNEL_COUNT = 8;
-inline constexpr uint8_t BIT_COUNT = 16;
-
 inline constexpr uint8_t SR_LATCH_PINS[CHANNEL_COUNT] = {
   5,   // CH1
   6,   // CH2
@@ -78,12 +75,31 @@ inline constexpr uint16_t BREAK_BEFORE_MAKE_MS    = 2;
 inline constexpr uint16_t HTTP_TCP_PORT = 80;
 inline constexpr uint16_t SCPI_TCP_PORT = 5025;
 
+// Centralized factory network defaults. Runtime values may be replaced by
+// /network.csv, but every reset/default UI path must use these definitions.
+inline constexpr uint8_t DEFAULT_DEVICE_IP_OCTETS[4] = {192, 168, 0, 55};
+inline constexpr uint8_t DEFAULT_DEVICE_DNS_OCTETS[4] = {0, 0, 0, 0};
+inline constexpr uint8_t DEFAULT_DEVICE_GATEWAY_OCTETS[4] = {0, 0, 0, 0};
+inline constexpr uint8_t DEFAULT_DEVICE_SUBNET_OCTETS[4] = {255, 255, 255, 0};
+inline constexpr const char* DEFAULT_DEVICE_IP_TEXT = "192.168.0.55";
+
+#ifndef ERESISTOR_LOG_LEVEL
+#define ERESISTOR_LOG_LEVEL 1
+#endif
+
+enum FirmwareLogLevel : uint8_t {
+  FW_LOG_ERROR = 0,
+  FW_LOG_INFO = 1,
+  FW_LOG_DEBUG = 2,
+  FW_LOG_TRACE = 3
+};
+
 // ============================================================
 // Firmware identity
 // ============================================================
 inline constexpr const char* FIRMWARE_NAME = "E-Resistor";
 inline constexpr const char* FIRMWARE_VENDOR = "OpenBench";
-inline constexpr const char* FIRMWARE_VERSION = "0.4.4";
+inline constexpr const char* FIRMWARE_VERSION = "0.5.0";
 inline constexpr const char* FIRMWARE_BUILD_DATE = __DATE__;
 inline constexpr const char* FIRMWARE_BUILD_TIME = __TIME__;
 
@@ -120,6 +136,46 @@ enum CoreResponseStatus : int16_t {
   CORE_RESP_IO_ERROR = -500
 };
 
+/** @brief Compact Core 1 diagnostic event identifiers. */
+enum Core1EventCode : uint8_t {
+  CORE1_EVT_NONE = 0,
+  CORE1_EVT_ENGINE_READY,
+  CORE1_EVT_APPLY_BEGIN,
+  CORE1_EVT_APPLY_DONE,
+  CORE1_EVT_APPLY_REJECTED,
+  CORE1_EVT_APPLY_FAILED,
+  CORE1_EVT_ALL_OFF_BEGIN,
+  CORE1_EVT_ALL_OFF_DONE,
+  CORE1_EVT_ALL_OFF_FAILED,
+  CORE1_EVT_PROFILE_FAILED
+};
+
+/** @brief Fixed-size event transported from Core 1 to Core 0. */
+struct Core1Event {
+  uint32_t timestampUs;
+  uint32_t sequence;
+  uint32_t durationUs;
+  uint16_t mask;
+  uint16_t detail;
+  uint8_t code;
+  uint8_t level;
+  uint8_t channelIndex;
+  uint8_t reserved;
+};
+
+inline constexpr uint8_t CORE1_EVENT_QUEUE_DEPTH = 32;
+
+/** @brief Initialize the compact Core 1 to Core 0 event queue. */
+void initCore1EventQueue();
+/** @brief Publish one fixed-size diagnostic event from Core 1. */
+bool core1EmitEvent(Core1EventCode code, FirmwareLogLevel level, uint8_t channelIndex, uint16_t mask, uint16_t detail, uint32_t durationUs);
+/** @brief Pop one pending compact Core 1 event. */
+bool popCore1Event(Core1Event& event);
+/** @brief Drain, format, and print pending Core 1 events from Core 0. */
+void drainCore1Events();
+/** @brief Return a stable text name for a Core 1 event code. */
+const char* core1EventCodeText(Core1EventCode code);
+
 /** @brief Command payload sent from Core 0 to Core 1 for deterministic hardware execution. */
 struct CoreCommand {
   CoreCommandType type;
@@ -139,11 +195,23 @@ struct CoreResponse {
   char message[96];
 };
 
-/** @brief Runtime-editable resistor branch calibration entry for one channel/bit. */
-struct RuntimeResistorInfo {
+/** @brief Temporary parsed calibration entry used only at text import boundaries. */
+struct ParsedResistorInfo {
   uint8_t bit;
-  char mosfet_name[8];
-  char nominal_resistance[16];
+  float resistanceOhm;
+};
+
+/** @brief Detailed result from a read-only nearest-mask target calculation. */
+struct TargetSearchResult {
+  double requestedOhm;
+  uint16_t mask;
+  double calculatedOhm;
+  double absoluteErrorOhm;
+  double errorPercent;
+  uint32_t candidatesVisited;
+  uint32_t elapsedUs;
+  bool timedOut;
+  bool cancelled;
 };
 
 /** @brief WS2812 status indicator operating mode. */
@@ -178,8 +246,9 @@ extern WiFiClient scpiClient;
 
 extern char scpiLine[160];
 extern size_t scpiLineLen;
+extern bool scpiDiscardUntilNewline;
 
-extern RuntimeResistorInfo channelResistorTable[CHANNEL_COUNT][BIT_COUNT];
+extern float channelResistorOhms[CHANNEL_COUNT][BIT_COUNT];
 
 extern bool ethernetFault;
 extern bool littleFsReady;
@@ -202,6 +271,15 @@ extern volatile uint32_t core1LoopCounter;
 extern volatile uint32_t core1CommandCounter;
 extern volatile uint32_t core1QueueOverflowCounter;
 extern volatile uint32_t core1LastCommandMs;
+extern volatile uint32_t core1LoopMaxUs;
+extern volatile uint32_t core1MinFreeStackBytes;
+extern volatile uint32_t core1EventCounter;
+extern volatile uint32_t core1EventDropCounter;
+
+extern uint32_t targetSearchLastCandidates;
+extern uint32_t targetSearchLastElapsedUs;
+extern uint32_t targetSearchTimeoutCount;
+extern uint32_t targetSearchCancelCount;
 
 extern char statusText[128];
 extern char lastError[128];
@@ -358,13 +436,10 @@ String firmwareIdentityString();
  * @brief Copy compile-time resistor branch definitions into the mutable runtime table.
  */
 void copyDefaultConfigToRuntime();
-/**
- * @brief Get Runtime Resistor Info For Bit.
- * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
- * @param bit Function parameter.
- * @return Result value; for bool, true means the operation succeeded.
- */
-RuntimeResistorInfo* getRuntimeResistorInfoForBit(uint8_t channelIndex, uint8_t bit);
+/** @brief Return the fixed MOSFET designator for a mask bit (bit 0 -> Q16). */
+const char* mosfetNameForBit(uint8_t bit);
+/** @brief Return one numeric runtime calibration value, or NaN for an invalid index. */
+float getRuntimeResistanceOhms(uint8_t channelIndex, uint8_t bit);
 /**
  * @brief Channel Config Path.
  * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
@@ -413,14 +488,14 @@ bool restoreAllChannelConfigsFromBundleText(const String& text, char* error, siz
  * @param out Function parameter.
  * @return Result value; for bool, true means the operation succeeded.
  */
-bool parseCsvConfigLine(const String& line, RuntimeResistorInfo& out);
+bool parseCsvConfigLine(const String& line, ParsedResistorInfo& out);
 /**
  * @brief Parse Header Initializer Line.
  * @param line Function parameter.
  * @param out Function parameter.
  * @return Result value; for bool, true means the operation succeeded.
  */
-bool parseHeaderInitializerLine(const String& line, RuntimeResistorInfo& out);
+bool parseHeaderInitializerLine(const String& line, ParsedResistorInfo& out);
 /**
  * @brief Parse Channel Config Text.
  * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
@@ -460,7 +535,7 @@ void rebuildConductanceCache();
  * @brief Mark the cached conductance table stale.
  *
  * The next resistance calculation will rebuild the cache lazily.  Use this
- * after any direct edit to channelResistorTable.
+ * after any direct edit to channelResistorOhms.
  */
 void invalidateConductanceCache();
 /**
@@ -560,7 +635,10 @@ bool loadSafetyConfigFromLittleFS();
  * @param bestErrorPercent Output buffer for a human-readable diagnostic message.
  * @return Result value; for bool, true means the operation succeeded.
  */
+bool calculateNearestMaskForTarget(uint8_t channelIndex, double targetOhm, TargetSearchResult& result, uint32_t deadlineUs = 2000000UL);
 bool findNearestMaskForTarget(uint8_t channelIndex, double targetOhm, uint16_t& bestMask, double& bestOhm, double& bestErrorPercent);
+void requestTargetSearchCancel();
+void clearTargetSearchCancel();
 /**
  * @brief Profile List Options.
  * @return Result value; for bool, true means the operation succeeded.
@@ -745,7 +823,7 @@ void setupShiftRegisters();
 /**
  * @brief Physically latch 0x0000 into all eight output channels.
  */
-void forceAllOffPhysical();
+bool forceAllOffPhysical();
 
 // Core-0 safe wrappers. HTTP and SCPI should call only these wrappers.
 /**
@@ -766,7 +844,7 @@ bool applyAllMasksSafely(const uint16_t masks[CHANNEL_COUNT], char* reason, size
 /**
  * @brief Core-0-safe wrapper that requests an emergency/normal all-OFF transition.
  */
-void forceAllOff();
+bool forceAllOff(char* reason = nullptr, size_t reasonLen = 0);
 
 // Ethernet startup
 /**

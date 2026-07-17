@@ -5,9 +5,6 @@
 
 #include "app.h"
 
-// 08_parse_helpers.ino
-// Split from rp2040_w5500_resistor_matrix_v1_safety_logic.ino.
-// Keep all files in the same Arduino sketch folder.
 
 // ============================================================
 // HTTP / SCPI parsing helpers
@@ -25,7 +22,7 @@ bool parseChannel(uint8_t& channelIndex) {
 
   int ch = server.arg("ch").toInt();
 
-  if (ch < 1 || ch > 8) {
+  if (ch < 1 || ch > int(CHANNEL_COUNT)) {
     return false;
   }
 

@@ -5,9 +5,6 @@
 
 #include "app.h"
 
-// 05_w5500_registers.ino
-// Split from rp2040_w5500_resistor_matrix_v1_safety_logic.ino.
-// Keep all files in the same Arduino sketch folder.
 
 // ============================================================
 // W5500 low-level register access

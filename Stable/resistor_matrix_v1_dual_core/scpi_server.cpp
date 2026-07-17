@@ -4,10 +4,8 @@
  */
 
 #include "app.h"
+#include <math.h>
 
-// 12_scpi_server.ino
-// Split from rp2040_w5500_resistor_matrix_v1_safety_logic.ino.
-// Keep all files in the same Arduino sketch folder.
 
 // ============================================================
 // SCPI server
@@ -40,6 +38,8 @@ void scpiPrintHelp(WiFiClient& client) {
   client.println("CH<n>:MASK? or ROUT:CHANnel<n>:MASK?");
   client.println("CH<n>:MASK <hex> or ROUT:CHANnel<n>:MASK <hex>");
   client.println("CH<n>:RES?");
+  client.println("CH<n>:TARGET:CALC? <ohm>       - read-only nearest-mask calculation");
+  client.println("SYST:DIAG:SERIAL?              - emit a USB serial test event");
   client.println("CH<n>:CONF?");
   client.println("Example: CH1:MASK 0001");
 }
@@ -93,7 +93,7 @@ bool parseScpiChannelCommand(String cmd, uint8_t& channelIndex, String& rest) {
     pos++;
   }
 
-  if (ch < 1 || ch > 8) {
+  if (ch < 1 || ch > int(CHANNEL_COUNT)) {
     return false;
   }
 
@@ -121,23 +121,6 @@ bool parseScpiChannelCommand(String cmd, uint8_t& channelIndex, String& rest) {
 // ============================================================
 
 /**
- * @brief Print one resistor value from the runtime calibration table.
- * @param client Connected TCP client used for the response.
- * @param resistanceText Function parameter.
- * @return Result value; for bool, true means the operation succeeded.
- */
-static void scpiPrintOhmsFromConfig(WiFiClient& client, const char* resistanceText) {
-  double ohms = 0.0;
-  if (parseResistanceOhms(resistanceText, ohms)) {
-    client.print(String(ohms, 6));
-  } else {
-    // Keep the table parseable even if a user-uploaded calibration file has
-    // TODO/NC/N/A in a cell. The PC driver can reject NaN entries.
-    client.print("NaN");
-  }
-}
-
-/**
  * @brief Print one channel calibration table in compact SCPI response format.
  * @param client Connected TCP client used for the response.
  * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
@@ -148,18 +131,18 @@ static void scpiPrintCalibrationChannelCompact(WiFiClient& client, uint8_t chann
   client.print(channelIndex + 1);
   client.print(":");
 
-  for (uint8_t i = 0; i < BIT_COUNT; i++) {
-    RuntimeResistorInfo* info = &channelResistorTable[channelIndex][i];
-
-    if (i > 0) {
-      client.print(";");
+  for (uint8_t bit = 0; bit < BIT_COUNT; bit++) {
+    if (bit > 0) client.print(";");
+    client.print(bit);
+    client.print(",");
+    client.print(mosfetNameForBit(bit));
+    client.print(",");
+    const float resistanceOhm = getRuntimeResistanceOhms(channelIndex, bit);
+    if (isfinite(resistanceOhm) && resistanceOhm > 0.0f) {
+      client.print(String(double(resistanceOhm), 6));
+    } else {
+      client.print("NaN");
     }
-
-    client.print(info->bit);
-    client.print(",");
-    client.print(info->mosfet_name);
-    client.print(",");
-    scpiPrintOhmsFromConfig(client, info->nominal_resistance);
   }
 }
 
@@ -209,7 +192,7 @@ static bool parseOptionalCalibrationChannelArgument(const String& commandTail, u
   arg.trim();
 
   int ch = arg.toInt();
-  if (ch < 1 || ch > 8) {
+  if (ch < 1 || ch > int(CHANNEL_COUNT)) {
     return false;
   }
 
@@ -470,6 +453,21 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     return;
   }
 
+  if (upper == "SYST:DIAG:SERIAL?" || upper == "SYSTEM:DIAGNOSTIC:SERIAL?") {
+    char eventLine[160];
+    snprintf(
+      eventLine,
+      sizeof(eventLine),
+      "EVT ts_us=%lu core=0 seq=%lu level=1 code=SERIAL_TEST ch=0 mask=0x0000 detail=0 duration_us=0",
+      static_cast<unsigned long>(micros()),
+      static_cast<unsigned long>(scpiCommandCount)
+    );
+    Serial.println(eventLine);
+    Serial.flush();
+    client.println("OK,SERIAL_TEST");
+    return;
+  }
+
   if (upper == "*CLS" || upper == "SYST:ERR:CLEAR" || upper == "SYSTEM:ERROR:CLEAR") {
     clearLastError();
     client.println("OK");
@@ -523,12 +521,28 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     }
     client.print(",expert=");
     client.print(safetyExpertMode ? "1" : "0");
+    client.print(",target_candidates=");
+    client.print(targetSearchLastCandidates);
+    client.print(",target_elapsed_us=");
+    client.print(targetSearchLastElapsedUs);
+    client.print(",target_timeouts=");
+    client.print(targetSearchTimeoutCount);
+    client.print(",target_cancels=");
+    client.print(targetSearchCancelCount);
     client.print(",core1_ready=");
     client.print(core1EngineReady ? "1" : "0");
     client.print(",core1_cmds=");
     client.print((uint32_t)core1CommandCounter);
     client.print(",core1_overflows=");
-    client.println((uint32_t)core1QueueOverflowCounter);
+    client.print((uint32_t)core1QueueOverflowCounter);
+    client.print(",core1_loop_max_us=");
+    client.print((uint32_t)core1LoopMaxUs);
+    client.print(",core1_stack_min_free=");
+    client.print((uint32_t)core1MinFreeStackBytes);
+    client.print(",core1_events=");
+    client.print((uint32_t)core1EventCounter);
+    client.print(",core1_event_drops=");
+    client.println((uint32_t)core1EventDropCounter);
     return;
   }
 
@@ -603,7 +617,13 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
   }
 
   if (upper == "ALL:OFF" || upper == ":ALL:OFF" || upper == "OUTP:ALL OFF" || upper == "OUTPUT:ALL OFF") {
-    forceAllOff();
+    char reason[128] = {0};
+    if (!forceAllOff(reason, sizeof(reason))) {
+      client.print("ERR,-500,\"");
+      client.print(reason[0] ? reason : "All-off failed");
+      client.println("\"");
+      return;
+    }
     clearLastError();
     client.println("OK");
     return;
@@ -629,6 +649,46 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
 
   if (restUpper == "MASK?") {
     client.println(hex16(channelMask[ch]));
+    return;
+  }
+
+  if (restUpper.startsWith("TARGET:CALC?")) {
+    String valuePart = rest.substring(rest.indexOf('?') + 1);
+    valuePart.trim();
+    if (valuePart.startsWith("=")) {
+      valuePart.remove(0, 1);
+      valuePart.trim();
+    }
+    double requestedOhm = 0.0;
+    if (!parseResistanceOhms(valuePart.c_str(), requestedOhm)) {
+      setLastError("-128,\"Bad target resistance\"");
+      client.println("ERR,-128,\"Bad target resistance\"");
+      return;
+    }
+
+    TargetSearchResult result{};
+    const uint32_t deadlineUs = safetyExpertMode ? 5000000UL : 2000000UL;
+    if (!calculateNearestMaskForTarget(ch, requestedOhm, result, deadlineUs)) {
+      if (result.timedOut) {
+        setLastError("-365,\"Target search timeout\"");
+        client.println("ERR,-365,\"Target search timeout\"");
+      } else if (result.cancelled) {
+        setLastError("-366,\"Target search cancelled\"");
+        client.println("ERR,-366,\"Target search cancelled\"");
+      } else {
+        setLastError("-222,\"No safe target mask found\"");
+        client.println("ERR,-222,\"No safe target mask found\"");
+      }
+      return;
+    }
+
+    client.print("requested_ohm="); client.print(String(result.requestedOhm, 6));
+    client.print(",mask="); client.print(hex16(result.mask));
+    client.print(",calculated_ohm="); client.print(String(result.calculatedOhm, 6));
+    client.print(",absolute_error_ohm="); client.print(String(result.absoluteErrorOhm, 6));
+    client.print(",error_percent="); client.print(String(result.errorPercent, 9));
+    client.print(",candidates="); client.print(result.candidatesVisited);
+    client.print(",elapsed_us="); client.println(result.elapsedUs);
     return;
   }
 
@@ -658,8 +718,9 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     }
 
     if (!applyChannelMask(ch, mask)) {
-      setLastError("-350,\"Queue overflow\"");
-      client.println("ERR,-350,\"Apply failed\"");
+      client.print("ERR,-500,\"");
+      client.print(lastError[0] ? lastError : "Apply failed");
+      client.println("\"");
       return;
     }
 
@@ -711,6 +772,7 @@ void handleScpiServer() {
     if (newClient) {
       scpiClient = newClient;
       scpiLineLen = 0;
+      scpiDiscardUntilNewline = false;
       scpiClient.println("E-Resistor SCPI ready");
       Serial.println("SCPI client connected");
     }
@@ -719,6 +781,14 @@ void handleScpiServer() {
 
   while (scpiClient.available() > 0) {
     char c = char(scpiClient.read());
+
+    if (scpiDiscardUntilNewline) {
+      if (c == '\n') {
+        scpiDiscardUntilNewline = false;
+        scpiLineLen = 0;
+      }
+      continue;
+    }
 
     if (c == '\r') {
       continue;
@@ -735,6 +805,7 @@ void handleScpiServer() {
       scpiLine[scpiLineLen++] = c;
     } else {
       scpiLineLen = 0;
+      scpiDiscardUntilNewline = true;
       setLastError("-350,\"Input buffer overflow\"");
       scpiClient.println("ERR,-350,\"Input buffer overflow\"");
     }

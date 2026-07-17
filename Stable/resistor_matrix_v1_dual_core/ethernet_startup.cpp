@@ -5,9 +5,6 @@
 
 #include "app.h"
 
-// 07_ethernet_startup.ino
-// Split from rp2040_w5500_resistor_matrix_v1_safety_logic.ino.
-// Keep all files in the same Arduino sketch folder.
 
 // ============================================================
 // Ethernet startup

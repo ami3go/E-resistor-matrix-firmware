@@ -45,3 +45,7 @@ Core 1: Hardware Safety Engine
 ## Threading rule
 
 Only Core 1 may physically modify resistor outputs. Core 0 may request output changes but must not directly toggle shift-register or latch GPIOs.
+
+## Gate 2 numeric model boundary
+
+Core 0 owns the mutable numeric calibration table and target calculation. Core 1 continues to receive physical mask commands and does not run target searches. Calibration updates invalidate the conductance cache. They must be performed while outputs are OFF.

@@ -21,7 +21,7 @@ docs/doxygen/html/index.html
 Open the main `.ino` file in Arduino IDE:
 
 ```text
-rp2040_w5500_resistor_matrix_v1_dual_core_cal_scpi_webhelp_doxygen.ino
+resistor_matrix_v1_dual_core.ino
 ```
 
 The documentation files and Doxyfile are ignored by the Arduino build.

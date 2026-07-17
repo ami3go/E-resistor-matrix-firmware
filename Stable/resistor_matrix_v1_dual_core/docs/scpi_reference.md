@@ -124,3 +124,17 @@ OpenBench,E-Resistor,<serial>,<firmware_version>
 
 `SYST:VERS?` and `FIRM:VERS?` return only the firmware version string.
 `FIRM:BUILD?` returns the compile date and time.
+
+## Gate 2 read-only calculation and diagnostics
+
+| Command | Description |
+|---|---|
+| `CH<n>:TARGET:CALC? <ohm>` | Calculate the nearest safe mask without applying it. Returns requested/calculated resistance, mask, error, candidates, and elapsed microseconds. |
+| `SYST:DIAG:SERIAL?` | Emit one structured USB CDC `SERIAL_TEST` event and return `OK,SERIAL_TEST`. |
+
+Example:
+
+```text
+CH1:TARGET:CALC? 10000
+requested_ohm=10000.000000,mask=....,calculated_ohm=...,absolute_error_ohm=...,error_percent=...,candidates=...,elapsed_us=...
+```
