@@ -1,562 +1,280 @@
 /**
  * @file core_command.cpp
- * @brief Dual-core command queue, bounded request/response handling, and Core 1 hardware command dispatcher.
+ * @brief Core 0 command submission, policy installation, and human-readable error mapping.
  */
-
 #include "app.h"
 
-// ============================================================
-// Dual-core command queue
-//
-// Core 0 owns Ethernet, HTTP, SCPI, parsing, files, and UI.
-// Core 1 owns every physical shift-register output operation.
-//
-// This Arduino-prototype implementation uses small fixed ring queues and
-// RP2040 hardware spin locks. Avoid GCC __atomic builtins here: on this
-// Arduino RP2040 toolchain they can pull unresolved libatomic symbols such
-// as __atomic_test_and_set at link time.
-// ============================================================
+void coreTransportInitialize();
+bool coreTransportPushCommand(const CoreCommand& command);
+bool coreTransportWaitForResult(CoreResult& result, uint32_t timeoutMs);
+bool coreTransportWaitForCore1Ready(uint32_t timeoutMs);
+uint32_t coreTransportAllocateSequence();
+uint32_t coreTransportCurrentGeneration();
+uint32_t coreTransportInvalidateGeneration();
+bool coreTransportReadSnapshot(CoreOutputSnapshot& snapshot);
+bool coreTransportStagePolicySnapshot(const CoreSafetySnapshot& input, uint8_t& slot, uint32_t& generation);
+void coreTransportKickCore0Heartbeat();
+void coreTransportGetDiagnostics(CoreTransportDiagnostics& out);
+void coreTransportRecordTimeout();
 
-static CoreCommand commandQueue[CORE_COMMAND_QUEUE_DEPTH];
-static uint8_t commandHead = 0;
-static uint8_t commandTail = 0;
-static uint8_t commandCount = 0;
+static bool allMasksZero(const CoreOutputSnapshot& snapshot) {
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) if (snapshot.masks[ch] != 0U) return false;
+  return true;
+}
 
-static CoreResponse responseQueue[CORE_RESPONSE_QUEUE_DEPTH];
-static uint8_t responseHead = 0;
-static uint8_t responseTail = 0;
-static uint8_t responseCount = 0;
-
-static uint32_t nextRequestId = 1;
-
-static spin_lock_t* commandSpinLock = nullptr;
-static spin_lock_t* responseSpinLock = nullptr;
-
-/**
- * @brief Initialize the dual-core command engine and its RP2040 hardware spin lock.
- */
 void initCoreCommandEngine() {
-  // Claim two RP2040 hardware spinlocks for cross-core queue protection.
-  // It is safe to call this more than once; only the first call initializes.
-  if (commandSpinLock == nullptr) {
-    uint commandLockNum = spin_lock_claim_unused(true);
-    commandSpinLock = spin_lock_init(commandLockNum);
-  }
-  if (responseSpinLock == nullptr) {
-    uint responseLockNum = spin_lock_claim_unused(true);
-    responseSpinLock = spin_lock_init(responseLockNum);
-  }
-
-  uint32_t commandIrq = spin_lock_blocking(commandSpinLock);
-  commandHead = 0;
-  commandTail = 0;
-  commandCount = 0;
-  spin_unlock(commandSpinLock, commandIrq);
-
-  uint32_t responseIrq = spin_lock_blocking(responseSpinLock);
-  responseHead = 0;
-  responseTail = 0;
-  responseCount = 0;
-  spin_unlock(responseSpinLock, responseIrq);
-
-  nextRequestId = 1;
+  coreTransportInitialize();
   initCore1EventQueue();
+  coreTransportKickCore0Heartbeat();
 }
 
-/**
- * @brief Acquire the shared command/response queue lock.
- * @param lock Function parameter.
- * @return Result value; for bool, true means the operation succeeded.
- */
-static uint32_t lockQueue(spin_lock_t* lock) {
-  if (lock == nullptr) {
-    // Should not happen when setup() calls initCoreCommandEngine() first.
-    // Keep a local-core fallback instead of crashing during early boot.
-    noInterrupts();
-    return 0;
-  }
-  return spin_lock_blocking(lock);
+bool waitForCore1Startup(uint32_t timeoutMs) {
+  if (!coreTransportWaitForCore1Ready(timeoutMs)) return false;
+  refreshCore0OutputMirror();
+  return core1EngineReady && outputsKnownSafe;
 }
 
-/**
- * @brief Release the shared command/response queue lock.
- * @param lock Function parameter.
- * @param irqState Function parameter.
- * @return Result value; for bool, true means the operation succeeded.
- */
-static void unlockQueue(spin_lock_t* lock, uint32_t irqState) {
-  if (lock == nullptr) {
-    interrupts();
-    return;
+static void updateCore0MirrorFromSnapshot(const CoreOutputSnapshot& snapshot) {
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+    channelMask[ch] = snapshot.masks[ch];
+    applyCounter[ch] = snapshot.applyCounter[ch];
   }
-  spin_unlock(lock, irqState);
+  outputsKnownSafe = (snapshot.flags & CORE_SNAPSHOT_OUTPUTS_SAFE) != 0U;
+  shiftRegistersReady = (snapshot.flags & CORE_SNAPSHOT_ENGINE_READY) != 0U;
+  // Core 1 is the sole writer of core1EngineReady/core1OutputsReady/core1Fault.
+  // Core 0 consumes the atomic snapshot through its own mirror variables only.
 }
 
-/**
- * @brief Allocate a non-zero request identifier for a Core 0 to Core 1 command.
- * @return Result value; for bool, true means the operation succeeded.
- */
-static uint32_t allocateRequestId() {
-  // Core 0 is the only caller in the current architecture, so a plain
-  // increment is sufficient and avoids libatomic dependencies.
-  uint32_t id = nextRequestId++;
-  if (nextRequestId == 0U) {
-    nextRequestId = 1U;
-  }
-  if (id == 0U) {
-    id = nextRequestId++;
-  }
-  return id;
+bool refreshCore0OutputMirror() {
+  CoreOutputSnapshot snapshot{};
+  if (!coreTransportReadSnapshot(snapshot)) return false;
+  updateCore0MirrorFromSnapshot(snapshot);
+  return true;
 }
 
-/**
- * @brief Push one command into the Core 1 command queue.
- * @param command Command object to submit or process.
- * @return Result value; for bool, true means the operation succeeded.
- */
-static bool pushCommand(const CoreCommand& command) {
-  bool ok = false;
-  uint32_t irqState = lockQueue(commandSpinLock);
-  if (commandCount < CORE_COMMAND_QUEUE_DEPTH) {
-    commandQueue[commandTail] = command;
-    commandTail = uint8_t((commandTail + 1U) % CORE_COMMAND_QUEUE_DEPTH);
-    commandCount++;
-    ok = true;
-  }
-  unlockQueue(commandSpinLock, irqState);
-
-  if (!ok) {
-    core1QueueOverflowCounter++;
-  }
-  return ok;
+bool readCoreOutputSnapshot(CoreOutputSnapshot& snapshot) {
+  if (!coreTransportReadSnapshot(snapshot)) return false;
+  updateCore0MirrorFromSnapshot(snapshot);
+  return true;
 }
 
-/**
- * @brief Pop one pending command from the Core 1 command queue.
- * @param command Command object to submit or process.
- * @return Result value; for bool, true means the operation succeeded.
- */
-static bool popCommand(CoreCommand& command) {
-  bool ok = false;
-  uint32_t irqState = lockQueue(commandSpinLock);
-  if (commandCount > 0U) {
-    command = commandQueue[commandHead];
-    commandHead = uint8_t((commandHead + 1U) % CORE_COMMAND_QUEUE_DEPTH);
-    commandCount--;
-    ok = true;
-  }
-  unlockQueue(commandSpinLock, irqState);
-  return ok;
-}
-
-/**
- * @brief Push one command response into the Core 0 response queue.
- * @param response Response object to fill or inspect.
- * @return Result value; for bool, true means the operation succeeded.
- */
-static bool pushResponse(const CoreResponse& response) {
-  bool ok = false;
-  uint32_t irqState = lockQueue(responseSpinLock);
-  if (responseCount < CORE_RESPONSE_QUEUE_DEPTH) {
-    responseQueue[responseTail] = response;
-    responseTail = uint8_t((responseTail + 1U) % CORE_RESPONSE_QUEUE_DEPTH);
-    responseCount++;
-    ok = true;
-  }
-  unlockQueue(responseSpinLock, irqState);
-
-  if (!ok) {
-    core1QueueOverflowCounter++;
-  }
-  return ok;
-}
-
-/**
- * @brief Find and remove the response matching a request identifier.
- * @param response Response object to fill or inspect.
- * @return Result value; for bool, true means the operation succeeded.
- */
-static bool popResponse(CoreResponse& response) {
-  bool ok = false;
-  uint32_t irqState = lockQueue(responseSpinLock);
-  if (responseCount > 0U) {
-    response = responseQueue[responseHead];
-    responseHead = uint8_t((responseHead + 1U) % CORE_RESPONSE_QUEUE_DEPTH);
-    responseCount--;
-    ok = true;
-  }
-  unlockQueue(responseSpinLock, irqState);
-  return ok;
-}
-
-/**
- * @brief Build a CoreResponse structure from command execution data.
- * @param response Response object to fill or inspect.
- * @param command Command object to submit or process.
- * @param status Function parameter.
- * @param message Function parameter.
- * @return Result value; for bool, true means the operation succeeded.
- */
-static void fillResponse(
-  CoreResponse& response,
-  const CoreCommand& command,
-  CoreResponseStatus status,
-  const char* message
-) {
-  memset(&response, 0, sizeof(response));
-  response.requestId = command.requestId;
-  response.status = status;
-  response.channelIndex = command.channelIndex;
-  response.mask = command.mask;
-  for (uint8_t i = 0; i < CHANNEL_COUNT; i++) {
-    response.masks[i] = channelMask[i];
-  }
-  if (message != nullptr) {
-    strncpy(response.message, message, sizeof(response.message) - 1);
-    response.message[sizeof(response.message) - 1] = '\0';
+static const char* responseStatusText(CoreResponseStatus status, uint16_t detail) {
+  (void)detail;
+  switch (status) {
+    case CORE_RESP_OK: return "OK";
+    case CORE_RESP_BUSY: return "Core command queue full";
+    case CORE_RESP_TIMEOUT: return "Core 1 command timeout";
+    case CORE_RESP_EXPIRED: return "Core 1 rejected expired command";
+    case CORE_RESP_GENERATION_MISMATCH: return "Core 1 rejected invalidated command generation";
+    case CORE_RESP_ENGINE_NOT_READY: return "Core 1 hardware engine not ready";
+    case CORE_RESP_POLICY_NOT_INSTALLED: return "Core 1 safety policy not installed";
+    case CORE_RESP_INVALID_ARGUMENT: return "Invalid Core 1 command argument";
+    case CORE_RESP_REJECTED: return "Core 1 safety policy rejected command";
+    case CORE_RESP_IO_ERROR: return "Core 1 physical output operation failed";
+    default: return "Unknown Core 1 status";
   }
 }
 
-/**
- * @brief Submit a command to Core 1 and wait for the matching response with a timeout.
- * @param command Command object to submit or process.
- * @param response Response object to fill or inspect.
- * @param timeoutMs Maximum time to wait before reporting timeout.
- * @return Result value; for bool, true means the operation succeeded.
- */
-bool submitCoreCommandWait(CoreCommand& command, CoreResponse& response, uint32_t timeoutMs) {
-  memset(&response, 0, sizeof(response));
-
+bool submitCoreCommandWait(CoreCommand& command, CoreResult& result, uint32_t timeoutMs) {
+  memset(&result, 0, sizeof(result));
+  coreTransportKickCore0Heartbeat();
+  refreshCore0OutputMirror();
   if (!core1EngineReady) {
-    response.status = CORE_RESP_TIMEOUT;
-    strncpy(response.message, "Core 1 hardware engine not ready", sizeof(response.message) - 1);
+    result.status = CORE_RESP_ENGINE_NOT_READY;
     return false;
   }
 
-  command.requestId = allocateRequestId();
+  command.sequence = coreTransportAllocateSequence();
+  command.safetyGeneration = coreTransportCurrentGeneration();
+  const uint64_t timeoutUs64 = uint64_t(timeoutMs) * 1000ULL;
+  const uint32_t boundedUs = timeoutUs64 > 0x7FFFFFFFULL ? 0x7FFFFFFFUL : uint32_t(timeoutUs64);
+  command.deadlineAtUs = micros() + boundedUs;
 
-  if (!pushCommand(command)) {
-    response.requestId = command.requestId;
-    response.status = CORE_RESP_BUSY;
-    strncpy(response.message, "Core command queue full", sizeof(response.message) - 1);
+  if (!coreTransportPushCommand(command)) {
+    result.sequence = command.sequence;
+    result.status = CORE_RESP_BUSY;
+    core1QueueOverflowCounter++;
     return false;
   }
 
-  uint32_t startMs = millis();
+  const uint32_t startMs = millis();
   while ((millis() - startMs) < timeoutMs) {
-    CoreResponse candidate;
-    if (popResponse(candidate)) {
-      if (candidate.requestId == command.requestId) {
-        response = candidate;
-        return response.status == CORE_RESP_OK;
-      }
-      // There should normally be only one outstanding Core-0 request at a
-      // time. If an older unmatched response appears, discard it instead of
-      // blocking the current command forever.
+    const uint32_t elapsed = millis() - startMs;
+    const uint32_t remaining = timeoutMs > elapsed ? timeoutMs - elapsed : 0U;
+    CoreResult candidate{};
+    if (!coreTransportWaitForResult(candidate, remaining)) break;
+    if (candidate.sequence == command.sequence) {
+      result = candidate;
+      refreshCore0OutputMirror();
+      return result.status == CORE_RESP_OK;
     }
-
-    updateHeartbeat();
-    delay(1);
   }
 
-  response.requestId = command.requestId;
-  response.status = CORE_RESP_TIMEOUT;
-  strncpy(response.message, "Core 1 command timeout", sizeof(response.message) - 1);
+  result.sequence = command.sequence;
+  result.status = CORE_RESP_TIMEOUT;
+  coreTransportRecordTimeout();
+  coreTransportInvalidateGeneration();
+  emergencyOffRequested = true;
   return false;
 }
 
-/**
- * @brief Request Core 1 to apply one 16-bit resistance mask to one channel.
- * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
- * @param mask 16-bit resistance switch mask.
- * @param reason Output buffer for a human-readable diagnostic message.
- * @param reasonLen Output buffer for a human-readable diagnostic message.
- * @return Result value; for bool, true means the operation succeeded.
- */
+static bool validateChannelMaskCore0(uint8_t channelIndex, uint16_t mask, char* reason, size_t reasonLen) {
+  if (!checkMaskSafety(channelIndex, mask, reason, reasonLen)) return false;
+  return true;
+}
+
 bool requestSetChannelMask(uint8_t channelIndex, uint16_t mask, char* reason, size_t reasonLen) {
-  if (reasonLen > 0U) {
-    reason[0] = '\0';
-  }
-
-  if (channelIndex >= CHANNEL_COUNT) {
-    snprintf(reason, reasonLen, "invalid channel");
-    return false;
-  }
-
-  CoreCommand command;
-  memset(&command, 0, sizeof(command));
+  if (reason != nullptr && reasonLen > 0U) reason[0] = '\0';
+  if (!validateChannelMaskCore0(channelIndex, mask, reason, reasonLen)) return false;
+  CoreCommand command{};
   command.type = CORE_CMD_SET_MASK;
   command.channelIndex = channelIndex;
   command.mask = mask;
-
-  CoreResponse response;
-  bool ok = submitCoreCommandWait(command, response, CORE_COMMAND_TIMEOUT_MS);
-  if (!ok && reasonLen > 0U) {
-    snprintf(reason, reasonLen, "%s", response.message[0] ? response.message : "Core 1 apply failed");
-  }
+  CoreResult result{};
+  const bool ok = submitCoreCommandWait(command, result, CORE_COMMAND_TIMEOUT_MS);
+  if (!ok && reason != nullptr && reasonLen > 0U) snprintf(reason, reasonLen, "%s (detail=%u)", responseStatusText(result.status, result.detail), unsigned(result.detail));
   return ok;
 }
 
-/**
- * @brief Request Core 1 to apply eight channel masks after validating the full profile.
- * @param masks 16-bit resistance switch mask.
- * @param reason Output buffer for a human-readable diagnostic message.
- * @param reasonLen Output buffer for a human-readable diagnostic message.
- * @return Result value; for bool, true means the operation succeeded.
- */
 bool requestSetAllMasks(const uint16_t masks[CHANNEL_COUNT], char* reason, size_t reasonLen) {
-  if (reasonLen > 0U) {
-    reason[0] = '\0';
-  }
-
+  if (reason != nullptr && reasonLen > 0U) reason[0] = '\0';
   if (masks == nullptr) {
-    snprintf(reason, reasonLen, "missing mask array");
+    if (reason != nullptr && reasonLen > 0U) snprintf(reason, reasonLen, "missing mask array");
     return false;
   }
-
-  CoreCommand command;
-  memset(&command, 0, sizeof(command));
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) if (!validateChannelMaskCore0(ch, masks[ch], reason, reasonLen)) return false;
+  CoreCommand command{};
   command.type = CORE_CMD_SET_ALL_MASKS;
-  for (uint8_t i = 0; i < CHANNEL_COUNT; i++) {
-    command.masks[i] = masks[i];
-  }
-
-  CoreResponse response;
-  bool ok = submitCoreCommandWait(command, response, CORE_COMMAND_TIMEOUT_MS * 2U);
-  if (!ok && reasonLen > 0U) {
-    snprintf(reason, reasonLen, "%s", response.message[0] ? response.message : "Core 1 apply-all failed");
-  }
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) command.masks[ch] = masks[ch];
+  CoreResult result{};
+  const bool ok = submitCoreCommandWait(command, result, CORE_COMMAND_TIMEOUT_MS * 2U);
+  if (!ok && reason != nullptr && reasonLen > 0U) snprintf(reason, reasonLen, "%s (detail=%u)", responseStatusText(result.status, result.detail), unsigned(result.detail));
   return ok;
 }
 
-/**
- * @brief Request Core 1 to switch every output channel OFF.
- * @param reason Output buffer for a human-readable diagnostic message.
- * @param reasonLen Output buffer for a human-readable diagnostic message.
- * @return Result value; for bool, true means the operation succeeded.
- */
-bool requestAllOff(char* reason, size_t reasonLen) {
-  if (reasonLen > 0U) {
-    reason[0] = '\0';
-  }
-
-  // Emergency safe-state does not depend on normal queue availability.
-  emergencyOffRequested = true;
-
-  uint32_t startMs = millis();
+static bool waitForDirectAllOff(char* reason, size_t reasonLen) {
+  const uint32_t startMs = millis();
   while ((millis() - startMs) < CORE_COMMAND_TIMEOUT_MS) {
+    coreTransportKickCore0Heartbeat();
+    refreshCore0OutputMirror();
     if (!emergencyOffRequested && outputsKnownSafe) {
       bool allZero = true;
-      for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-        if (channelMask[ch] != 0U) {
-          allZero = false;
-          break;
-        }
+      for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+        if (channelMask[ch] != 0U) { allZero = false; break; }
       }
-      if (allZero) {
-        return true;
-      }
+      if (allZero) return true;
     }
     updateHeartbeat();
     delay(1);
   }
+  if (reason != nullptr && reasonLen > 0U) snprintf(reason, reasonLen, "Core 1 direct all-off timeout");
+  return false;
+}
 
-  // Fall back to a normal command if the emergency flag was not acknowledged.
-  CoreCommand command;
-  memset(&command, 0, sizeof(command));
+bool requestAllOff(char* reason, size_t reasonLen) {
+  if (reason != nullptr && reasonLen > 0U) reason[0] = '\0';
+
+  // Normal ALL:OFF is a sequenced command and does not invalidate the active
+  // safety policy. Generation invalidation is reserved for timeout/fault paths.
+  CoreCommand command{};
   command.type = CORE_CMD_CLEAR_ALL;
-
-  CoreResponse response;
-  bool ok = submitCoreCommandWait(command, response, CORE_COMMAND_TIMEOUT_MS);
-  if (!ok) {
-    if (reasonLen > 0U) {
-      snprintf(reason, reasonLen, "%s", response.message[0] ? response.message : "Core 1 all-off failed");
+  CoreResult result{};
+  if (submitCoreCommandWait(command, result, CORE_COMMAND_TIMEOUT_MS)) {
+    refreshCore0OutputMirror();
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+      if (channelMask[ch] != 0U) {
+        if (reason != nullptr && reasonLen > 0U) snprintf(reason, reasonLen, "Core 1 all-off snapshot verification failed");
+        return false;
+      }
     }
-    return false;
+    return outputsKnownSafe;
   }
 
-  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+  // A timeout already invalidates the generation and raises emergencyOffRequested.
+  // Other command failures take the same conservative direct-all-off fallback.
+  if (!emergencyOffRequested) {
+    coreTransportInvalidateGeneration();
+    emergencyOffRequested = true;
+  }
+  if (waitForDirectAllOff(reason, reasonLen)) return true;
+  if (reason != nullptr && reasonLen > 0U && reason[0] == '\0') {
+    snprintf(reason, reasonLen, "%s (detail=%u)", responseStatusText(result.status, result.detail), unsigned(result.detail));
+  }
+  return false;
+}
+
+bool installCore1PolicySnapshot(char* reason, size_t reasonLen) {
+  if (reason != nullptr && reasonLen > 0U) reason[0] = '\0';
+  refreshCore0OutputMirror();
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
     if (channelMask[ch] != 0U) {
-      if (reasonLen > 0U) {
-        snprintf(reason, reasonLen, "CH%u remained active after all-off", unsigned(ch + 1));
-      }
+      if (reason != nullptr && reasonLen > 0U) snprintf(reason, reasonLen, "All outputs must be OFF before policy installation");
       return false;
     }
   }
-  return outputsKnownSafe;
-}
 
-/**
- * @brief Core-0-safe wrapper that requests a per-channel mask change on Core 1.
- * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
- * @param newMask 16-bit resistance switch mask.
- * @return Result value; for bool, true means the operation succeeded.
- */
-bool applyChannelMask(uint8_t channelIndex, uint16_t newMask) {
-  char reason[128];
-  bool ok = requestSetChannelMask(channelIndex, newMask, reason, sizeof(reason));
-  if (!ok) {
-    setLastError(reason[0] ? reason : "-500,\"Core 1 apply failed\"");
+  CoreSafetySnapshot snapshot{};
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+    snapshot.minimumOhms[ch] = float(safetyMinOhm[ch]);
+    snapshot.maximumOhms[ch] = float(safetyMaxOhm[ch]);
+    snapshot.maximumActiveBits[ch] = safetyMaxActiveBits[ch];
+    for (uint8_t bit = 0; bit < BIT_COUNT; ++bit) snapshot.resistorOhms[ch][bit] = channelResistorOhms[ch][bit];
   }
+  snapshot.expertMode = safetyExpertMode ? 1U : 0U;
+
+  uint8_t slot = 0;
+  uint32_t generation = 0;
+  if (!coreTransportStagePolicySnapshot(snapshot, slot, generation)) {
+    if (reason != nullptr && reasonLen > 0U) snprintf(reason, reasonLen, "Unable to stage immutable Core 1 policy snapshot");
+    return false;
+  }
+
+  CoreCommand command{};
+  command.type = CORE_CMD_INSTALL_POLICY;
+  command.policySlot = slot;
+  CoreResult result{};
+  const bool ok = submitCoreCommandWait(command, result, CORE_COMMAND_TIMEOUT_MS);
+  if (!ok && reason != nullptr && reasonLen > 0U) snprintf(reason, reasonLen, "%s (detail=%u)", responseStatusText(result.status, result.detail), unsigned(result.detail));
   return ok;
 }
 
-/**
- * @brief Core-0-safe wrapper that requests an all-channel mask profile on Core 1.
- * @param masks 16-bit resistance switch mask.
- * @param reason Output buffer for a human-readable diagnostic message.
- * @param reasonLen Output buffer for a human-readable diagnostic message.
- * @return Result value; for bool, true means the operation succeeded.
- */
+bool applyChannelMask(uint8_t channelIndex, uint16_t newMask) {
+  char reason[128] = {0};
+  const bool ok = requestSetChannelMask(channelIndex, newMask, reason, sizeof(reason));
+  if (!ok) setLastError(reason[0] ? reason : "-500,\"Core 1 apply failed\"");
+  return ok;
+}
+
 bool applyAllMasksSafely(const uint16_t masks[CHANNEL_COUNT], char* reason, size_t reasonLen) {
-  if (reasonLen > 0U) {
-    reason[0] = '\0';
-  }
-
-  if (masks == nullptr) {
-    snprintf(reason, reasonLen, "missing mask array");
-    return false;
-  }
-
-  // Validate complete requested state on Core 0 before queueing, then Core 1
-  // validates again before touching hardware. This avoids half-applied states.
-  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-    if (!checkMaskSafety(ch, masks[ch], reason, reasonLen)) {
-      return false;
-    }
-  }
-
   return requestSetAllMasks(masks, reason, reasonLen);
 }
 
-/**
- * @brief Core-0-safe wrapper that requests an emergency/normal all-OFF transition.
- * @param reason Optional output buffer for the failure reason.
- * @param reasonLen Size of the optional failure buffer.
- * @return true only when Core 1 acknowledges the operation and all shadow masks are zero.
- */
 bool forceAllOff(char* reason, size_t reasonLen) {
   char localReason[128] = {0};
-  bool ok = requestAllOff(localReason, sizeof(localReason));
-
+  const bool ok = requestAllOff(localReason, sizeof(localReason));
   if (!ok) {
     const char* message = localReason[0] ? localReason : "Core 1 all-off failed";
     setLastError(message);
     setLedMode(LED_FAULT);
-    if (reason != nullptr && reasonLen > 0U) {
-      snprintf(reason, reasonLen, "%s", message);
-    }
+    if (reason != nullptr && reasonLen > 0U) snprintf(reason, reasonLen, "%s", message);
     return false;
   }
-
-  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+  refreshCore0OutputMirror();
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
     if (channelMask[ch] != 0U) {
-      const char* message = "Core 1 all-off acknowledged but mask verification failed";
+      const char* message = "Core 1 all-off snapshot verification failed";
       setLastError(message);
       setLedMode(LED_FAULT);
-      if (reason != nullptr && reasonLen > 0U) {
-        snprintf(reason, reasonLen, "%s", message);
-      }
+      if (reason != nullptr && reasonLen > 0U) snprintf(reason, reasonLen, "%s", message);
       return false;
     }
   }
-
   setStatus("All channels OFF");
-  if (!fatalSafeStateActive) {
-    setLedMode(LED_OK);
-  }
-  if (reason != nullptr && reasonLen > 0U) {
-    reason[0] = '\0';
-  }
+  if (!fatalSafeStateActive) setLedMode(LED_OK);
+  if (reason != nullptr && reasonLen > 0U) reason[0] = '\0';
   return true;
 }
 
-/**
- * @brief Execute one validated hardware command on Core 1.
- * @param command Command object to submit or process.
- * @return Result value; for bool, true means the operation succeeded.
- */
-static void processCoreCommand(const CoreCommand& command) {
-  CoreResponse response;
-  char reason[128] = {0};
-
-  core1LastCommandMs = millis();
-  core1CommandCounter++;
-
-  switch (command.type) {
-    case CORE_CMD_SET_MASK:
-      if (command.channelIndex >= CHANNEL_COUNT) {
-        fillResponse(response, command, CORE_RESP_INVALID_ARGUMENT, "invalid channel");
-      } else if (!checkMaskSafety(command.channelIndex, command.mask, reason, sizeof(reason))) {
-        fillResponse(response, command, CORE_RESP_REJECTED, reason);
-      } else if (!applyChannelMaskPhysical(command.channelIndex, command.mask)) {
-        fillResponse(response, command, CORE_RESP_IO_ERROR, "physical apply failed");
-      } else {
-        fillResponse(response, command, CORE_RESP_OK, "OK");
-      }
-      pushResponse(response);
-      return;
-
-    case CORE_CMD_SET_ALL_MASKS:
-      if (!applyAllMasksSafelyPhysical(command.masks, reason, sizeof(reason))) {
-        fillResponse(response, command, CORE_RESP_IO_ERROR, reason[0] ? reason : "physical apply-all failed");
-      } else {
-        fillResponse(response, command, CORE_RESP_OK, "OK");
-      }
-      pushResponse(response);
-      return;
-
-    case CORE_CMD_CLEAR_ALL:
-      if (forceAllOffPhysical()) {
-        fillResponse(response, command, CORE_RESP_OK, "OK");
-      } else {
-        fillResponse(response, command, CORE_RESP_IO_ERROR, "physical all-off failed");
-      }
-      pushResponse(response);
-      return;
-
-    case CORE_CMD_GET_MASK:
-      if (command.channelIndex >= CHANNEL_COUNT) {
-        fillResponse(response, command, CORE_RESP_INVALID_ARGUMENT, "invalid channel");
-      } else {
-        fillResponse(response, command, CORE_RESP_OK, "OK");
-        response.mask = channelMask[command.channelIndex];
-      }
-      pushResponse(response);
-      return;
-
-    case CORE_CMD_GET_ALL_MASKS:
-      fillResponse(response, command, CORE_RESP_OK, "OK");
-      pushResponse(response);
-      return;
-
-    case CORE_CMD_NONE:
-    default:
-      fillResponse(response, command, CORE_RESP_INVALID_ARGUMENT, "invalid command");
-      pushResponse(response);
-      return;
-  }
-}
-
-/**
- * @brief Run one iteration of the Core 1 command-processing engine.
- */
-void core1ProcessEngineOnce() {
-  core1HeartbeatMs = millis();
-  core1LoopCounter++;
-
-  if (emergencyOffRequested) {
-    bool offOk = forceAllOffPhysical();
-    emergencyOffRequested = false;
-    core1OutputsReady = offOk && outputsKnownSafe;
-    if (!offOk) {
-      core1Fault = true;
-    }
-  }
-
-  CoreCommand command;
-  if (popCommand(command)) {
-    processCoreCommand(command);
-    core1OutputsReady = outputsKnownSafe;
-  }
+void getCoreTransportDiagnostics(CoreTransportDiagnostics& diagnostics) {
+  coreTransportGetDiagnostics(diagnostics);
 }

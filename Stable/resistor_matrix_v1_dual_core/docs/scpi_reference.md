@@ -138,3 +138,23 @@ Example:
 CH1:TARGET:CALC? 10000
 requested_ohm=10000.000000,mask=....,calculated_ohm=...,absolute_error_ohm=...,error_percent=...,candidates=...,elapsed_us=...
 ```
+
+## Gate 3 transport and coherent-state diagnostics
+
+| Command | Build | Description |
+|---|---|---|
+| `SYST:CORE:TRANSPORT?` | Production and test | Returns generation, submitted/completed sequences, queue overflows, timeouts, expired commands, generation rejects, invalid commands, policy installs, and Core 0 fail-safe count. |
+| `SYST:CORE:SNAPSHOT?` | Production and test | Returns one atomic snapshot with snapshot sequence, last command sequence, active policy generation, flags, all masks, and apply counters. |
+| `SYST:TEST:MODE?` | Test only | Returns `1` when `ERESISTOR_TEST_MODE` is compiled in. |
+| `SYST:TEST:CORE1:INVALIDATE:NEXT` | Test only | Arms Core 1 to invalidate the next dequeued command before envelope validation. All outputs must be OFF. |
+| `SYST:TEST:CORE1:DELAY <ms>` | Test only | Delays the next Core 1 command by 1–5000 ms. All outputs must be OFF. |
+| `SYST:TEST:CORE1:PAUSE <ms>` | Test only | Pauses Core 1 dequeue for 1–5000 ms. All outputs must be OFF. |
+| `SYST:TEST:CORE1:INVALIDATE` | Test only | Immediately advances the transport generation. All outputs must be OFF. |
+
+Example production response:
+
+```text
+generation=2,last_submitted=104,last_completed=104,command_overflows=0,result_overflows=0,timeouts=0,expired=0,generation_rejects=0,invalid_commands=0,policy_installs=1,core0_failsafe=0
+```
+
+Fault hooks are intentionally absent from normal production builds.

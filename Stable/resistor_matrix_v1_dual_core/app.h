@@ -28,52 +28,8 @@
 #include <pico/sync.h>
 
 #include "board_config.h"
-
-// ============================================================
-// Ethernet pins - unchanged
-// ============================================================
-inline constexpr uint8_t ETH_MISO = 0;
-inline constexpr uint8_t ETH_CS   = 1;
-inline constexpr uint8_t ETH_SCK  = 2;
-inline constexpr uint8_t ETH_MOSI = 3;
-inline constexpr uint8_t ETH_INT  = 4;
-
-// ============================================================
-// Shift-register pins - unchanged
-// ============================================================
-inline constexpr uint8_t SR_DATA  = 11;
-inline constexpr uint8_t SR_CLOCK = 12;
-inline constexpr uint8_t SR_RESET = 15;  // active low
-
-inline constexpr uint8_t SR_LATCH_PINS[CHANNEL_COUNT] = {
-  5,   // CH1
-  6,   // CH2
-  7,   // CH3
-  8,   // CH4
-  9,   // CH5
-  10,  // CH6
-  13,  // CH7
-  14   // CH8
-};
-
-// ============================================================
-// WS2812 heartbeat - unchanged
-// ============================================================
-inline constexpr uint8_t WS2812_PIN = 16;
-inline constexpr uint8_t WS2812_COUNT = 1;
-
-// ============================================================
-// Timing / networking
-// ============================================================
-inline constexpr uint32_t ETH_INIT_SPI_HZ    = 1000000UL;
-inline constexpr uint32_t ETH_RUNTIME_SPI_HZ = 4000000UL;  // keep 4 MHz while debugging
-
-inline constexpr uint16_t SR_CLOCK_HALF_PERIOD_US = 10;
-inline constexpr uint16_t SR_LATCH_PULSE_US       = 10;
-inline constexpr uint16_t BREAK_BEFORE_MAKE_MS    = 2;
-
-inline constexpr uint16_t HTTP_TCP_PORT = 80;
-inline constexpr uint16_t SCPI_TCP_PORT = 5025;
+#include "hardware_config.h"
+#include "core_transport_types.h"
 
 // Centralized factory network defaults. Runtime values may be replaced by
 // /network.csv, but every reset/default UI path must use these definitions.
@@ -87,113 +43,26 @@ inline constexpr const char* DEFAULT_DEVICE_IP_TEXT = "192.168.0.55";
 #define ERESISTOR_LOG_LEVEL 1
 #endif
 
-enum FirmwareLogLevel : uint8_t {
-  FW_LOG_ERROR = 0,
-  FW_LOG_INFO = 1,
-  FW_LOG_DEBUG = 2,
-  FW_LOG_TRACE = 3
-};
-
 // ============================================================
 // Firmware identity
 // ============================================================
 inline constexpr const char* FIRMWARE_NAME = "E-Resistor";
 inline constexpr const char* FIRMWARE_VENDOR = "OpenBench";
-inline constexpr const char* FIRMWARE_VERSION = "0.5.0";
+inline constexpr const char* FIRMWARE_VERSION = "0.6.0";
 inline constexpr const char* FIRMWARE_BUILD_DATE = __DATE__;
 inline constexpr const char* FIRMWARE_BUILD_TIME = __TIME__;
 
 
 // ============================================================
-// Dual-core command engine
-/**
- * @brief Initialize the dual-core command engine and its RP2040 hardware spin lock.
- */
-void initCoreCommandEngine();
-// Core 0 owns communications; Core 1 owns physical outputs.
+// Dual-core command transport and numeric events
 // ============================================================
-inline constexpr uint8_t CORE_COMMAND_QUEUE_DEPTH = 8;
-inline constexpr uint8_t CORE_RESPONSE_QUEUE_DEPTH = 8;
-inline constexpr uint32_t CORE_COMMAND_TIMEOUT_MS = 1000UL;
-
-/** @brief Command identifiers transported from Core 0 communication handlers to the Core 1 hardware engine. */
-enum CoreCommandType : uint8_t {
-  CORE_CMD_NONE = 0,
-  CORE_CMD_SET_MASK,
-  CORE_CMD_SET_ALL_MASKS,
-  CORE_CMD_CLEAR_ALL,
-  CORE_CMD_GET_MASK,
-  CORE_CMD_GET_ALL_MASKS
-};
-
-/** @brief SCPI-compatible response/status codes returned by the Core 1 command engine. */
-enum CoreResponseStatus : int16_t {
-  CORE_RESP_OK = 0,
-  CORE_RESP_BUSY = -300,
-  CORE_RESP_TIMEOUT = -501,
-  CORE_RESP_INVALID_ARGUMENT = -101,
-  CORE_RESP_REJECTED = -222,
-  CORE_RESP_IO_ERROR = -500
-};
-
-/** @brief Compact Core 1 diagnostic event identifiers. */
-enum Core1EventCode : uint8_t {
-  CORE1_EVT_NONE = 0,
-  CORE1_EVT_ENGINE_READY,
-  CORE1_EVT_APPLY_BEGIN,
-  CORE1_EVT_APPLY_DONE,
-  CORE1_EVT_APPLY_REJECTED,
-  CORE1_EVT_APPLY_FAILED,
-  CORE1_EVT_ALL_OFF_BEGIN,
-  CORE1_EVT_ALL_OFF_DONE,
-  CORE1_EVT_ALL_OFF_FAILED,
-  CORE1_EVT_PROFILE_FAILED
-};
-
-/** @brief Fixed-size event transported from Core 1 to Core 0. */
-struct Core1Event {
-  uint32_t timestampUs;
-  uint32_t sequence;
-  uint32_t durationUs;
-  uint16_t mask;
-  uint16_t detail;
-  uint8_t code;
-  uint8_t level;
-  uint8_t channelIndex;
-  uint8_t reserved;
-};
-
-inline constexpr uint8_t CORE1_EVENT_QUEUE_DEPTH = 32;
-
-/** @brief Initialize the compact Core 1 to Core 0 event queue. */
-void initCore1EventQueue();
-/** @brief Publish one fixed-size diagnostic event from Core 1. */
-bool core1EmitEvent(Core1EventCode code, FirmwareLogLevel level, uint8_t channelIndex, uint16_t mask, uint16_t detail, uint32_t durationUs);
-/** @brief Pop one pending compact Core 1 event. */
+void initCoreCommandEngine();
+bool initCore1EventQueue();
+bool core1EmitEvent(Core1EventCode code, FirmwareLogLevel level, uint8_t channelIndex,
+                    uint16_t mask, uint16_t detail, uint32_t durationUs, uint32_t sequence = 0);
 bool popCore1Event(Core1Event& event);
-/** @brief Drain, format, and print pending Core 1 events from Core 0. */
 void drainCore1Events();
-/** @brief Return a stable text name for a Core 1 event code. */
 const char* core1EventCodeText(Core1EventCode code);
-
-/** @brief Command payload sent from Core 0 to Core 1 for deterministic hardware execution. */
-struct CoreCommand {
-  CoreCommandType type;
-  uint32_t requestId;
-  uint8_t channelIndex;       // 0..7 for per-channel commands
-  uint16_t mask;
-  uint16_t masks[CHANNEL_COUNT];
-};
-
-/** @brief Response payload returned by Core 1 after a command is accepted, rejected, or completed. */
-struct CoreResponse {
-  uint32_t requestId;
-  CoreResponseStatus status;
-  uint8_t channelIndex;
-  uint16_t mask;
-  uint16_t masks[CHANNEL_COUNT];
-  char message[96];
-};
 
 /** @brief Temporary parsed calibration entry used only at text import boundaries. */
 struct ParsedResistorInfo {
@@ -733,118 +602,31 @@ uint8_t w5500ReadCommonReg(uint16_t address, uint32_t spiHz);
  */
 bool w5500SoftwareResetAndProbe();
 
-// Dual-core command engine
-/**
- * @brief Initialize the dual-core command engine and its RP2040 hardware spin lock.
- */
+// Dual-core command engine. Core 0 owns policy calculation and text formatting.
 void initCoreCommandEngine();
-/**
- * @brief Submit a command to Core 1 and wait for the matching response with a timeout.
- * @param command Command object to submit or process.
- * @param response Response object to fill or inspect.
- * @param timeoutMs Maximum time to wait before reporting timeout.
- * @return Result value; for bool, true means the operation succeeded.
- */
-bool submitCoreCommandWait(CoreCommand& command, CoreResponse& response, uint32_t timeoutMs = CORE_COMMAND_TIMEOUT_MS);
-/**
- * @brief Request Core 1 to apply one 16-bit resistance mask to one channel.
- * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
- * @param mask 16-bit resistance switch mask.
- * @param reason Output buffer for a human-readable diagnostic message.
- * @param reasonLen Output buffer for a human-readable diagnostic message.
- * @return Result value; for bool, true means the operation succeeded.
- */
+bool waitForCore1Startup(uint32_t timeoutMs = CORE_STARTUP_TIMEOUT_MS);
+bool refreshCore0OutputMirror();
+bool readCoreOutputSnapshot(CoreOutputSnapshot& snapshot);
+bool submitCoreCommandWait(CoreCommand& command, CoreResult& result,
+                           uint32_t timeoutMs = CORE_COMMAND_TIMEOUT_MS);
 bool requestSetChannelMask(uint8_t channelIndex, uint16_t mask, char* reason, size_t reasonLen);
-/**
- * @brief Request Core 1 to apply eight channel masks after validating the full profile.
- * @param masks 16-bit resistance switch mask.
- * @param reason Output buffer for a human-readable diagnostic message.
- * @param reasonLen Output buffer for a human-readable diagnostic message.
- * @return Result value; for bool, true means the operation succeeded.
- */
 bool requestSetAllMasks(const uint16_t masks[CHANNEL_COUNT], char* reason, size_t reasonLen);
-/**
- * @brief Request Core 1 to switch every output channel OFF.
- * @param reason Output buffer for a human-readable diagnostic message.
- * @param reasonLen Output buffer for a human-readable diagnostic message.
- * @return Result value; for bool, true means the operation succeeded.
- */
 bool requestAllOff(char* reason, size_t reasonLen);
-/**
- * @brief Run one iteration of the Core 1 command-processing engine.
- */
-void core1ProcessEngineOnce();
+bool installCore1PolicySnapshot(char* reason = nullptr, size_t reasonLen = 0);
+void getCoreTransportDiagnostics(CoreTransportDiagnostics& diagnostics);
+void coreTransportKickCore0Heartbeat();
+uint32_t coreTransportInvalidateGeneration();
 
-// Shift-register physical control. These functions are owned by Core 1.
-/**
- * @brief Generate one shift-register clock pulse using the configured timing.
- */
-void pulseClock();
-/**
- * @brief Pulse exactly one channel latch pin.
- * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
- */
-void pulseLatch(uint8_t channelIndex);
-/**
- * @brief Pulse SRCLR low to clear the cascaded 74HC595 outputs.
- */
-void pulseShiftRegisterClear();
-/**
- * @brief Shift a 16-bit mask to the register chain with bit 0 transmitted first.
- * @param mask 16-bit resistance switch mask.
- */
-void shiftMaskBit0First(uint16_t mask);
-/**
- * @brief Shift and latch a mask into exactly one channel output register.
- * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
- * @param mask 16-bit resistance switch mask.
- * @return Result value; for bool, true means the operation succeeded.
- */
-bool latchMaskToChannel(uint8_t channelIndex, uint16_t mask);
-/**
- * @brief Apply one channel mask with break-before-make sequencing on Core 1.
- * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
- * @param newMask 16-bit resistance switch mask.
- * @return Result value; for bool, true means the operation succeeded.
- */
-bool applyChannelMaskPhysical(uint8_t channelIndex, uint16_t newMask);
-/**
- * @brief Validate and apply an eight-channel mask set using physical Core 1 switching.
- * @param masks 16-bit resistance switch mask.
- * @param reason Output buffer for a human-readable diagnostic message.
- * @param reasonLen Output buffer for a human-readable diagnostic message.
- * @return Result value; for bool, true means the operation succeeded.
- */
-bool applyAllMasksSafelyPhysical(const uint16_t masks[CHANNEL_COUNT], char* reason, size_t reasonLen);
-/**
- * @brief Configure shift-register GPIO pins, pulse SRCLR, and force known-safe outputs.
- */
-void setupShiftRegisters();
-/**
- * @brief Physically latch 0x0000 into all eight output channels.
- */
-bool forceAllOffPhysical();
-
-// Core-0 safe wrappers. HTTP and SCPI should call only these wrappers.
-/**
- * @brief Core-0-safe wrapper that requests a per-channel mask change on Core 1.
- * @param channelIndex Zero-based channel index unless explicitly documented as public 1-based text.
- * @param newMask 16-bit resistance switch mask.
- * @return Result value; for bool, true means the operation succeeded.
- */
+// Core-0 safe wrappers. HTTP and SCPI call only these functions.
 bool applyChannelMask(uint8_t channelIndex, uint16_t newMask);
-/**
- * @brief Core-0-safe wrapper that requests an all-channel mask profile on Core 1.
- * @param masks 16-bit resistance switch mask.
- * @param reason Output buffer for a human-readable diagnostic message.
- * @param reasonLen Output buffer for a human-readable diagnostic message.
- * @return Result value; for bool, true means the operation succeeded.
- */
 bool applyAllMasksSafely(const uint16_t masks[CHANNEL_COUNT], char* reason, size_t reasonLen);
-/**
- * @brief Core-0-safe wrapper that requests an emergency/normal all-OFF transition.
- */
 bool forceAllOff(char* reason = nullptr, size_t reasonLen = 0);
+
+#ifdef ERESISTOR_TEST_MODE
+void core1TestSetNextCommandDelayMs(uint32_t delayMs);
+void core1TestPauseProcessingMs(uint32_t pauseMs);
+void core1TestInvalidateNextCommandGeneration();
+#endif
 
 // Ethernet startup
 /**

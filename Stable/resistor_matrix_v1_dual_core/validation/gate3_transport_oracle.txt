@@ -1,0 +1,78 @@
+{
+  "gate": "G3",
+  "passed": 8,
+  "failed": 0,
+  "cases": [
+    {
+      "name": "valid command actuates",
+      "expected": "OK",
+      "actual": "OK",
+      "actuation_delta": 1,
+      "passed": true
+    },
+    {
+      "name": "queued command invalidated before validation never actuates",
+      "expected": "GENERATION_MISMATCH",
+      "actual": "GENERATION_MISMATCH",
+      "actuation_delta": 0,
+      "passed": true
+    },
+    {
+      "name": "new generation requires policy install",
+      "expected": "POLICY_NOT_INSTALLED",
+      "actual": "POLICY_NOT_INSTALLED",
+      "actuation_delta": 0,
+      "passed": true
+    },
+    {
+      "name": "expired command never actuates",
+      "expected": "EXPIRED",
+      "actual": "EXPIRED",
+      "actuation_delta": 0,
+      "passed": true
+    },
+    {
+      "name": "late command after Core0 timeout never actuates",
+      "expected": "GENERATION_MISMATCH",
+      "actual": "GENERATION_MISMATCH",
+      "actuation_delta": 0,
+      "passed": true
+    },
+    {
+      "name": "post-timeout generation requires policy install",
+      "expected": "POLICY_NOT_INSTALLED",
+      "actual": "POLICY_NOT_INSTALLED",
+      "actuation_delta": 0,
+      "passed": true
+    },
+    {
+      "name": "post-recovery command actuates",
+      "expected": "OK",
+      "actual": "OK",
+      "actuation_delta": 1,
+      "passed": true
+    },
+    {
+      "name": "coherent snapshot tuple",
+      "actual": {
+        "snapshot_sequence": 11,
+        "last_command_sequence": 7,
+        "generation": 3,
+        "mask": 8
+      },
+      "expected": "monotonic/current generation",
+      "passed": true
+    }
+  ],
+  "final_model": {
+    "generation": 3,
+    "policy_generation": 3,
+    "policy_installed": true,
+    "mask": 8,
+    "snapshot_sequence": 11,
+    "last_command_sequence": 7,
+    "expired": 1,
+    "generation_rejects": 2,
+    "actuations": 2
+  }
+}

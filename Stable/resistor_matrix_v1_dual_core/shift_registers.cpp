@@ -1,195 +1,116 @@
 /**
  * @file shift_registers.cpp
- * @brief Core-1-owned physical shift-register and latch control for resistor outputs.
+ * @brief Core-1-owned physical shift-register engine.
  */
+#include "core1_engine.h"
 
-#include "app.h"
+static bool s_shiftRegistersReady = false;
+static bool s_outputsSafe = false;
+static uint16_t s_masks[CHANNEL_COUNT] = {};
+static uint32_t s_applyCounters[CHANNEL_COUNT] = {};
 
-// ============================================================
-// Shift-register control
-// ============================================================
-
-void pulseClock() {
+static void pulseClockPhysical() {
   digitalWrite(SR_CLOCK, HIGH);
   delayMicroseconds(SR_CLOCK_HALF_PERIOD_US);
-
   digitalWrite(SR_CLOCK, LOW);
   delayMicroseconds(SR_CLOCK_HALF_PERIOD_US);
 }
 
-void pulseLatch(uint8_t channelIndex) {
-  uint8_t pin = SR_LATCH_PINS[channelIndex];
-
+static void pulseLatchPhysical(uint8_t channelIndex) {
+  const uint8_t pin = SR_LATCH_PINS[channelIndex];
   digitalWrite(pin, HIGH);
   delayMicroseconds(SR_LATCH_PULSE_US);
-
   digitalWrite(pin, LOW);
   delayMicroseconds(SR_LATCH_PULSE_US);
 }
 
-void pulseShiftRegisterClear() {
-  // 74HC595 SRCLR is active low. This clears the shift-register chain.
-  // The output storage registers are then explicitly latched to zero.
+static void pulseClearPhysical() {
   digitalWrite(SR_RESET, LOW);
   delayMicroseconds(20);
   digitalWrite(SR_RESET, HIGH);
   delayMicroseconds(20);
 }
 
-void shiftMaskBit0First(uint16_t mask) {
-  for (uint8_t bit = 0; bit < BIT_COUNT; bit++) {
-    bool value = (mask & (uint16_t(1) << bit)) != 0;
-
-    digitalWrite(SR_DATA, value ? HIGH : LOW);
+static void shiftMaskPhysical(uint16_t mask) {
+  for (uint8_t bit = 0; bit < BIT_COUNT; ++bit) {
+    digitalWrite(SR_DATA, (mask & (uint16_t(1U) << bit)) ? HIGH : LOW);
     delayMicroseconds(1);
-    pulseClock();
+    pulseClockPhysical();
   }
-
   digitalWrite(SR_DATA, LOW);
 }
 
-bool latchMaskToChannel(uint8_t channelIndex, uint16_t mask) {
-  if (channelIndex >= CHANNEL_COUNT) {
-    core1EmitEvent(CORE1_EVT_APPLY_FAILED, FW_LOG_ERROR, channelIndex, mask, CORE_RESP_INVALID_ARGUMENT, 0);
-    return false;
-  }
-
-  shiftMaskBit0First(mask);
-  pulseLatch(channelIndex);
+static bool latchMaskPhysical(uint8_t channelIndex, uint16_t mask) {
+  if (channelIndex >= CHANNEL_COUNT || !s_shiftRegistersReady) return false;
+  shiftMaskPhysical(mask);
+  pulseLatchPhysical(channelIndex);
   return true;
 }
 
-bool applyChannelMaskPhysical(uint8_t channelIndex, uint16_t newMask) {
-  const uint32_t startUs = micros();
-
-  if (!shiftRegistersReady) {
-    core1EmitEvent(CORE1_EVT_APPLY_REJECTED, FW_LOG_ERROR, channelIndex, newMask, 1, 0);
-    return false;
-  }
-
-  if (fatalSafeStateActive) {
-    core1EmitEvent(CORE1_EVT_APPLY_REJECTED, FW_LOG_ERROR, channelIndex, newMask, 2, 0);
-    return false;
-  }
-
-  if (channelIndex >= CHANNEL_COUNT) {
-    core1EmitEvent(CORE1_EVT_APPLY_REJECTED, FW_LOG_ERROR, channelIndex, newMask, 3, 0);
-    return false;
-  }
-
-  outputsKnownSafe = false;
-  core1EmitEvent(CORE1_EVT_APPLY_BEGIN, FW_LOG_INFO, channelIndex, newMask, 0, 0);
-
-  if (!latchMaskToChannel(channelIndex, 0x0000)) {
-    core1EmitEvent(CORE1_EVT_APPLY_FAILED, FW_LOG_ERROR, channelIndex, newMask, 4, micros() - startUs);
-    return false;
-  }
-
-  channelMask[channelIndex] = 0x0000;
-  delay(BREAK_BEFORE_MAKE_MS);
-
-  if (!latchMaskToChannel(channelIndex, newMask)) {
-    core1EmitEvent(CORE1_EVT_APPLY_FAILED, FW_LOG_ERROR, channelIndex, newMask, 5, micros() - startUs);
-    return false;
-  }
-
-  channelMask[channelIndex] = newMask;
-  applyCounter[channelIndex]++;
-  outputsKnownSafe = true;
-
-  core1EmitEvent(CORE1_EVT_APPLY_DONE, FW_LOG_INFO, channelIndex, newMask, 0, micros() - startUs);
-  return true;
-}
-
-bool applyAllMasksSafelyPhysical(const uint16_t masks[CHANNEL_COUNT], char* reason, size_t reasonLen) {
-  if (reasonLen > 0U) {
-    reason[0] = '\0';
-  }
-
-  if (masks == nullptr) {
-    snprintf(reason, reasonLen, "missing mask array");
-    return false;
-  }
-
-  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-    if (!checkMaskSafety(ch, masks[ch], reason, reasonLen)) {
-      core1EmitEvent(CORE1_EVT_PROFILE_FAILED, FW_LOG_ERROR, ch, masks[ch], CORE_RESP_REJECTED, 0);
-      return false;
-    }
-  }
-
-  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-    if (!applyChannelMaskPhysical(ch, masks[ch])) {
-      snprintf(reason, reasonLen, "failed to apply CH%u", unsigned(ch + 1));
-      core1EmitEvent(CORE1_EVT_PROFILE_FAILED, FW_LOG_ERROR, ch, masks[ch], CORE_RESP_IO_ERROR, 0);
-      // Core 1 must never queue an all-off request to itself.
-      forceAllOffPhysical();
-      return false;
-    }
-  }
-
-  return true;
-}
-
-void setupShiftRegisters() {
+bool core1PhysicalInitialize() {
   pinMode(SR_DATA, OUTPUT);
   digitalWrite(SR_DATA, LOW);
-
   pinMode(SR_CLOCK, OUTPUT);
   digitalWrite(SR_CLOCK, LOW);
-
   pinMode(SR_RESET, OUTPUT);
   digitalWrite(SR_RESET, HIGH);
-
-  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
     pinMode(SR_LATCH_PINS[ch], OUTPUT);
     digitalWrite(SR_LATCH_PINS[ch], LOW);
   }
-
-  shiftRegistersReady = true;
-  pulseShiftRegisterClear();
+  s_shiftRegistersReady = true;
+  pulseClearPhysical();
+  return true;
 }
 
-bool forceAllOffPhysical() {
+bool core1ApplyChannelMaskPhysical(uint8_t channelIndex, uint16_t newMask, uint32_t sequence) {
   const uint32_t startUs = micros();
-  core1EmitEvent(CORE1_EVT_ALL_OFF_BEGIN, FW_LOG_INFO, 0xFF, 0, 0, 0);
+  if (!s_shiftRegistersReady || channelIndex >= CHANNEL_COUNT) return false;
+  s_outputsSafe = false;
+  core1EmitEvent(CORE1_EVT_APPLY_BEGIN, FW_LOG_DEBUG, channelIndex, newMask, 0, 0, sequence);
+  if (!latchMaskPhysical(channelIndex, 0U)) return false;
+  s_masks[channelIndex] = 0U;
+  delay(BREAK_BEFORE_MAKE_MS);
+  if (!latchMaskPhysical(channelIndex, newMask)) return false;
+  s_masks[channelIndex] = newMask;
+  s_applyCounters[channelIndex]++;
+  s_outputsSafe = true;
+  core1EmitEvent(CORE1_EVT_APPLY_DONE, FW_LOG_INFO, channelIndex, newMask, 0, micros() - startUs, sequence);
+  return true;
+}
 
-  if (!shiftRegistersReady) {
-    outputsKnownSafe = false;
-    core1EmitEvent(CORE1_EVT_ALL_OFF_FAILED, FW_LOG_ERROR, 0xFF, 0, 1, micros() - startUs);
-    return false;
-  }
-
-  outputsKnownSafe = false;
-  digitalWrite(SR_DATA, LOW);
-  digitalWrite(SR_CLOCK, LOW);
-  pulseShiftRegisterClear();
-
-  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-    if (!latchMaskToChannel(ch, 0x0000)) {
-      core1EmitEvent(CORE1_EVT_ALL_OFF_FAILED, FW_LOG_ERROR, ch, 0, 2, micros() - startUs);
+bool core1ApplyAllMasksPhysical(const uint16_t masks[CHANNEL_COUNT], uint32_t sequence) {
+  if (masks == nullptr) return false;
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+    if (!core1ApplyChannelMaskPhysical(ch, masks[ch], sequence)) {
+      core1ForceAllOffPhysical(sequence, CORE_DETAIL_PHYSICAL_APPLY_FAILED);
       return false;
     }
-    channelMask[ch] = 0x0000;
-    yield();
   }
-
-  bool allZero = true;
-  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-    if (channelMask[ch] != 0U) {
-      allZero = false;
-      break;
-    }
-  }
-
-  outputsKnownSafe = allZero;
-  core1EmitEvent(
-    allZero ? CORE1_EVT_ALL_OFF_DONE : CORE1_EVT_ALL_OFF_FAILED,
-    allZero ? FW_LOG_INFO : FW_LOG_ERROR,
-    0xFF,
-    0,
-    allZero ? 0 : 3,
-    micros() - startUs
-  );
-  return allZero;
+  return true;
 }
+
+bool core1ForceAllOffPhysical(uint32_t sequence, uint16_t detail) {
+  const uint32_t startUs = micros();
+  if (!s_shiftRegistersReady) return false;
+  s_outputsSafe = false;
+  core1EmitEvent(CORE1_EVT_ALL_OFF_BEGIN, FW_LOG_INFO, 0xFF, 0, detail, 0, sequence);
+  digitalWrite(SR_DATA, LOW);
+  digitalWrite(SR_CLOCK, LOW);
+  pulseClearPhysical();
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+    if (!latchMaskPhysical(ch, 0U)) {
+      core1EmitEvent(CORE1_EVT_ALL_OFF_FAILED, FW_LOG_ERROR, ch, 0, detail, micros() - startUs, sequence);
+      return false;
+    }
+    s_masks[ch] = 0U;
+  }
+  s_outputsSafe = true;
+  core1EmitEvent(CORE1_EVT_ALL_OFF_DONE, FW_LOG_INFO, 0xFF, 0, detail, micros() - startUs, sequence);
+  return true;
+}
+
+const uint16_t* core1PhysicalMasks() { return s_masks; }
+const uint32_t* core1PhysicalApplyCounters() { return s_applyCounters; }
+bool core1PhysicalOutputsSafe() { return s_outputsSafe; }
+bool core1PhysicalReady() { return s_shiftRegistersReady; }

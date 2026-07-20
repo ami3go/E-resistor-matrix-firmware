@@ -1,106 +1,138 @@
 {
-  "passed": 20,
+  "gate": "G3",
+  "files": 26,
+  "passed": 26,
   "failed": 0,
-  "results": [
-    {
-      "file": "app_globals.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "core1_event_formatter.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "core1_event_queue.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "core_command.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "ethernet_startup.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "http_handlers.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "http_page_helpers.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "littlefs_page_helpers.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "parse_helpers.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "resistance_calculation.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "runtime_resistor_config.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "scpi_server.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "setup_loop.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "shift_registers.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "status_led.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "utility.cpp",
-      "passed": true,
-      "detail": ""
-    },
-    {
-      "file": "w5500_registers.cpp",
-      "passed": true,
-      "detail": ""
-    },
+  "records": [
     {
       "file": "app.h",
       "passed": true,
-      "detail": ""
+      "errors": []
+    },
+    {
+      "file": "app_globals.cpp",
+      "passed": true,
+      "errors": []
     },
     {
       "file": "board_config.h",
       "passed": true,
-      "detail": ""
+      "errors": []
+    },
+    {
+      "file": "core1_engine.h",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "core1_event_formatter.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "core1_event_queue.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "core1_output_engine.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "core1_runtime.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "core_command.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "core_transport.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "core_transport_types.h",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "ethernet_startup.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "hardware_config.h",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "http_handlers.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "http_page_helpers.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "littlefs_page_helpers.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "parse_helpers.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "resistance_calculation.cpp",
+      "passed": true,
+      "errors": []
     },
     {
       "file": "resistor_matrix_v1_dual_core.ino",
       "passed": true,
-      "detail": ""
+      "errors": []
+    },
+    {
+      "file": "runtime_resistor_config.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "scpi_server.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "setup_loop.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "shift_registers.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "status_led.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "utility.cpp",
+      "passed": true,
+      "errors": []
+    },
+    {
+      "file": "w5500_registers.cpp",
+      "passed": true,
+      "errors": []
     }
   ]
 }

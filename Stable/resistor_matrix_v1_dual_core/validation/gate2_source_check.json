@@ -3,7 +3,7 @@
     {
       "detail": "",
       "name": "firmware version 0.5.0",
-      "passed": true
+      "passed": false
     },
     {
       "detail": "",
@@ -71,7 +71,7 @@
       "passed": true
     }
   ],
-  "failed": 0,
+  "failed": 1,
   "gate": "G2",
-  "passed": 14
+  "passed": 13
 }

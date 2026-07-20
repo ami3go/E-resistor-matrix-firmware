@@ -1,6 +1,6 @@
 /**
  * @file setup_loop.cpp
- * @brief Arduino Core 0 and Core 1 setup/loop entry points and task partitioning.
+ * @brief Arduino Core 0 setup/loop entry points; Core 1 lives in core1_runtime.cpp.
  */
 
 #include "app.h"
@@ -52,13 +52,7 @@ void setup() {
   Serial.println("STEP 1: wait for Core 1 hardware engine safe state");
   Serial.flush();
 
-  uint32_t coreWaitStart = millis();
-  while (!core1EngineReady && (millis() - coreWaitStart) < 5000UL) {
-    updateHeartbeat();
-    delay(10);
-  }
-
-  if (!core1EngineReady || !outputsKnownSafe) {
+  if (!waitForCore1Startup(CORE_STARTUP_TIMEOUT_MS)) {
     Serial.println("Core 1 hardware engine did not enter safe state. Network services not started.");
     Serial.flush();
     safeState("Core 1 hardware engine not ready");
@@ -94,6 +88,13 @@ void setup() {
     Serial.println("Safety config: using defaults");
     appendLogEvent("Boot: default safety config");
   }
+
+  char policyReason[128] = {0};
+  if (!installCore1PolicySnapshot(policyReason, sizeof(policyReason))) {
+    safeState(policyReason[0] ? policyReason : "Core 1 policy installation failed");
+    return;
+  }
+  appendLogEvent("Boot: immutable Core 1 calibration/safety policy installed");
 
   Serial.println("STEP 2: Ethernet CS/INT setup");
   Serial.flush();
@@ -179,6 +180,8 @@ void setup() {
 void loop() {
   uint32_t busyStartUs = micros();
 
+  coreTransportKickCore0Heartbeat();
+  refreshCore0OutputMirror();
   updateHeartbeat();
   drainCore1Events();
 
@@ -193,46 +196,3 @@ void loop() {
   delay(1);
 }
 
-/**
- * @brief Arduino Core 1 startup entry point for deterministic output control.
- */
-void setup1() {
-  // Core 1 must put outputs into a known safe state before Core 0 starts
-  // Ethernet or accepts any remote command.
-  delay(20);
-  setupShiftRegisters();
-  bool offOk = forceAllOffPhysical();
-  core1OutputsReady = offOk && outputsKnownSafe;
-  core1EngineReady = core1OutputsReady;
-  core1HeartbeatMs = millis();
-  int freeStack = rp2040.getFreeStack();
-  if (freeStack > 0) {
-    core1MinFreeStackBytes = uint32_t(freeStack);
-  }
-  core1EmitEvent(
-    offOk ? CORE1_EVT_ENGINE_READY : CORE1_EVT_ALL_OFF_FAILED,
-    offOk ? FW_LOG_INFO : FW_LOG_ERROR,
-    0xFF, 0, 0, 0
-  );
-}
-
-/**
- * @brief Arduino Core 1 loop that runs the hardware command engine.
- */
-void loop1() {
-  uint32_t startUs = micros();
-  core1ProcessEngineOnce();
-
-  if ((core1LoopCounter & 0xFFU) == 0U) {
-    int freeStack = rp2040.getFreeStack();
-    if (freeStack > 0 && uint32_t(freeStack) < core1MinFreeStackBytes) {
-      core1MinFreeStackBytes = uint32_t(freeStack);
-    }
-  }
-
-  uint32_t elapsedUs = micros() - startUs;
-  if (elapsedUs > core1LoopMaxUs) {
-    core1LoopMaxUs = elapsedUs;
-  }
-  delayMicroseconds(100);
-}

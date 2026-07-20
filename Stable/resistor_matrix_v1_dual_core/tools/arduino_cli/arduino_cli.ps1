@@ -7,6 +7,7 @@ param(
     [string]$Port,
     [switch]$ForceSetup,
     [switch]$VerboseBuild,
+    [switch]$TestBuild,
 
     [ValidateRange(1, 60)]
     [int]$HeartbeatSeconds = 3
@@ -293,6 +294,7 @@ function Show-Settings {
     Write-Host "Board options:  $BoardOptionsText"
     Write-Host "Upload port:    $Port"
     Write-Host "Build folder:   $BuildDir"
+    Write-Host "Test mode:      $([bool]$TestBuild)"
 }
 
 function Show-Doctor {
@@ -338,6 +340,10 @@ function Build-Firmware {
         "--build-path", $BuildDir,
         "--warnings", "all"
     )
+    if ($TestBuild) {
+        $Arguments += @("--build-property", "compiler.cpp.extra_flags=-DERESISTOR_TEST_MODE=1")
+        Write-Host "Gate 3 TEST MODE enabled. Do not use this image as a production release." -ForegroundColor Red
+    }
     if ($VerboseBuild) {
         $Arguments += "--verbose"
     }
@@ -370,6 +376,7 @@ function Build-Firmware {
         generated_utc = (Get-Date).ToUniversalTime().ToString("o")
         script_version = $ArduinoCliScriptVersion
         verbose_build = [bool]$VerboseBuild
+        test_mode = [bool]$TestBuild
         heartbeat_seconds = $HeartbeatSeconds
         arduino_cli_version = $ArduinoCliVersion
         rp2040_core_version = $Rp2040CoreVersion

@@ -1,6 +1,6 @@
 # Arduino CLI build and upload scripts
 
-These Windows scripts reproduce the Arduino IDE settings used for the E-Resistor Gate 1 firmware.
+These Windows scripts reproduce the Arduino IDE settings used for the E-Resistor firmware.
 
 ## Configured board
 
@@ -71,7 +71,7 @@ Both modes stream output to the console and write it immediately to the timestam
 
 The setup is pinned for reproducibility:
 
-- Build script 1.1.0
+- Build script 1.1.1
 - Arduino CLI 1.5.1
 - Arduino-Pico core 5.6.1
 - Adafruit NeoPixel 1.15.5
@@ -116,3 +116,21 @@ The default UF2 upload method normally resets the RP2040 through the selected CO
 3. Reconnect USB.
 4. Release BOOTSEL.
 5. Run `flash_firmware_COM17.bat` again.
+
+## Gate 3 production and fault-injection builds
+
+Normal production build and flash:
+
+```bat
+build_firmware.bat
+build_and_flash_COM17.bat
+```
+
+Gate 3 test image with `ERESISTOR_TEST_MODE=1`:
+
+```bat
+build_firmware_gate3_test.bat
+build_and_flash_COM17_gate3_test.bat
+```
+
+The test image exposes bounded, all-OFF-interlocked Core 1 fault hooks. It must be used only for the dedicated Robot fault profile. Reflash the production image immediately afterward. `build_manifest.json` records whether `test_mode` was enabled.

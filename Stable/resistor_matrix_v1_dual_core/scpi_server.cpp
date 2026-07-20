@@ -27,6 +27,15 @@ void scpiPrintHelp(WiFiClient& client) {
   client.println("SYST:ERR:CLEAR");
   client.println("STATE?");
   client.println("SYST:STAT?");
+  client.println("SYST:CORE:TRANSPORT?           - numeric command transport diagnostics");
+  client.println("SYST:CORE:SNAPSHOT?            - coherent Core 1 output snapshot");
+#ifdef ERESISTOR_TEST_MODE
+  client.println("SYST:TEST:MODE?                - returns 1 for fault-injection build");
+  client.println("SYST:TEST:CORE1:DELAY <ms>     - delay next Core 1 command; outputs must be OFF");
+  client.println("SYST:TEST:CORE1:PAUSE <ms>     - pause command dequeue; outputs must be OFF");
+  client.println("SYST:TEST:CORE1:INVALIDATE:NEXT - invalidate the next queued command; outputs must be OFF");
+  client.println("SYST:TEST:CORE1:INVALIDATE      - immediately invalidate generation; outputs must be OFF");
+#endif
   client.println("CAL:RES? or CAL:RESISTORS?          - all calibration branch values");
   client.println("CAL:CHANnel<n>:RES?                 - one channel calibration branch values");
   client.println("CAL:FILES?                          - list saved calibration/config files");
@@ -413,6 +422,7 @@ static bool tryHandleCalibrationFileQuery(String cmd, WiFiClient& client) {
  * @param client Connected TCP client used for the response.
  */
 void processScpiLine(const char* rawLine, WiFiClient& client) {
+  refreshCore0OutputMirror();
   String cmd(rawLine);
   cmd.trim();
 
@@ -493,6 +503,105 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     return;
   }
 
+  if (upper == "SYST:CORE:TRANSPORT?" || upper == "SYSTEM:CORE:TRANSPORT?") {
+    CoreTransportDiagnostics d{};
+    getCoreTransportDiagnostics(d);
+    client.print("generation="); client.print(d.currentSafetyGeneration);
+    client.print(",last_submitted="); client.print(d.lastSubmittedSequence);
+    client.print(",last_completed="); client.print(d.lastCompletedSequence);
+    client.print(",command_overflows="); client.print(d.commandQueueOverflowCount);
+    client.print(",result_overflows="); client.print(d.resultQueueOverflowCount);
+    client.print(",timeouts="); client.print(d.commandTimeoutCount);
+    client.print(",expired="); client.print(d.commandExpiredCount);
+    client.print(",generation_rejects="); client.print(d.generationRejectCount);
+    client.print(",invalid_commands="); client.print(d.invalidCommandCount);
+    client.print(",policy_installs="); client.print(d.policyInstallCount);
+    client.print(",core0_failsafe="); client.println(d.core0FailsafeCount);
+    return;
+  }
+
+  if (upper == "SYST:CORE:SNAPSHOT?" || upper == "SYSTEM:CORE:SNAPSHOT?") {
+    CoreOutputSnapshot snapshot{};
+    if (!readCoreOutputSnapshot(snapshot)) {
+      client.println("ERR,snapshot_unavailable");
+      return;
+    }
+    client.print("snapshot_sequence="); client.print(snapshot.snapshotSequence);
+    client.print(",last_command_sequence="); client.print(snapshot.lastCommandSequence);
+    client.print(",generation="); client.print(snapshot.safetyGeneration);
+    client.print(",flags="); client.print(snapshot.flags);
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+      client.print(",ch"); client.print(ch + 1U); client.print("_mask=0x");
+      if (snapshot.masks[ch] < 0x1000U) client.print('0');
+      if (snapshot.masks[ch] < 0x0100U) client.print('0');
+      if (snapshot.masks[ch] < 0x0010U) client.print('0');
+      client.print(snapshot.masks[ch], HEX);
+      client.print(",ch"); client.print(ch + 1U); client.print("_apply=");
+      client.print(snapshot.applyCounter[ch]);
+    }
+    client.println();
+    return;
+  }
+
+#ifdef ERESISTOR_TEST_MODE
+  auto parseTestDurationMs = [&](uint32_t& durationMs) -> bool {
+    String valueText = cmd.substring(cmd.lastIndexOf(' ') + 1);
+    valueText.trim();
+    if (valueText.length() == 0U || valueText.length() > 4U) return false;
+    for (uint16_t i = 0; i < valueText.length(); ++i) {
+      if (!isdigit(valueText[i])) return false;
+    }
+    const unsigned long parsed = strtoul(valueText.c_str(), nullptr, 10);
+    if (parsed < 1UL || parsed > 5000UL) return false;
+    durationMs = uint32_t(parsed);
+    return true;
+  };
+
+  if (upper == "SYST:TEST:MODE?") {
+    client.println("1");
+    return;
+  }
+  if (upper.startsWith("SYST:TEST:CORE1:DELAY ")) {
+    refreshCore0OutputMirror();
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+      if (channelMask[ch] != 0U) { client.println("ERR,outputs_must_be_off"); return; }
+    }
+    uint32_t delayMs = 0;
+    if (!parseTestDurationMs(delayMs)) { client.println("ERR,duration_1_to_5000_ms"); return; }
+    core1TestSetNextCommandDelayMs(delayMs);
+    client.println("OK");
+    return;
+  }
+  if (upper.startsWith("SYST:TEST:CORE1:PAUSE ")) {
+    refreshCore0OutputMirror();
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+      if (channelMask[ch] != 0U) { client.println("ERR,outputs_must_be_off"); return; }
+    }
+    uint32_t pauseMs = 0;
+    if (!parseTestDurationMs(pauseMs)) { client.println("ERR,duration_1_to_5000_ms"); return; }
+    core1TestPauseProcessingMs(pauseMs);
+    client.println("OK");
+    return;
+  }
+  if (upper == "SYST:TEST:CORE1:INVALIDATE:NEXT") {
+    refreshCore0OutputMirror();
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+      if (channelMask[ch] != 0U) { client.println("ERR,outputs_must_be_off"); return; }
+    }
+    core1TestInvalidateNextCommandGeneration();
+    client.println("OK");
+    return;
+  }
+  if (upper == "SYST:TEST:CORE1:INVALIDATE") {
+    refreshCore0OutputMirror();
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+      if (channelMask[ch] != 0U) { client.println("ERR,outputs_must_be_off"); return; }
+    }
+    client.println(coreTransportInvalidateGeneration());
+    return;
+  }
+#endif
+
   if (upper == "SYST:STAT?" || upper == "SYSTEM:STATUS?") {
     client.print("heap_free=");
     client.print(getHeapFreeBytes());
@@ -542,7 +651,17 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     client.print(",core1_events=");
     client.print((uint32_t)core1EventCounter);
     client.print(",core1_event_drops=");
-    client.println((uint32_t)core1EventDropCounter);
+    client.print((uint32_t)core1EventDropCounter);
+    CoreTransportDiagnostics transport{};
+    getCoreTransportDiagnostics(transport);
+    client.print(",transport_generation="); client.print(transport.currentSafetyGeneration);
+    client.print(",transport_timeouts="); client.print(transport.commandTimeoutCount);
+    client.print(",transport_expired="); client.print(transport.commandExpiredCount);
+    client.print(",transport_generation_rejects="); client.print(transport.generationRejectCount);
+    client.print(",transport_command_overflows="); client.print(transport.commandQueueOverflowCount);
+    client.print(",transport_result_overflows="); client.print(transport.resultQueueOverflowCount);
+    client.print(",transport_policy_installs="); client.print(transport.policyInstallCount);
+    client.print(",transport_core0_failsafe="); client.println(transport.core0FailsafeCount);
     return;
   }
 

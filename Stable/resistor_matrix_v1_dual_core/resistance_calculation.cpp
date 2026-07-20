@@ -568,6 +568,7 @@ bool calculateNearestMaskForTarget(
                     ++targetSearchTimeoutCount;
                     goto search_complete;
                 }
+                coreTransportKickCore0Heartbeat();
                 updateHeartbeat();
                 drainCore1Events();
                 yield();

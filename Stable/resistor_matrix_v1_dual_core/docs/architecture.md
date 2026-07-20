@@ -1,4 +1,21 @@
-# Firmware Architecture
+# Gate 3 dual-core architecture
+
+Firmware 0.6.0 uses an explicit ownership and message-transport boundary. Core 0 never directly toggles resistor shift-register GPIO. Core 1 never performs networking, filesystem, UI, SCPI/HTTP parsing, dynamic text construction, or USB serial formatting.
+
+```text
+Core 0                                        Core 1
+────────────────────────────────────          ────────────────────────────────────
+HTTP / SCPI / Ethernet / LittleFS             Shift-register GPIO ownership
+Mutable configuration and target math   -->   Envelope + policy validation
+Fixed command submission queue                Break-before-make physical apply
+Bounded result wait                     <--   Fixed numeric result queue
+Human-readable event formatting         <--   Fixed numeric event queue
+Atomic snapshot reader                  <--   Atomic authoritative snapshot writer
+Core 0 heartbeat                         -->   Direct all-OFF fail-safe monitor
+```
+
+Every output command is fixed-size and carries a sequence, deadline, and safety generation. Core 1 validates all three before entering the physical dispatcher. Calibration and safety values cross the boundary only as immutable policy snapshots installed while all outputs are OFF.
+
 
 ```text
 Core 0: Communication and UI
@@ -30,8 +47,12 @@ Core 1: Hardware Safety Engine
 | `app.h` | Shared declarations, constants, globals, and public APIs |
 | `app_globals.cpp` | Global objects and runtime state definitions |
 | `board_config.h` | Default resistor branch table and fixed hardware mapping |
-| `core_command.cpp` | Dual-core command queue and Core 1 dispatch |
-| `shift_registers.cpp` | Physical shift-register and latch operations |
+| `core_command.cpp` | Core 0 command submission, bounded wait, timeout invalidation, and safe wrappers |
+| `core_transport_types.h` | Fixed numeric cross-core protocol, snapshots, policy, and diagnostics types |
+| `core_transport.cpp` | Bounded queues, locks, semaphores, generation control, policy slots, and snapshots |
+| `core1_output_engine.cpp` | Core 1 envelope validation and deterministic command dispatch |
+| `core1_runtime.cpp` | Core 1 startup, physical all-OFF initialization, and loop timing |
+| `shift_registers.cpp` | Core 1-only physical shift-register and latch operations |
 | `setup_loop.cpp` | Core 0 and Core 1 Arduino entry points |
 | `scpi_server.cpp` | SCPI TCP parser and command execution |
 | `http_handlers.cpp` | Web UI and HTTP route handlers |
@@ -45,6 +66,10 @@ Core 1: Hardware Safety Engine
 ## Threading rule
 
 Only Core 1 may physically modify resistor outputs. Core 0 may request output changes but must not directly toggle shift-register or latch GPIOs.
+
+## Gate 3 policy boundary
+
+Core 0 owns mutable numeric calibration and safety configuration. Core 1 receives only immutable fixed-size `CoreSafetySnapshot` copies. Policy staging and installation require a coherent all-OFF state and advance the safety generation.
 
 ## Gate 2 numeric model boundary
 

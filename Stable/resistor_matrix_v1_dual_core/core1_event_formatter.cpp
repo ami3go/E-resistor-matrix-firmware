@@ -16,6 +16,10 @@ const char* core1EventCodeText(Core1EventCode code) {
     case CORE1_EVT_ALL_OFF_DONE: return "ALL_OFF_DONE";
     case CORE1_EVT_ALL_OFF_FAILED: return "ALL_OFF_FAILED";
     case CORE1_EVT_PROFILE_FAILED: return "PROFILE_FAILED";
+    case CORE1_EVT_COMMAND_EXPIRED: return "COMMAND_EXPIRED";
+    case CORE1_EVT_COMMAND_INVALIDATED: return "COMMAND_INVALIDATED";
+    case CORE1_EVT_POLICY_INSTALLED: return "POLICY_INSTALLED";
+    case CORE1_EVT_CORE0_FAILSAFE: return "CORE0_FAILSAFE";
     case CORE1_EVT_NONE:
     default: return "UNKNOWN";
   }

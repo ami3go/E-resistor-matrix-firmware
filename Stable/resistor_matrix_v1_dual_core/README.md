@@ -133,6 +133,20 @@ The browser **Files** tab places LittleFS capacity and its combined file invento
 
 
 
+## 2026-07-17 optimization Gate 3 — v0.6.0
+
+- Made Core 1 the deterministic and authoritative shift-register/output engine.
+- Added fixed-size command, result, and numeric event queues with no dynamic allocation.
+- Added command sequence, absolute deadline, and safety-generation validation before physical dispatch.
+- Added semaphore-backed result waiting and Core 1 startup synchronization.
+- Added immutable double-buffered calibration/safety policy handoff while all outputs are OFF.
+- Added atomic output snapshots containing all masks, apply counters, generation, sequence, and safety flags.
+- Added `SYST:CORE:TRANSPORT?` and `SYST:CORE:SNAPSHOT?` diagnostics.
+- Added Core 1 direct all-OFF handling for Core 0 timeout and heartbeat loss.
+- Added production-disabled fault-injection hooks plus dedicated Gate 3 test-image build launchers.
+- Added Robot-only Gate 3 transport, coherence, stress, HIL, queued-invalidation, and timeout no-ghost-actuation coverage.
+- See `docs/gate3_changes.md`, `G3_BUILD_AND_TEST.md`, and `GATE3_RELEASE_STATUS.md`.
+
 ## 2026-07-17 optimization Gate 2 — v0.5.0
 
 - Replaced the 8 × 16 text-heavy runtime resistor table with a direct numeric `float` table indexed by channel and bit.

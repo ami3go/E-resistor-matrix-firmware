@@ -1,0 +1,34 @@
+PASS - firmware version 0.6.0 
+PASS - fixed-size command queue 
+PASS - fixed-size result queue 
+PASS - command sequence field 
+PASS - command deadline field 
+PASS - command safety generation field 
+PASS - numeric result without message buffer 
+PASS - result semaphore notification 
+PASS - startup semaphore synchronization 
+PASS - atomic output snapshot lock 
+PASS - immutable double-buffer policy 
+PASS - policy staging requires safe OFF snapshot 
+PASS - Core1 rejects expired commands before dispatch 
+PASS - Core1 rejects invalidated generation before dispatch 
+PASS - timeout invalidates generation 
+PASS - timeout requests direct all-off 
+PASS - Core0 heartbeat fail-safe 
+PASS - Core1 physical engine isolated 
+PASS - Core1 status globals have a single Core1 writer 
+PASS - Core0-only setup loop 
+PASS - no fixed Core1 startup delay 
+PASS - HTTP exposes snapshot diagnostics 
+PASS - SCPI exposes transport diagnostics 
+PASS - SCPI exposes coherent snapshot 
+PASS - test hooks compile-time guarded 
+PASS - test hooks require outputs OFF 
+PASS - test duration is strictly bounded 
+PASS - queued-command generation invalidation hook 
+PASS - queued invalidation occurs before envelope validation 
+PASS - production build is default 
+PASS - separate explicit Gate3 test build 
+PASS - Core1 code has no UI/storage/protocol/formatting dependencies []
+PASS - legacy command protocol removed []
+Summary: 33 passed, 0 failed

@@ -1,0 +1,51 @@
+{
+  "gate": "G3",
+  "compiler": "/usr/bin/g++",
+  "passed": 6,
+  "failed": 0,
+  "records": [
+    {
+      "file": "core_transport.cpp",
+      "passed": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "file": "core1_event_queue.cpp",
+      "passed": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "file": "shift_registers.cpp",
+      "passed": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "file": "core1_output_engine.cpp",
+      "passed": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "file": "core1_runtime.cpp",
+      "passed": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "file": "core_command.cpp (focused stub)",
+      "passed": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "limitations": "This is not an Arduino-Pico target compile or link."
+}

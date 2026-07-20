@@ -56,6 +56,14 @@ static void setFirmwareUpdateFsStatus(const char* prefix) {
 // HTTP handlers
 // ============================================================
 
+static bool configurationOutputsAreOff() {
+  refreshCore0OutputMirror();
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+    if (channelMask[ch] != 0U) return false;
+  }
+  return true;
+}
+
 /**
  * @brief Handle Ping.
  */
@@ -74,6 +82,7 @@ void handlePing() {
  */
 void handleState() {
   noteHttpRequest();
+  refreshCore0OutputMirror();
 
   Serial.println("HTTP /state");
   Serial.flush();
@@ -92,6 +101,11 @@ void handleState() {
   text += "firmware_version=";
   text += FIRMWARE_VERSION;
   text += "\n";
+#ifdef ERESISTOR_TEST_MODE
+  text += "test_mode=1\n";
+#else
+  text += "test_mode=0\n";
+#endif
 
   text += "firmware_build=";
   text += FIRMWARE_BUILD_DATE;
@@ -222,6 +236,27 @@ void handleState() {
   text += "core1_event_drop_count=";
   text += String((uint32_t)core1EventDropCounter);
   text += "\n";
+
+  CoreOutputSnapshot coreSnapshot{};
+  if (readCoreOutputSnapshot(coreSnapshot)) {
+    text += "core_snapshot_sequence="; text += String(coreSnapshot.snapshotSequence); text += "\n";
+    text += "core_snapshot_last_command_sequence="; text += String(coreSnapshot.lastCommandSequence); text += "\n";
+    text += "core_snapshot_generation="; text += String(coreSnapshot.safetyGeneration); text += "\n";
+    text += "core_snapshot_flags="; text += String(coreSnapshot.flags); text += "\n";
+  }
+
+  CoreTransportDiagnostics transport{};
+  getCoreTransportDiagnostics(transport);
+  text += "core_transport_generation="; text += String(transport.currentSafetyGeneration); text += "\n";
+  text += "core_transport_last_submitted_sequence="; text += String(transport.lastSubmittedSequence); text += "\n";
+  text += "core_transport_last_completed_sequence="; text += String(transport.lastCompletedSequence); text += "\n";
+  text += "core_transport_command_timeouts="; text += String(transport.commandTimeoutCount); text += "\n";
+  text += "core_transport_expired_rejects="; text += String(transport.commandExpiredCount); text += "\n";
+  text += "core_transport_generation_rejects="; text += String(transport.generationRejectCount); text += "\n";
+  text += "core_transport_command_overflows="; text += String(transport.commandQueueOverflowCount); text += "\n";
+  text += "core_transport_result_overflows="; text += String(transport.resultQueueOverflowCount); text += "\n";
+  text += "core_transport_policy_installs="; text += String(transport.policyInstallCount); text += "\n";
+  text += "core_transport_core0_failsafe_count="; text += String(transport.core0FailsafeCount); text += "\n";
 
   text += "target_search_last_candidates=";
   text += String(targetSearchLastCandidates);
@@ -1238,11 +1273,18 @@ void handleUploadConfig() {
     return;
   }
 
+  if (!configurationOutputsAreOff()) {
+    server.send(409, "text/plain", "Turn all channels OFF before changing calibration data.\n");
+    return;
+  }
+
   if (!server.hasArg("config")) {
     server.send(400, "text/plain", "Missing config text\n");
     return;
   }
 
+  float previousValues[BIT_COUNT];
+  for (uint8_t bit = 0; bit < BIT_COUNT; ++bit) previousValues[bit] = channelResistorOhms[ch][bit];
   String configText = server.arg("config");
   char error[96];
 
@@ -1250,6 +1292,16 @@ void handleUploadConfig() {
     setStatus(error);
     setLastError(error);
     server.send(400, "text/plain", String("Config parse failed: ") + error + "\n");
+    return;
+  }
+
+  char policyReason[128] = {0};
+  if (!installCore1PolicySnapshot(policyReason, sizeof(policyReason))) {
+    for (uint8_t bit = 0; bit < BIT_COUNT; ++bit) channelResistorOhms[ch][bit] = previousValues[bit];
+    rebuildConductanceCache();
+    installCore1PolicySnapshot(nullptr, 0);
+    setLastError(policyReason);
+    server.send(500, "text/plain", String("Core 1 policy installation failed: ") + policyReason + "\n");
     return;
   }
 
@@ -1289,6 +1341,13 @@ void handleUploadConfigApi() {
     return;
   }
 
+  if (!configurationOutputsAreOff()) {
+    server.send(409, "text/plain", "ERR,outputs_must_be_off\n");
+    return;
+  }
+
+  float previousValues[BIT_COUNT];
+  for (uint8_t bit = 0; bit < BIT_COUNT; ++bit) previousValues[bit] = channelResistorOhms[ch][bit];
   String configText;
 
   if (server.hasArg("config")) {
@@ -1306,6 +1365,16 @@ void handleUploadConfigApi() {
     setStatus(error);
     setLastError(error);
     server.send(400, "text/plain", String("ERR,parse,") + error + "\n");
+    return;
+  }
+
+  char policyReason[128] = {0};
+  if (!installCore1PolicySnapshot(policyReason, sizeof(policyReason))) {
+    for (uint8_t bit = 0; bit < BIT_COUNT; ++bit) channelResistorOhms[ch][bit] = previousValues[bit];
+    rebuildConductanceCache();
+    installCore1PolicySnapshot(nullptr, 0);
+    setLastError(policyReason);
+    server.send(500, "text/plain", String("ERR,policy,") + policyReason + "\n");
     return;
   }
 
@@ -1417,6 +1486,7 @@ void handleCalibrationImportAll() {
     return;
   }
 
+  refreshCore0OutputMirror();
   for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
     if (channelMask[ch] != 0) {
       server.send(409, "text/plain", "Turn all channels OFF before importing calibration data.\n");
@@ -1435,12 +1505,30 @@ void handleCalibrationImportAll() {
     return;
   }
 
+  static float previousTables[CHANNEL_COUNT][BIT_COUNT];
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+    for (uint8_t bit = 0; bit < BIT_COUNT; ++bit) previousTables[ch][bit] = channelResistorOhms[ch][bit];
+  }
+
   char error[160];
   if (!restoreAllChannelConfigsFromBundleText(bundle, error, sizeof(error))) {
     setStatus("Calibration bundle import failed");
     setLastError(error);
     appendLogEvent(error);
     server.send(400, "text/plain", String("Calibration import failed: ") + error + "\n");
+    return;
+  }
+
+  char policyReason[160] = {0};
+  if (!installCore1PolicySnapshot(policyReason, sizeof(policyReason))) {
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+      for (uint8_t bit = 0; bit < BIT_COUNT; ++bit) channelResistorOhms[ch][bit] = previousTables[ch][bit];
+      saveChannelConfigToLittleFS(ch);
+    }
+    rebuildConductanceCache();
+    installCore1PolicySnapshot(nullptr, 0);
+    setLastError(policyReason);
+    server.send(500, "text/plain", String("Core 1 policy installation failed: ") + policyReason + "\n");
     return;
   }
 
@@ -1748,6 +1836,21 @@ void handleSafetyPage() {
 void handleSafetySave() {
   noteHttpRequest();
 
+  if (!configurationOutputsAreOff()) {
+    server.send(409, "text/plain", "Turn all channels OFF before changing safety policy.\n");
+    return;
+  }
+
+  double previousMin[CHANNEL_COUNT];
+  double previousMax[CHANNEL_COUNT];
+  uint8_t previousBits[CHANNEL_COUNT];
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+    previousMin[ch] = safetyMinOhm[ch];
+    previousMax[ch] = safetyMaxOhm[ch];
+    previousBits[ch] = safetyMaxActiveBits[ch];
+  }
+  const bool previousExpert = safetyExpertMode;
+
   double newMin[CHANNEL_COUNT];
   double newMax[CHANNEL_COUNT];
   uint8_t newBits[CHANNEL_COUNT];
@@ -1784,6 +1887,20 @@ void handleSafetySave() {
     safetyMaxActiveBits[ch] = newBits[ch];
   }
   safetyExpertMode = server.hasArg("expert") && server.arg("expert") == "1";
+
+  char policyReason[128] = {0};
+  if (!installCore1PolicySnapshot(policyReason, sizeof(policyReason))) {
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+      safetyMinOhm[ch] = previousMin[ch];
+      safetyMaxOhm[ch] = previousMax[ch];
+      safetyMaxActiveBits[ch] = previousBits[ch];
+    }
+    safetyExpertMode = previousExpert;
+    installCore1PolicySnapshot(nullptr, 0);
+    setLastError(policyReason);
+    server.send(500, "text/plain", String("Core 1 policy installation failed: ") + policyReason + "\n");
+    return;
+  }
 
   bool saved = saveSafetyConfigToLittleFS();
   setStatus(saved ? "Per-channel safety settings saved" : "Per-channel safety settings changed in RAM only");
