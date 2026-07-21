@@ -36,3 +36,5 @@
 /Regressiontest/RegressionTest/e_resistor_regression/__pycache__
 /Regressiontest/RegressionTest/results
 /Regressiontest/RegressionTest/e_resistor_regression/__pycache__
+*.pyc
+/Regressiontest/RegressionTest/e_resistor_regression/__pycache__
