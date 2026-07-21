@@ -9,6 +9,11 @@ static bool s_outputsSafe = false;
 static uint16_t s_masks[CHANNEL_COUNT] = {};
 static uint32_t s_applyCounters[CHANNEL_COUNT] = {};
 
+#ifdef ERESISTOR_TEST_MODE
+static volatile bool s_testFailNextProfileAfterClear = false;
+void core1TestFailNextProfileAfterClear() { s_testFailNextProfileAfterClear = true; }
+#endif
+
 static void pulseClockPhysical() {
   digitalWrite(SR_CLOCK, HIGH);
   delayMicroseconds(SR_CLOCK_HALF_PERIOD_US);
@@ -80,13 +85,71 @@ bool core1ApplyChannelMaskPhysical(uint8_t channelIndex, uint16_t newMask, uint3
 }
 
 bool core1ApplyAllMasksPhysical(const uint16_t masks[CHANNEL_COUNT], uint32_t sequence) {
-  if (masks == nullptr) return false;
+  const uint32_t startUs = micros();
+  if (masks == nullptr || !s_shiftRegistersReady) {
+    core1EmitEvent(CORE1_EVT_PROFILE_FAILED, FW_LOG_ERROR, 0xFF, 0,
+                   CORE_DETAIL_SHIFT_REGISTER_NOT_READY, 0, sequence);
+    return false;
+  }
+
+  s_outputsSafe = false;
+  core1EmitEvent(CORE1_EVT_PROFILE_BEGIN, FW_LOG_INFO, 0xFF, 0,
+                 CORE_DETAIL_NONE, 0, sequence);
+
+  // Phase 1: one shifted zero word is presented to every channel chain, then
+  // each channel latch is pulsed. No externally published snapshot changes
+  // until the entire profile transition has completed.
+  shiftMaskPhysical(0U);
   for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
-    if (!core1ApplyChannelMaskPhysical(ch, masks[ch], sequence)) {
-      core1ForceAllOffPhysical(sequence, CORE_DETAIL_PHYSICAL_APPLY_FAILED);
+    if (!s_shiftRegistersReady) {
+      const uint32_t clearUs = micros() - startUs;
+      core1ForceAllOffPhysical(sequence, CORE_DETAIL_PROFILE_CLEAR_FAILED);
+      coreTransportRecordProfileResult(micros() - startUs, clearUs, 0U, false);
+      core1EmitEvent(CORE1_EVT_PROFILE_FAILED, FW_LOG_ERROR, ch, 0,
+                     CORE_DETAIL_PROFILE_CLEAR_FAILED, micros() - startUs, sequence);
       return false;
     }
+    pulseLatchPhysical(ch);
+    s_masks[ch] = 0U;
   }
+
+  const uint32_t clearDurationUs = micros() - startUs;
+  core1EmitEvent(CORE1_EVT_PROFILE_BREAK_BEFORE_MAKE, FW_LOG_DEBUG, 0xFF, 0,
+                 BREAK_BEFORE_MAKE_MS, clearDurationUs, sequence);
+
+  // One global break-before-make interval replaces eight repeated delays.
+  delay(BREAK_BEFORE_MAKE_MS);
+
+#ifdef ERESISTOR_TEST_MODE
+  if (s_testFailNextProfileAfterClear) {
+    s_testFailNextProfileAfterClear = false;
+    core1ForceAllOffPhysical(sequence, CORE_DETAIL_TEST_PROFILE_FAIL_AFTER_CLEAR);
+    coreTransportRecordProfileResult(micros() - startUs, clearDurationUs, 1U, false);
+    core1EmitEvent(CORE1_EVT_PROFILE_FAILED, FW_LOG_ERROR, 0xFF, 0,
+                   CORE_DETAIL_TEST_PROFILE_FAIL_AFTER_CLEAR, micros() - startUs, sequence);
+    return false;
+  }
+#endif
+
+  // Phase 2: stage and latch every requested channel mask. Intermediate
+  // physical states are intentionally not published to Core 0.
+  for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+    if (!latchMaskPhysical(ch, masks[ch])) {
+      core1ForceAllOffPhysical(sequence, CORE_DETAIL_PROFILE_MAKE_FAILED);
+      coreTransportRecordProfileResult(micros() - startUs, clearDurationUs, 1U, false);
+      core1EmitEvent(CORE1_EVT_PROFILE_FAILED, FW_LOG_ERROR, ch, masks[ch],
+                     CORE_DETAIL_PROFILE_MAKE_FAILED, micros() - startUs, sequence);
+      return false;
+    }
+    s_masks[ch] = masks[ch];
+    s_applyCounters[ch]++;
+  }
+
+  s_outputsSafe = true;
+  const uint32_t durationUs = micros() - startUs;
+  coreTransportRecordProfileResult(durationUs, clearDurationUs, 1U, true);
+  core1EmitEvent(CORE1_EVT_PROFILE_DONE, FW_LOG_INFO, 0xFF, 0,
+                 CORE_DETAIL_NONE, durationUs, sequence);
   return true;
 }
 

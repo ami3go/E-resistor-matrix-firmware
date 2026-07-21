@@ -39,11 +39,6 @@
 | HIL-006 | Serial Fault Log Inspection | `test_hil_serial_health` | RP2040 diagnostic stream | serial transcript and console log |
 | HIL-007 | Final All Off Isolation Measurement | `test_hil_final_all_off` | DMM verifies final isolation | DMM transcript and HIL metrics |
 
-## Source and build suite
-
-| Robot test | Existing implementation | Result mapping | Evidence |
-|---|---|---|---|
-| SRC Gate Structure Checks | `scan_source()` and `evaluate_gate_expectations()` | Generates `SRC-nnn` result records | source metrics and source checks JSON |
 
 ## Runner-level evidence
 

@@ -242,3 +242,11 @@ flash_firmware_COM17.bat
 The normal build prints a periodic elapsed-time heartbeat; `build_firmware_verbose.bat` streams every compiler command live.
 
 The configuration matches the documented Waveshare RP2040 Zero IDE settings: 2 MB flash split as 1 MB sketch plus 1 MB LittleFS, 200 MHz CPU, IPv4-only 32 KB lwIP, `-Os`, Pico SDK USB, no OS, exceptions, RTTI, profiling, stack protector, or debug output. See `tools/arduino_cli/README.md`.
+
+## Optimization Gate 4 — v0.7.0
+
+Eight-channel profile updates now use one global clear/wait/make transaction with coherent snapshot publication. See `G4_BUILD_AND_TEST.md` and `docs/gate4_changes.md`.
+
+### Same-board calibration recovery
+
+Use `extract_calibration_from_report.ps1` to recover a persistent CH1-CH8 bundle from a passing regression ZIP. `restore_calibration.ps1` compares the bundle serial with the connected device and blocks mismatched board calibration by default. See `recovery/README.md`.

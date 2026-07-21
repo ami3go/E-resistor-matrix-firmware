@@ -1,0 +1,8 @@
+--loglevel
+DEBUG
+--console
+verbose
+--metadata
+Fixture:Gate 3 test firmware + Ethernet SCPI + RP2040 USB COM + USB DMM
+--metadata
+Safety:Fault injection starts and remains physically OFF

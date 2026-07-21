@@ -126,7 +126,7 @@ build_firmware.bat
 build_and_flash_COM17.bat
 ```
 
-Gate 3 test image with `ERESISTOR_TEST_MODE=1`:
+Gate 4 fault-injection test image with `ERESISTOR_TEST_MODE=1`:
 
 ```bat
 build_firmware_gate3_test.bat

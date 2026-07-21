@@ -61,7 +61,10 @@ enum CoreResultDetail : uint16_t {
   CORE_DETAIL_PHYSICAL_APPLY_FAILED = 10,
   CORE_DETAIL_PHYSICAL_ALL_OFF_FAILED = 11,
   CORE_DETAIL_CORE0_HEARTBEAT_EXPIRED = 12,
-  CORE_DETAIL_TEST_DELAY_APPLIED = 13
+  CORE_DETAIL_TEST_DELAY_APPLIED = 13,
+  CORE_DETAIL_PROFILE_CLEAR_FAILED = 14,
+  CORE_DETAIL_PROFILE_MAKE_FAILED = 15,
+  CORE_DETAIL_TEST_PROFILE_FAIL_AFTER_CLEAR = 16
 };
 
 enum Core1EventCode : uint8_t {
@@ -74,6 +77,9 @@ enum Core1EventCode : uint8_t {
   CORE1_EVT_ALL_OFF_BEGIN,
   CORE1_EVT_ALL_OFF_DONE,
   CORE1_EVT_ALL_OFF_FAILED,
+  CORE1_EVT_PROFILE_BEGIN,
+  CORE1_EVT_PROFILE_BREAK_BEFORE_MAKE,
+  CORE1_EVT_PROFILE_DONE,
   CORE1_EVT_PROFILE_FAILED,
   CORE1_EVT_COMMAND_EXPIRED,
   CORE1_EVT_COMMAND_INVALIDATED,
@@ -151,6 +157,13 @@ struct CoreTransportDiagnostics {
   uint32_t invalidCommandCount;
   uint32_t policyInstallCount;
   uint32_t core0FailsafeCount;
+  uint32_t profileTransitionCount;
+  uint32_t profileFailureCount;
+  uint32_t profileBreakBeforeMakeCount;
+  uint32_t lastProfileDurationUs;
+  uint32_t maxProfileDurationUs;
+  uint32_t lastProfileClearDurationUs;
+  uint32_t maxProfileClearDurationUs;
   uint32_t currentSafetyGeneration;
   uint32_t lastSubmittedSequence;
   uint32_t lastCompletedSequence;

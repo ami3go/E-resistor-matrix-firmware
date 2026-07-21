@@ -1,3 +1,0 @@
-2026-07-17 11:07:15,659 INFO Device tests skipped by --skip-device
-2026-07-17 11:07:15,662 INFO Overall PASS: PASS=11 FAIL=0 SKIP=1
-2026-07-17 11:07:15,662 INFO Report: /mnt/data/g2_reg/RegressionTest/validation/G2_source_profile/report.md

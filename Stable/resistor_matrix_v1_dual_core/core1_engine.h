@@ -28,6 +28,8 @@ void coreTransportRecordGenerationReject();
 void coreTransportRecordInvalidCommand();
 void coreTransportRecordPolicyInstall();
 void coreTransportRecordCore0Failsafe();
+void coreTransportRecordProfileResult(uint32_t durationUs, uint32_t clearDurationUs,
+                                      uint8_t breakBeforeMakeOperations, bool success);
 
 bool initCore1EventQueue();
 bool core1EmitEvent(Core1EventCode code, FirmwareLogLevel level, uint8_t channelIndex,
@@ -64,4 +66,5 @@ extern volatile uint32_t core1EventDropCounter;
 void core1TestSetNextCommandDelayMs(uint32_t delayMs);
 void core1TestPauseProcessingMs(uint32_t pauseMs);
 void core1TestInvalidateNextCommandGeneration();
+void core1TestFailNextProfileAfterClear();
 #endif

@@ -16,10 +16,12 @@
  * @brief Arduino Core 0 startup entry point for communications and non-real-time services.
  */
 void setup() {
-  initCoreCommandEngine();
-
+  // Start USB CDC before any cross-core or peripheral initialization so the
+  // normal firmware enumerates as a COM port as early as possible.
   Serial.begin(115200);
-  delay(3000);
+  delay(100);
+
+  initCoreCommandEngine();
 
   heartbeatBegin();
   setLedMode(LED_BOOT);

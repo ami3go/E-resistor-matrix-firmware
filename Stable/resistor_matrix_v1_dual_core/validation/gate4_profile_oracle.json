@@ -1,0 +1,53 @@
+{
+  "gate": "G4",
+  "passed": 5,
+  "failed": 0,
+  "cases": [
+    {
+      "name": "successful profile publishes only final tuple",
+      "passed": true
+    },
+    {
+      "name": "failure after clear publishes all off",
+      "passed": true
+    },
+    {
+      "name": "failure during make rolls back all off",
+      "passed": true
+    },
+    {
+      "name": "one global BBM per profile",
+      "passed": true
+    },
+    {
+      "name": "all published snapshots are complete eight-channel tuples",
+      "passed": true
+    }
+  ],
+  "final": {
+    "physical": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "published": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "bbm_count": 1003,
+    "transitions": 1001,
+    "failures": 2,
+    "snapshot_count": 1004
+  }
+}

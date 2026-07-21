@@ -3,6 +3,7 @@ from __future__ import annotations
 import concurrent.futures
 import json
 import math
+import re
 import socket
 import statistics
 import time
@@ -86,6 +87,9 @@ class RegressionSuite:
             "0.4.4": "G0",
             "0.4.6": "G1",
             "0.5.0": "G2",
+            "0.6.0": "G3",
+            "0.6.1": "G3",
+            "0.7.0": "G4",
         }.get(version.strip())
 
     def _query_scpi_state(
@@ -245,6 +249,16 @@ class RegressionSuite:
             required.extend([
                 "target_search_last_candidates", "target_search_last_elapsed_us",
                 "target_search_timeout_count", "target_search_cancel_count",
+            ])
+        if int(self.config.gate[1:]) >= 3:
+            required.extend([
+                "core_snapshot_sequence", "core_snapshot_last_command_sequence",
+                "core_snapshot_generation", "core_snapshot_flags",
+                "core_transport_generation", "core_transport_last_submitted_sequence",
+                "core_transport_last_completed_sequence", "core_transport_command_timeouts",
+                "core_transport_expired_rejects", "core_transport_generation_rejects",
+                "core_transport_command_overflows", "core_transport_result_overflows",
+                "core_transport_policy_installs", "core_transport_core0_failsafe_count",
             ])
         missing = [key for key in required if key not in state]
         channel_count = len(state.get("channels", {}))
@@ -463,6 +477,854 @@ class RegressionSuite:
             f"{len(cases)}/{len(targets)} targets verified; masks_unchanged={masks_unchanged}; failures={len(failures)}",
             metrics,
             {"channel": channel, "cases": cases, "failures": failures, "masks_unchanged": masks_unchanged},
+        )
+
+    def test_calibration_storage_presence(self):
+        response = self.http.request("/api/calibration/download_all")
+        markers = re.findall(
+            r"^#BEGIN\s+CH([1-8])\b[^\n]*\bsaved=([01])\b[^\n]*\bsize=(\d+)",
+            response.text,
+            flags=re.IGNORECASE | re.MULTILINE,
+        )
+        by_channel = {
+            int(channel): {"saved": int(saved), "size": int(size)}
+            for channel, saved, size in markers
+        }
+        failures: list[str] = []
+        if response.status != 200:
+            failures.append(f"HTTP status {response.status}")
+        if len(by_channel) != 8:
+            failures.append(f"expected 8 calibration markers, got {len(by_channel)}")
+        missing = [ch for ch in range(1, 9) if by_channel.get(ch, {}).get("saved") != 1]
+        empty = [ch for ch in range(1, 9) if by_channel.get(ch, {}).get("saved") == 1 and by_channel[ch]["size"] <= 0]
+        if missing:
+            failures.append(f"no saved calibration for channels {missing}")
+        if empty:
+            failures.append(f"empty saved calibration for channels {empty}")
+        metrics = {
+            "calibration_saved_channel_count": sum(item["saved"] == 1 for item in by_channel.values()),
+            "calibration_total_saved_bytes": sum(item["size"] for item in by_channel.values()),
+            "calibration_status_http_ms": response.elapsed_ms,
+        }
+        return (
+            "PASS" if not failures else "FAIL",
+            "all eight saved calibration files are present" if not failures else "; ".join(failures),
+            metrics,
+            {"channels": by_channel, "failures": failures},
+        )
+
+    def _query_core_transport(self, client: ScpiClient | None = None) -> tuple[dict[str, int], float, str]:
+        owns_client = client is None
+        if client is None:
+            client = ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger)
+            client.connect()
+        try:
+            response, elapsed = client.query("SYST:CORE:TRANSPORT?")
+        finally:
+            if owns_client:
+                client.close()
+        fields = parse_key_value_response(response)
+        parsed = {key: int(value, 0) for key, value in fields.items()}
+        return parsed, elapsed, response
+
+    def _query_core_profile(self, client: ScpiClient | None = None) -> tuple[dict[str, int], float, str]:
+        owns_client = client is None
+        if client is None:
+            client = ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger)
+            client.connect()
+        try:
+            response, elapsed = client.query("SYST:CORE:PROFILE?")
+        finally:
+            if owns_client:
+                client.close()
+        fields = parse_key_value_response(response)
+        parsed = {key: int(value, 0) for key, value in fields.items()}
+        return parsed, elapsed, response
+
+    def test_core_transport_diagnostics(self):
+        if int(self.config.gate[1:]) < 3:
+            return "SKIP", "Core transport diagnostics are introduced at Gate 3", {}, {}
+        values, elapsed, raw = self._query_core_transport()
+        required = {
+            "generation", "last_submitted", "last_completed", "command_overflows",
+            "result_overflows", "timeouts", "expired", "generation_rejects",
+            "invalid_commands", "policy_installs", "core0_failsafe",
+        }
+        missing = sorted(required - values.keys())
+        failures: list[str] = []
+        if missing:
+            failures.append(f"missing={missing}")
+        for key in ("command_overflows", "result_overflows", "timeouts", "expired",
+                    "generation_rejects", "invalid_commands", "core0_failsafe"):
+            if values.get(key, 0) != 0:
+                failures.append(f"{key}={values.get(key)}")
+        if values.get("generation", 0) < 1:
+            failures.append("generation is not positive")
+        if values.get("policy_installs", 0) < 1:
+            failures.append("no installed Core 1 policy")
+        if values.get("last_completed", 0) > values.get("last_submitted", 0):
+            failures.append("last_completed exceeds last_submitted")
+        metrics = {f"core_transport_{key}": value for key, value in values.items()}
+        metrics["core_transport_query_ms"] = elapsed
+        return (
+            "PASS" if not failures else "FAIL",
+            "transport diagnostics healthy" if not failures else "; ".join(failures),
+            metrics,
+            {"values": values, "raw": raw, "failures": failures},
+        )
+
+    def test_core_snapshot_consistency(self):
+        if int(self.config.gate[1:]) < 3:
+            return "SKIP", "Coherent Core 1 snapshots are introduced at Gate 3", {}, {}
+        http_text, http_state, http_ms = self._get_state()
+        with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
+            raw, scpi_ms = client.query("SYST:CORE:SNAPSHOT?")
+        fields = parse_key_value_response(raw)
+        failures: list[str] = []
+        try:
+            snapshot_sequence = int(fields["snapshot_sequence"], 0)
+            last_command_sequence = int(fields["last_command_sequence"], 0)
+            generation = int(fields["generation"], 0)
+            flags = int(fields["flags"], 0)
+        except (KeyError, ValueError) as exc:
+            return "FAIL", f"invalid snapshot header: {exc}", {}, {"raw": raw}
+        http_snapshot_sequence = int(http_state.get("core_snapshot_sequence", "-1"))
+        http_last_command = int(http_state.get("core_snapshot_last_command_sequence", "-1"))
+        http_generation = int(http_state.get("core_snapshot_generation", "-1"))
+        http_flags = int(http_state.get("core_snapshot_flags", "-1"))
+        if snapshot_sequence != http_snapshot_sequence:
+            failures.append(f"snapshot sequence HTTP={http_snapshot_sequence} SCPI={snapshot_sequence}")
+        if last_command_sequence != http_last_command:
+            failures.append(f"last command HTTP={http_last_command} SCPI={last_command_sequence}")
+        if generation != http_generation:
+            failures.append(f"generation HTTP={http_generation} SCPI={generation}")
+        if flags != http_flags:
+            failures.append(f"flags HTTP={http_flags} SCPI={flags}")
+        required_flags = 0x01 | 0x02 | 0x08
+        if (flags & required_flags) != required_flags:
+            failures.append(f"required safe/ready/policy flags missing: flags={flags}")
+        mask_pairs = []
+        for ch in range(1, 9):
+            scpi_mask = fields.get(f"ch{ch}_mask", "").lower().removeprefix("0x").upper()
+            http_mask = http_state.get("channels", {}).get(ch, {}).get("mask")
+            mask_pairs.append({"channel": ch, "http": http_mask, "scpi": scpi_mask})
+            if scpi_mask != http_mask:
+                failures.append(f"CH{ch} HTTP={http_mask} SCPI={scpi_mask}")
+        return (
+            "PASS" if not failures else "FAIL",
+            "HTTP and SCPI use one coherent output snapshot" if not failures else "; ".join(failures),
+            {
+                "core_snapshot_http_ms": http_ms,
+                "core_snapshot_scpi_ms": scpi_ms,
+                "core_snapshot_sequence": snapshot_sequence,
+                "core_snapshot_generation": generation,
+                "core_snapshot_flags": flags,
+            },
+            {"raw_http_excerpt": response_excerpt(http_text), "raw_scpi": raw,
+             "mask_pairs": mask_pairs, "failures": failures},
+        )
+
+    def test_core_transport_safe_stress(self):
+        if int(self.config.gate[1:]) < 3:
+            return "SKIP", "Sequenced Core 1 transport stress is introduced at Gate 3", {}, {}
+        if not self.config.allow_output_tests:
+            return "SKIP", "requires safe-output authorization", {}, {}
+        with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
+            before, before_ms, before_raw = self._query_core_transport(client)
+            latencies: list[float] = []
+            failures: list[str] = []
+            iterations = max(50, self.config.stress_iterations)
+            for index in range(iterations):
+                response, elapsed = client.query("ALL:OFF")
+                latencies.append(elapsed)
+                if response != "OK":
+                    failures.append(f"iteration {index + 1}: {response!r}")
+                    break
+            state_text, state, state_ms, state_attempts = self._query_scpi_state(client)
+            after, after_ms, after_raw = self._query_core_transport(client)
+        no_error_keys = ("command_overflows", "result_overflows", "timeouts", "expired",
+                         "generation_rejects", "invalid_commands", "core0_failsafe")
+        deltas = {key: after.get(key, 0) - before.get(key, 0) for key in no_error_keys}
+        nonzero = {key: value for key, value in deltas.items() if value != 0}
+        if nonzero:
+            failures.append(f"transport error counter deltas={nonzero}")
+        sequence_delta = after.get("last_submitted", 0) - before.get("last_submitted", 0)
+        if sequence_delta < len(latencies):
+            failures.append(f"submitted sequence delta {sequence_delta} < completed iterations {len(latencies)}")
+        if after.get("last_completed") != after.get("last_submitted"):
+            failures.append(
+                f"last completed {after.get('last_completed')} != last submitted {after.get('last_submitted')}"
+            )
+        if after.get("generation") != before.get("generation"):
+            failures.append(
+                f"normal ALL:OFF changed generation {before.get('generation')} -> {after.get('generation')}"
+            )
+        if len(state) != 8 or any(item.get("mask") != "0000" for item in state.values()):
+            failures.append(f"final masks not all zero: {state}")
+        metrics: dict[str, float | int] = {
+            "core_transport_stress_iterations": len(latencies),
+            "core_transport_stress_sequence_delta": sequence_delta,
+            "core_transport_before_query_ms": before_ms,
+            "core_transport_after_query_ms": after_ms,
+            "core_transport_final_state_ms": state_ms,
+        }
+        metrics.update(latency_metrics(latencies, "core_transport_all_off"))
+        for key, value in deltas.items():
+            metrics[f"core_transport_delta_{key}"] = value
+        return (
+            "PASS" if not failures and len(latencies) == iterations else "FAIL",
+            f"{len(latencies)}/{iterations} sequenced ALL:OFF commands; failures={len(failures)}",
+            metrics,
+            {"before": before, "after": after, "deltas": deltas, "failures": failures,
+             "before_raw": before_raw, "after_raw": after_raw,
+             "state_attempts": state_attempts, "state_raw": response_excerpt(state_text)},
+        )
+
+    def test_gate3_profile_zero_baseline(self):
+        """Measure the sequential Gate 3 profile path for Gate 4 comparison."""
+        if int(self.config.gate[1:]) != 3:
+            return "SKIP", "Gate 3 baseline is collected only on G3 firmware", {}, {}
+        if not self.config.allow_output_tests:
+            return "SKIP", "requires safe-output authorization", {}, {}
+
+        masks = ",".join(["0000"] * 8)
+        iterations = max(50, min(250, self.config.stress_iterations))
+        latencies: list[float] = []
+        internal_us: list[float] = []
+        failures: list[str] = []
+        with ScpiClient(self.config.host, self.config.scpi_port, max(self.config.timeout_s, 4.0), self.logger) as client:
+            before, before_ms, before_raw = self._query_core_transport(client)
+            profile_before, profile_before_ms, profile_before_raw = self._query_core_profile(client)
+            for index in range(iterations):
+                response, elapsed = client.query(
+                    f"ROUT:ALL:MASK {masks}",
+                    response_timeout_s=max(self.config.timeout_s, 4.0),
+                )
+                latencies.append(elapsed)
+                if response != "OK":
+                    failures.append(f"iteration {index + 1}: {response!r}")
+                    break
+                profile_now, _profile_query_ms, _profile_raw = self._query_core_profile(client)
+                value = profile_now.get("last_us", 0)
+                if value <= 0:
+                    failures.append(f"iteration {index + 1}: invalid internal duration {value}")
+                    break
+                internal_us.append(float(value))
+            state_text, state, state_ms, state_attempts = self._query_scpi_state(client)
+            profile_after, profile_after_ms, profile_after_raw = self._query_core_profile(client)
+            after, after_ms, after_raw = self._query_core_transport(client)
+
+        if len(state) != 8 or any(item.get("mask") != "0000" for item in state.values()):
+            failures.append(f"final masks not all zero: {state}")
+        if after.get("last_completed") != after.get("last_submitted"):
+            failures.append(
+                f"last completed {after.get('last_completed')} != last submitted {after.get('last_submitted')}"
+            )
+        transition_delta = profile_after.get("transitions", 0) - profile_before.get("transitions", 0)
+        bbm_delta = profile_after.get("bbm_count", 0) - profile_before.get("bbm_count", 0)
+        failure_delta = profile_after.get("failures", 0) - profile_before.get("failures", 0)
+        if transition_delta != len(internal_us):
+            failures.append(f"profile transition delta {transition_delta} != completed {len(internal_us)}")
+        if bbm_delta != len(internal_us) * 8:
+            failures.append(f"Gate 3 expected eight BBM operations per profile: delta={bbm_delta}")
+        if failure_delta != 0:
+            failures.append(f"profile failure delta={failure_delta}")
+
+        error_keys = (
+            "command_overflows", "result_overflows", "timeouts", "expired",
+            "generation_rejects", "invalid_commands", "core0_failsafe",
+        )
+        deltas = {key: after.get(key, 0) - before.get(key, 0) for key in error_keys}
+        nonzero = {key: value for key, value in deltas.items() if value != 0}
+        if nonzero:
+            failures.append(f"transport error counter deltas={nonzero}")
+
+        metrics: dict[str, float | int] = {
+            "profile_zero_iterations": len(internal_us),
+            "profile_zero_before_query_ms": before_ms,
+            "profile_zero_after_query_ms": after_ms,
+            "profile_zero_profile_before_query_ms": profile_before_ms,
+            "profile_zero_profile_after_query_ms": profile_after_ms,
+            "profile_zero_final_state_ms": state_ms,
+            "profile_zero_transition_delta": transition_delta,
+            "profile_zero_bbm_delta": bbm_delta,
+            "profile_zero_failure_delta": failure_delta,
+        }
+        metrics.update(latency_metrics(latencies, "profile_zero"))
+        metrics.update(latency_metrics([value / 1000.0 for value in internal_us], "profile_internal"))
+        for key, value in deltas.items():
+            metrics[f"profile_zero_delta_{key}"] = value
+
+        return (
+            "PASS" if not failures and len(internal_us) == iterations else "FAIL",
+            f"{len(internal_us)}/{iterations} sequential G3 profiles; BBM={bbm_delta}; failures={len(failures)}",
+            metrics,
+            {
+                "before": before,
+                "after": after,
+                "profile_before": profile_before,
+                "profile_after": profile_after,
+                "internal_duration_us": internal_us,
+                "deltas": deltas,
+                "before_raw": before_raw,
+                "after_raw": after_raw,
+                "profile_before_raw": profile_before_raw,
+                "profile_after_raw": profile_after_raw,
+                "state_attempts": state_attempts,
+                "state_raw": response_excerpt(state_text),
+                "failures": failures,
+            },
+        )
+
+    def test_gate4_profile_diagnostics(self):
+        if int(self.config.gate[1:]) < 4:
+            return "SKIP", "Gate 4 profile diagnostics require G4 or later", {}, {}
+        profile, profile_ms, profile_raw = self._query_core_profile()
+        transport, transport_ms, transport_raw = self._query_core_transport()
+        http_text, http_state, http_ms = self._get_state()
+        required = {
+            "transitions", "failures", "bbm_count", "last_us", "max_us",
+            "clear_last_us", "clear_max_us",
+        }
+        missing = sorted(required - profile.keys())
+        failures: list[str] = []
+        if missing:
+            failures.append(f"missing profile fields {missing}")
+        if profile.get("failures", 0) != 0:
+            failures.append(f"profile_failures={profile.get('failures')}")
+        transport_map = {
+            "profile_transitions": "transitions",
+            "profile_failures": "failures",
+            "profile_bbm_count": "bbm_count",
+            "profile_last_us": "last_us",
+            "profile_max_us": "max_us",
+            "profile_clear_last_us": "clear_last_us",
+            "profile_clear_max_us": "clear_max_us",
+        }
+        mismatches = {}
+        for transport_key, profile_key in transport_map.items():
+            if transport.get(transport_key) != profile.get(profile_key):
+                mismatches[transport_key] = {
+                    "transport": transport.get(transport_key),
+                    "profile": profile.get(profile_key),
+                }
+        if mismatches:
+            failures.append(f"transport/profile mismatch={mismatches}")
+        http_map = {
+            "core_profile_transition_count": "transitions",
+            "core_profile_failure_count": "failures",
+            "core_profile_break_before_make_count": "bbm_count",
+            "core_profile_last_duration_us": "last_us",
+            "core_profile_max_duration_us": "max_us",
+            "core_profile_last_clear_duration_us": "clear_last_us",
+            "core_profile_max_clear_duration_us": "clear_max_us",
+        }
+        http_mismatches = {}
+        for http_key, profile_key in http_map.items():
+            try:
+                http_value = int(http_state.get(http_key, "-1"), 0)
+            except (TypeError, ValueError):
+                http_value = -1
+            if http_value != profile.get(profile_key):
+                http_mismatches[http_key] = {
+                    "http": http_value,
+                    "profile": profile.get(profile_key),
+                }
+        if http_mismatches:
+            failures.append(f"HTTP/profile mismatch={http_mismatches}")
+        metrics = {
+            "gate4_profile_query_ms": profile_ms,
+            "gate4_profile_transport_query_ms": transport_ms,
+            "gate4_profile_http_query_ms": http_ms,
+        }
+        metrics.update({f"gate4_{key}": value for key, value in profile.items()})
+        return (
+            "PASS" if not failures else "FAIL",
+            "Gate 4 profile diagnostics are coherent" if not failures else "; ".join(failures),
+            metrics,
+            {
+                "profile": profile,
+                "transport": transport,
+                "mismatches": mismatches,
+                "http_mismatches": http_mismatches,
+                "profile_raw": profile_raw,
+                "transport_raw": transport_raw,
+                "http_raw": response_excerpt(http_text),
+                "failures": failures,
+            },
+        )
+
+    def _gate3_profile_baseline_p95_ms(self) -> tuple[float | None, str]:
+        if not self.config.baseline:
+            return None, "no Gate 3 baseline path was supplied"
+        path = Path(self.config.baseline).expanduser()
+        if not path.exists():
+            return None, f"Gate 3 baseline does not exist: {path}"
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return None, f"unable to read Gate 3 baseline: {type(exc).__name__}: {exc}"
+        value = payload.get("flat_metrics", {}).get("G3-004.profile_internal_p95_ms")
+        if not isinstance(value, (int, float)) or not math.isfinite(float(value)) or float(value) <= 0.0:
+            return None, "baseline is missing G3-004.profile_internal_p95_ms"
+        return float(value), str(path)
+
+    def test_gate4_zero_profile_stress(self):
+        if int(self.config.gate[1:]) < 4:
+            return "SKIP", "Gate 4 profile stress requires G4 or later", {}, {}
+        if not self.config.allow_output_tests:
+            return "SKIP", "requires safe-output authorization", {}, {}
+
+        baseline_p95_ms, baseline_note = self._gate3_profile_baseline_p95_ms()
+        masks = ",".join(["0000"] * 8)
+        iterations = max(1000, min(2000, self.config.stress_iterations))
+        scpi_ms: list[float] = []
+        internal_ms: list[float] = []
+        failures: list[str] = []
+        with ScpiClient(self.config.host, self.config.scpi_port, max(self.config.timeout_s, 4.0), self.logger) as client:
+            transport_before, transport_before_ms, transport_before_raw = self._query_core_transport(client)
+            profile_before, profile_before_ms, profile_before_raw = self._query_core_profile(client)
+            for index in range(iterations):
+                response, elapsed = client.query(
+                    f"ROUT:ALL:MASK {masks}",
+                    response_timeout_s=max(self.config.timeout_s, 4.0),
+                )
+                scpi_ms.append(elapsed)
+                if response != "OK":
+                    failures.append(f"iteration {index + 1}: {response!r}")
+                    break
+                current, _query_ms, _raw = self._query_core_profile(client)
+                duration_us = current.get("last_us", 0)
+                if duration_us <= 0:
+                    failures.append(f"iteration {index + 1}: invalid internal duration {duration_us}")
+                    break
+                internal_ms.append(duration_us / 1000.0)
+            state_text, state, state_ms, state_attempts = self._query_scpi_state(client)
+            profile_after, profile_after_ms, profile_after_raw = self._query_core_profile(client)
+            transport_after, transport_after_ms, transport_after_raw = self._query_core_transport(client)
+
+        completed = len(internal_ms)
+        transition_delta = profile_after.get("transitions", 0) - profile_before.get("transitions", 0)
+        bbm_delta = profile_after.get("bbm_count", 0) - profile_before.get("bbm_count", 0)
+        profile_failure_delta = profile_after.get("failures", 0) - profile_before.get("failures", 0)
+        if transition_delta != completed:
+            failures.append(f"transition delta {transition_delta} != completed {completed}")
+        if bbm_delta != completed:
+            failures.append(f"expected one BBM per profile: bbm_delta={bbm_delta}, completed={completed}")
+        if profile_failure_delta != 0:
+            failures.append(f"profile failure delta={profile_failure_delta}")
+        if len(state) != 8 or any(item.get("mask") != "0000" for item in state.values()):
+            failures.append(f"final masks not all zero: {state}")
+
+        error_keys = (
+            "command_overflows", "result_overflows", "timeouts", "expired",
+            "generation_rejects", "invalid_commands", "core0_failsafe",
+        )
+        transport_deltas = {
+            key: transport_after.get(key, 0) - transport_before.get(key, 0)
+            for key in error_keys
+        }
+        nonzero = {key: value for key, value in transport_deltas.items() if value != 0}
+        if nonzero:
+            failures.append(f"transport error deltas={nonzero}")
+
+        current_p95_ms = percentile(internal_ms, 0.95) if internal_ms else math.inf
+        improvement_percent = math.nan
+        if baseline_p95_ms is None:
+            failures.append(baseline_note)
+        else:
+            improvement_percent = (baseline_p95_ms - current_p95_ms) / baseline_p95_ms * 100.0
+            if improvement_percent < 30.0:
+                failures.append(
+                    f"internal profile p95 improvement {improvement_percent:.2f}% < 30.00% "
+                    f"(G3={baseline_p95_ms:.6f} ms, G4={current_p95_ms:.6f} ms)"
+                )
+
+        metrics: dict[str, float | int] = {
+            "gate4_profile_iterations": completed,
+            "gate4_profile_transition_delta": transition_delta,
+            "gate4_profile_bbm_delta": bbm_delta,
+            "gate4_profile_failure_delta": profile_failure_delta,
+            "gate4_profile_g3_baseline_p95_ms": baseline_p95_ms if baseline_p95_ms is not None else math.nan,
+            "gate4_profile_improvement_percent": improvement_percent,
+            "gate4_profile_state_query_ms": state_ms,
+            "gate4_profile_before_query_ms": profile_before_ms,
+            "gate4_profile_after_query_ms": profile_after_ms,
+            "gate4_transport_before_query_ms": transport_before_ms,
+            "gate4_transport_after_query_ms": transport_after_ms,
+        }
+        metrics.update(latency_metrics(scpi_ms, "gate4_profile_scpi"))
+        metrics.update(latency_metrics(internal_ms, "gate4_profile_internal"))
+        for key, value in transport_deltas.items():
+            metrics[f"gate4_transport_delta_{key}"] = value
+
+        return (
+            "PASS" if not failures and completed == iterations else "FAIL",
+            f"{completed}/{iterations} profiles; BBM={bbm_delta}; improvement={improvement_percent:.2f}%"
+            if math.isfinite(improvement_percent)
+            else f"{completed}/{iterations} profiles; baseline unavailable",
+            metrics,
+            {
+                "baseline": baseline_note,
+                "profile_before": profile_before,
+                "profile_after": profile_after,
+                "transport_before": transport_before,
+                "transport_after": transport_after,
+                "transport_deltas": transport_deltas,
+                "internal_ms": internal_ms,
+                "profile_before_raw": profile_before_raw,
+                "profile_after_raw": profile_after_raw,
+                "transport_before_raw": transport_before_raw,
+                "transport_after_raw": transport_after_raw,
+                "state_attempts": state_attempts,
+                "state_raw": response_excerpt(state_text),
+                "failures": failures,
+            },
+        )
+
+    def test_gate4_profile_snapshot_observation(self):
+        skipped = self._hil_skip_unless_ready()
+        if skipped:
+            return skipped
+        if int(self.config.gate[1:]) < 4:
+            return "SKIP", "Gate 4 profile snapshot observation requires G4 or later", {}, {}
+        assert self.dmm is not None
+        self._hil_all_off_verified()
+
+        channel = self.config.hil_channel
+        target_masks = ["0000"] * 8
+        target_masks[channel - 1] = "0001"
+        target_command = "ROUT:ALL:MASK " + ",".join(target_masks)
+        zero_command = "ROUT:ALL:MASK " + ",".join(["0000"] * 8)
+        allowed = {
+            tuple(["0000"] * 8),
+            tuple(target_masks),
+        }
+
+        observations: list[tuple[str, ...]] = []
+        observer_errors: list[str] = []
+        stop = __import__("threading").Event()
+
+        def observe() -> None:
+            local_http = HttpClient(
+                self.config.host, self.config.http_port, self.config.timeout_s, self.logger
+            )
+            while not stop.is_set():
+                try:
+                    response = local_http.request("/state")
+                    if response.status != 200:
+                        observer_errors.append(f"HTTP {response.status}")
+                        continue
+                    parsed = parse_http_state(response.text)
+                    channels = parsed.get("channels", {})
+                    if len(channels) == 8:
+                        observations.append(tuple(channels[ch]["mask"] for ch in range(1, 9)))
+                    else:
+                        observer_errors.append(f"parsed {len(channels)} channels")
+                except Exception as exc:
+                    observer_errors.append(f"{type(exc).__name__}: {exc}")
+                time.sleep(0.001)
+
+        thread = __import__("threading").Thread(target=observe, daemon=True)
+        thread.start()
+        command_failures: list[str] = []
+        latencies: list[float] = []
+        try:
+            with ScpiClient(self.config.host, self.config.scpi_port, max(self.config.timeout_s, 4.0), self.logger) as client:
+                for index in range(20):
+                    for command in (target_command, zero_command):
+                        response, elapsed = client.query(command, response_timeout_s=4.0)
+                        latencies.append(elapsed)
+                        if response != "OK":
+                            command_failures.append(f"cycle {index + 1}: {command!r} -> {response!r}")
+                            break
+                    if command_failures:
+                        break
+        finally:
+            stop.set()
+            thread.join(timeout=2.0)
+
+        self._hil_all_off_verified()
+        samples: list[float] = []
+        dmm_ms = 0.0
+        for _ in range(max(3, min(5, self.config.hil_sample_count))):
+            value, elapsed = self.dmm.read_resistance()
+            samples.append(value)
+            dmm_ms += elapsed
+            if self.config.hil_sample_interval_s:
+                time.sleep(self.config.hil_sample_interval_s)
+        finite = [value for value in samples if math.isfinite(value)]
+        minimum = min(finite) if finite else math.inf
+
+        mixed = [value for value in observations if value not in allowed]
+        failures = list(command_failures)
+        if observer_errors:
+            failures.append(f"observer errors={observer_errors[:5]}")
+        if not observations:
+            failures.append("no coherent HTTP observations were captured")
+        if mixed:
+            failures.append(f"mixed published snapshots={mixed[:5]}")
+        if minimum < self.config.hil_off_min_ohm:
+            failures.append(f"final isolation {minimum:.6g} < {self.config.hil_off_min_ohm:.6g} ohm")
+
+        metrics: dict[str, float | int] = {
+            "gate4_snapshot_observation_count": len(observations),
+            "gate4_snapshot_mixed_count": len(mixed),
+            "gate4_snapshot_observer_error_count": len(observer_errors),
+            "gate4_snapshot_final_off_min_ohm": minimum,
+            "gate4_snapshot_dmm_ms": dmm_ms,
+        }
+        metrics.update(latency_metrics(latencies, "gate4_snapshot_profile_scpi"))
+        return (
+            "PASS" if not failures else "FAIL",
+            f"observations={len(observations)}, mixed={len(mixed)}, failures={len(failures)}",
+            metrics,
+            {
+                "allowed": [list(item) for item in allowed],
+                "observations": [list(item) for item in observations[:200]],
+                "mixed": [list(item) for item in mixed[:20]],
+                "observer_errors": observer_errors,
+                "command_failures": command_failures,
+                "dmm_samples": samples,
+                "failures": failures,
+            },
+        )
+
+    def test_gate4_profile_failure_after_clear(self):
+        skipped = self._hil_skip_unless_ready()
+        if skipped:
+            return skipped
+        if int(self.config.gate[1:]) < 4:
+            return "SKIP", "Gate 4 profile fault injection requires G4 or later", {}, {}
+        assert self.dmm is not None
+        self._hil_all_off_verified()
+
+        channel = self.config.hil_channel
+        masks = ["0000"] * 8
+        masks[channel - 1] = "0001"
+        command = "ROUT:ALL:MASK " + ",".join(masks)
+
+        with ScpiClient(self.config.host, self.config.scpi_port, max(self.config.timeout_s, 4.0), self.logger) as client:
+            mode, mode_ms = client.query("SYST:TEST:MODE?")
+            if mode.strip() != "1":
+                return "FAIL", "Gate 4 fault-injection firmware is not active", {}, {"mode": mode}
+            before, before_ms, before_raw = self._query_core_profile(client)
+            armed, arm_ms = client.query("SYST:TEST:PROFILE:FAIL:NEXT")
+            if armed.strip() != "OK":
+                return "FAIL", f"unable to arm profile failure: {armed!r}", {}, {}
+            response, command_ms = client.query(command, response_timeout_s=4.0)
+            state_text, state, state_ms, state_attempts = self._query_scpi_state(client)
+            after, after_ms, after_raw = self._query_core_profile(client)
+
+        samples: list[float] = []
+        dmm_ms = 0.0
+        for _ in range(max(3, min(5, self.config.hil_sample_count))):
+            value, elapsed = self.dmm.read_resistance()
+            samples.append(value)
+            dmm_ms += elapsed
+            if self.config.hil_sample_interval_s:
+                time.sleep(self.config.hil_sample_interval_s)
+        finite = [value for value in samples if math.isfinite(value)]
+        minimum = min(finite) if finite else math.inf
+
+        transition_delta = after.get("transitions", 0) - before.get("transitions", 0)
+        failure_delta = after.get("failures", 0) - before.get("failures", 0)
+        bbm_delta = after.get("bbm_count", 0) - before.get("bbm_count", 0)
+        failures: list[str] = []
+        if not response.startswith("ERR"):
+            failures.append(f"injected profile was not rejected: {response!r}")
+        if transition_delta != 0:
+            failures.append(f"successful transition delta={transition_delta}")
+        if failure_delta != 1:
+            failures.append(f"profile failure delta={failure_delta}")
+        if bbm_delta != 1:
+            failures.append(f"BBM delta={bbm_delta}, expected 1")
+        if len(state) != 8 or any(item.get("mask") != "0000" for item in state.values()):
+            failures.append(f"software state is not all off: {state}")
+        if minimum < self.config.hil_off_min_ohm:
+            failures.append(f"physical isolation {minimum:.6g} < {self.config.hil_off_min_ohm:.6g} ohm")
+
+        return (
+            "PASS" if not failures else "FAIL",
+            f"response={response!r}; failure_delta={failure_delta}; BBM={bbm_delta}; isolation={minimum:.6g}",
+            {
+                "gate4_fault_mode_query_ms": mode_ms,
+                "gate4_fault_before_query_ms": before_ms,
+                "gate4_fault_arm_ms": arm_ms,
+                "gate4_fault_command_ms": command_ms,
+                "gate4_fault_state_ms": state_ms,
+                "gate4_fault_after_query_ms": after_ms,
+                "gate4_fault_transition_delta": transition_delta,
+                "gate4_fault_failure_delta": failure_delta,
+                "gate4_fault_bbm_delta": bbm_delta,
+                "gate4_fault_off_min_ohm": minimum,
+                "gate4_fault_dmm_ms": dmm_ms,
+            },
+            {
+                "before": before,
+                "after": after,
+                "before_raw": before_raw,
+                "after_raw": after_raw,
+                "state_attempts": state_attempts,
+                "state_raw": response_excerpt(state_text),
+                "dmm_samples": samples,
+                "failures": failures,
+            },
+        )
+
+    def test_gate3_test_mode(self):
+        skipped = self._hil_skip_unless_ready()
+        if skipped:
+            return skipped
+        if int(self.config.gate[1:]) < 3:
+            return "SKIP", "Gate 3 fault injection requires G3 or later", {}, {}
+        with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
+            response, elapsed = client.query("SYST:TEST:MODE?")
+        passed = response.strip() == "1"
+        return (
+            "PASS" if passed else "FAIL",
+            "Gate 3 fault-injection build detected" if passed else f"test mode response={response!r}",
+            {"gate3_test_mode_query_ms": elapsed},
+            {"response": response},
+        )
+
+    def test_gate3_invalidated_command_no_ghost_actuation(self):
+        skipped = self._hil_skip_unless_ready()
+        if skipped:
+            return skipped
+        assert self.dmm is not None
+        self._hil_all_off_verified()
+        before, _, _ = self._query_core_transport()
+        channel = self.config.hil_channel
+        with ScpiClient(self.config.host, self.config.scpi_port, max(self.config.timeout_s, 4.0), self.logger) as client:
+            mode, _ = client.query("SYST:TEST:MODE?")
+            if mode.strip() != "1":
+                return "FAIL", "fault-injection firmware is not active", {}, {"mode_response": mode}
+            armed, arm_ms = client.query("SYST:TEST:CORE1:INVALIDATE:NEXT")
+            if armed.strip() != "OK":
+                return "FAIL", f"unable to arm queued invalidation: {armed!r}", {}, {}
+            response, command_ms = client.query(f"CH{channel}:MASK 0001", response_timeout_s=4.0)
+        time.sleep(0.25)
+        with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
+            state_text, state, state_ms, state_attempts = self._query_scpi_state(client)
+            after, after_ms, after_raw = self._query_core_transport(client)
+        samples: list[float] = []
+        dmm_ms = 0.0
+        for _ in range(max(3, min(5, self.config.hil_sample_count))):
+            value, elapsed = self.dmm.read_resistance()
+            samples.append(value); dmm_ms += elapsed
+            if self.config.hil_sample_interval_s:
+                time.sleep(self.config.hil_sample_interval_s)
+        finite = [value for value in samples if math.isfinite(value)]
+        minimum = min(finite) if finite else math.inf
+        failures: list[str] = []
+        if not response.startswith("ERR"):
+            failures.append(f"invalidated command was not rejected: {response!r}")
+        if len(state) != 8 or any(item.get("mask") != "0000" for item in state.values()):
+            failures.append(f"ghost output state detected: {state}")
+        if minimum < self.config.hil_off_min_ohm:
+            failures.append(f"physical isolation {minimum:.6g} < {self.config.hil_off_min_ohm:.6g} ohm")
+        timeout_delta = after.get("timeouts", 0) - before.get("timeouts", 0)
+        expired_delta = after.get("expired", 0) - before.get("expired", 0)
+        reject_delta = after.get("generation_rejects", 0) - before.get("generation_rejects", 0)
+        generation_delta = after.get("generation", 0) - before.get("generation", 0)
+        if reject_delta < 1:
+            failures.append(f"generation rejection did not advance: delta={reject_delta}")
+        if timeout_delta != 0:
+            failures.append(f"queued invalidation unexpectedly timed out: delta={timeout_delta}")
+        if expired_delta != 0:
+            failures.append(f"queued invalidation unexpectedly expired: delta={expired_delta}")
+        if generation_delta < 1:
+            failures.append(f"transport generation did not advance: delta={generation_delta}")
+        return (
+            "PASS" if not failures else "FAIL",
+            "queued invalidation rejected the command before software or physical actuation" if not failures else "; ".join(failures),
+            {
+                "gate3_invalidate_arm_ms": arm_ms,
+                "gate3_invalidate_command_ms": command_ms,
+                "gate3_invalidate_state_ms": state_ms,
+                "gate3_invalidate_transport_ms": after_ms,
+                "gate3_invalidate_generation_delta": generation_delta,
+                "gate3_invalidate_generation_reject_delta": reject_delta,
+                "gate3_invalidate_timeout_delta": timeout_delta,
+                "gate3_invalidate_expired_delta": expired_delta,
+                "gate3_invalidate_off_min_ohm": minimum,
+                "gate3_invalidate_dmm_ms": dmm_ms,
+            },
+            {"command_response": response, "samples": samples, "before": before, "after": after,
+             "after_raw": after_raw, "state_attempts": state_attempts,
+             "state_raw": response_excerpt(state_text), "failures": failures},
+        )
+
+    def test_gate3_timeout_no_ghost_actuation(self):
+        skipped = self._hil_skip_unless_ready()
+        if skipped:
+            return skipped
+        assert self.dmm is not None
+        self._hil_all_off_verified()
+        before, _, _ = self._query_core_transport()
+        delay_ms = 1500
+        channel = self.config.hil_channel
+        with ScpiClient(self.config.host, self.config.scpi_port, max(self.config.timeout_s, 4.0), self.logger) as client:
+            mode, _ = client.query("SYST:TEST:MODE?")
+            if mode.strip() != "1":
+                return "FAIL", "fault-injection firmware is not active", {}, {"mode_response": mode}
+            armed, arm_ms = client.query(f"SYST:TEST:CORE1:DELAY {delay_ms}")
+            if armed.strip() != "OK":
+                return "FAIL", f"unable to arm delay: {armed!r}", {}, {}
+            response, command_ms = client.query(
+                f"CH{channel}:MASK 0001", response_timeout_s=max(4.0, delay_ms / 1000.0 + 2.0)
+            )
+        # Wait beyond the injected delay so a stale command would have reached the hardware.
+        time.sleep(delay_ms / 1000.0 + 0.75)
+        with ScpiClient(self.config.host, self.config.scpi_port, self.config.timeout_s, self.logger) as client:
+            state_text, state, state_ms, state_attempts = self._query_scpi_state(client)
+            after, after_ms, after_raw = self._query_core_transport(client)
+        samples: list[float] = []
+        dmm_ms = 0.0
+        for _ in range(max(3, min(5, self.config.hil_sample_count))):
+            value, elapsed = self.dmm.read_resistance()
+            samples.append(value); dmm_ms += elapsed
+            if self.config.hil_sample_interval_s:
+                time.sleep(self.config.hil_sample_interval_s)
+        finite = [value for value in samples if math.isfinite(value)]
+        minimum = min(finite) if finite else math.inf
+        failures: list[str] = []
+        if not response.startswith("ERR"):
+            failures.append(f"delayed command did not time out: {response!r}")
+        if len(state) != 8 or any(item.get("mask") != "0000" for item in state.values()):
+            failures.append(f"ghost output state detected: {state}")
+        if minimum < self.config.hil_off_min_ohm:
+            failures.append(f"physical isolation {minimum:.6g} < {self.config.hil_off_min_ohm:.6g} ohm")
+        timeout_delta = after.get("timeouts", 0) - before.get("timeouts", 0)
+        expired_delta = after.get("expired", 0) - before.get("expired", 0)
+        reject_delta = after.get("generation_rejects", 0) - before.get("generation_rejects", 0)
+        stale_reject_delta = expired_delta + reject_delta
+        if timeout_delta < 1:
+            failures.append(f"timeout counter did not advance: delta={timeout_delta}")
+        if stale_reject_delta < 1:
+            failures.append(
+                f"stale command was not rejected after timeout: expired_delta={expired_delta}, "
+                f"generation_reject_delta={reject_delta}"
+            )
+        return (
+            "PASS" if not failures else "FAIL",
+            "timed-out command produced no software or physical actuation" if not failures else "; ".join(failures),
+            {
+                "gate3_fault_arm_ms": arm_ms,
+                "gate3_fault_command_ms": command_ms,
+                "gate3_fault_state_ms": state_ms,
+                "gate3_fault_transport_ms": after_ms,
+                "gate3_fault_timeout_delta": timeout_delta,
+                "gate3_fault_expired_delta": expired_delta,
+                "gate3_fault_generation_reject_delta": reject_delta,
+                "gate3_fault_stale_reject_delta": stale_reject_delta,
+                "gate3_fault_off_min_ohm": minimum,
+                "gate3_fault_dmm_ms": dmm_ms,
+            },
+            {"command_response": response, "samples": samples, "before": before, "after": after,
+             "after_raw": after_raw, "state_attempts": state_attempts,
+             "state_raw": response_excerpt(state_text), "failures": failures},
         )
 
     def test_http_latency(self):

@@ -17,7 +17,6 @@ Initialize Regression Profile
     ...    stress_iterations=${STRESS_ITERATIONS}
     ...    heap_drift_limit_bytes=${HEAP_DRIFT_LIMIT_BYTES}
     ...    latency_regression_percent=${LATENCY_REGRESSION_PERCENT}
-    ...    source_dir=${SOURCE_DIR}
     ...    baseline=${BASELINE}
     ...    gate_manifest=${GATE_MANIFEST}
     ...    allow_output_tests=${ALLOW_OUTPUT_TESTS}

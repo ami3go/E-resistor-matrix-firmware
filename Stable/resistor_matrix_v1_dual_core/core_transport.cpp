@@ -260,3 +260,16 @@ void coreTransportRecordGenerationReject() { incrementDiagnostic(&CoreTransportD
 void coreTransportRecordInvalidCommand() { incrementDiagnostic(&CoreTransportDiagnostics::invalidCommandCount); }
 void coreTransportRecordPolicyInstall() { incrementDiagnostic(&CoreTransportDiagnostics::policyInstallCount); }
 void coreTransportRecordCore0Failsafe() { incrementDiagnostic(&CoreTransportDiagnostics::core0FailsafeCount); }
+
+void coreTransportRecordProfileResult(uint32_t durationUs, uint32_t clearDurationUs,
+                                      uint8_t breakBeforeMakeOperations, bool success) {
+  uint32_t irq = lockOrDisable(s_diagLock);
+  s_diag.profileBreakBeforeMakeCount += breakBeforeMakeOperations;
+  s_diag.lastProfileDurationUs = durationUs;
+  s_diag.lastProfileClearDurationUs = clearDurationUs;
+  if (durationUs > s_diag.maxProfileDurationUs) s_diag.maxProfileDurationUs = durationUs;
+  if (clearDurationUs > s_diag.maxProfileClearDurationUs) s_diag.maxProfileClearDurationUs = clearDurationUs;
+  if (success) s_diag.profileTransitionCount++;
+  else s_diag.profileFailureCount++;
+  unlockOrEnable(s_diagLock, irq);
+}

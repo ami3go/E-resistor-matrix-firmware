@@ -140,6 +140,18 @@ void handleState() {
   text += "littlefs=";
   text += littleFsReady ? "ready" : "not_ready";
   text += "\n";
+  text += "calibration_saved_mask=";
+  text += String(calibrationSavedMask);
+  text += "\n";
+  text += "calibration_loaded_mask=";
+  text += String(calibrationLoadedMask);
+  text += "\n";
+  text += "calibration_load_error_mask=";
+  text += String(calibrationLoadErrorMask);
+  text += "\n";
+  text += "calibration_all_saved=";
+  text += allChannelsHaveSavedCalibration() ? "1" : "0";
+  text += "\n";
 
   text += "shift_registers_ready=";
   text += shiftRegistersReady ? "1" : "0";
@@ -257,6 +269,13 @@ void handleState() {
   text += "core_transport_result_overflows="; text += String(transport.resultQueueOverflowCount); text += "\n";
   text += "core_transport_policy_installs="; text += String(transport.policyInstallCount); text += "\n";
   text += "core_transport_core0_failsafe_count="; text += String(transport.core0FailsafeCount); text += "\n";
+  text += "core_profile_transition_count="; text += String(transport.profileTransitionCount); text += "\n";
+  text += "core_profile_failure_count="; text += String(transport.profileFailureCount); text += "\n";
+  text += "core_profile_break_before_make_count="; text += String(transport.profileBreakBeforeMakeCount); text += "\n";
+  text += "core_profile_last_duration_us="; text += String(transport.lastProfileDurationUs); text += "\n";
+  text += "core_profile_max_duration_us="; text += String(transport.maxProfileDurationUs); text += "\n";
+  text += "core_profile_last_clear_duration_us="; text += String(transport.lastProfileClearDurationUs); text += "\n";
+  text += "core_profile_max_clear_duration_us="; text += String(transport.maxProfileClearDurationUs); text += "\n";
 
   text += "target_search_last_candidates=";
   text += String(targetSearchLastCandidates);

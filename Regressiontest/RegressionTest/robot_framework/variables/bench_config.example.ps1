@@ -1,13 +1,14 @@
-# Copy to bench_config.ps1, edit the values, and dot-source it before a direct Robot run.
+# Dot-source this file before a direct Robot run, or translate it to bench_config.local.bat.
 $env:ERESISTOR_HOST = "192.168.0.55"
-$env:ERESISTOR_GATE = "G0"
-$env:ERESISTOR_SERIAL_PORT = "COM7"
+$env:ERESISTOR_GATE = "G4"
+$env:ERESISTOR_SERIAL_PORT = "COM17"
 $env:ERESISTOR_SERIAL_BAUD = "115200"
-$env:ERESISTOR_DMM_RESOURCE = "USB0::0x0957::0x0607::MY12345678::INSTR"
+$env:ERESISTOR_DMM_RESOURCE = "auto"
 $env:ERESISTOR_DMM_IDN_CONTAINS = "34401"
 $env:ERESISTOR_HIL_CHANNEL = "1"
 $env:ERESISTOR_HIL_BITS = "0-15"
 $env:ERESISTOR_HIL_COMBINATION_MASKS = "0003,0005,0009"
+$env:ERESISTOR_HIL_REPEAT_CYCLES = "50"
 $env:ERESISTOR_HIL_ERROR_LIMIT_PERCENT = "1.0"
 $env:ERESISTOR_ALLOW_ACTIVE_OUTPUT_TESTS = "false"
 $env:ERESISTOR_FIXTURE_CONFIRMATION = ""

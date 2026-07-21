@@ -1,37 +1,32 @@
-test_combined_coverage_requires_all_test_patterns (test_offline.CoverageTests.test_combined_coverage_requires_all_test_patterns) ... ok
-test_coverage_files_are_written (test_offline.CoverageTests.test_coverage_files_are_written) ... ok
-test_coverage_pass_and_not_run (test_offline.CoverageTests.test_coverage_pass_and_not_run) ... ok
+test_gate3_coverage_items_exist (test_offline.CoverageTests.test_gate3_coverage_items_exist) ... ok
 test_manifest_is_written_after_completion_marker (test_offline.EvidenceTests.test_manifest_is_written_after_completion_marker) ... ok
 test_equivalent_resistance (test_offline.HilMathTests.test_equivalent_resistance) ... ok
 test_parse_bits_spec (test_offline.HilMathTests.test_parse_bits_spec) ... ok
 test_parse_masks_spec (test_offline.HilMathTests.test_parse_masks_spec) ... ok
-test_wait_for_stable_resistance (test_offline.HilMathTests.test_wait_for_stable_resistance) ... ok
-test_log_export_accepts_expected_format (test_offline.LogExportValidationTests.test_log_export_accepts_expected_format) ... ok
-test_log_export_rejects_empty_body (test_offline.LogExportValidationTests.test_log_export_rejects_empty_body) ... ok
 test_calibration (test_offline.ParserTests.test_calibration) ... ok
-test_http_state (test_offline.ParserTests.test_http_state) ... ok
-test_key_value_response (test_offline.ParserTests.test_key_value_response) ... ok
+test_gate3_snapshot_key_values (test_offline.ParserTests.test_gate3_snapshot_key_values) ... ok
+test_gate3_transport_key_values (test_offline.ParserTests.test_gate3_transport_key_values) ... ok
+test_http_state_accepts_prefixed_and_bare_masks (test_offline.ParserTests.test_http_state_accepts_prefixed_and_bare_masks) ... ok
 test_latency_metrics (test_offline.ParserTests.test_latency_metrics) ... ok
 test_response_excerpt_is_bounded (test_offline.ParserTests.test_response_excerpt_is_bounded) ... ok
-test_scpi_state (test_offline.ParserTests.test_scpi_state) ... ok
-test_source_scan (test_offline.SourceScanTests.test_source_scan) ... ok
+test_scpi_state_accepts_prefixed_and_bare_masks (test_offline.ParserTests.test_scpi_state_accepts_prefixed_and_bare_masks) ... ok
 test_known_firmware_gate_mapping (test_offline.StateRetryTests.test_known_firmware_gate_mapping) ... ok
 test_scpi_state_retry_accepts_second_complete_response (test_offline.StateRetryTests.test_scpi_state_retry_accepts_second_complete_response) ... ok
-test_bat_files_use_crlf (test_python_bat_layout.PythonBatLayoutTests.test_bat_files_use_crlf) ... ok
-test_gate2_release_bat_defaults (test_python_bat_layout.PythonBatLayoutTests.test_gate2_release_bat_defaults) ... ok
-test_hil_bat_has_safety_interlocks (test_python_bat_layout.PythonBatLayoutTests.test_hil_bat_has_safety_interlocks) ... ok
-test_pipe_delimited_cli_aliases (test_python_bat_layout.PythonBatLayoutTests.test_pipe_delimited_cli_aliases) ... ok
-test_required_python_bat_files_exist (test_python_bat_layout.PythonBatLayoutTests.test_required_python_bat_files_exist) ... ok
-test_setup_repairs_missing_pip (test_python_bat_layout.PythonBatLayoutTests.test_setup_repairs_missing_pip) ... ok
-test_gate2_release_bat_defaults (test_robot_framework_layout.RobotFrameworkLayoutTests.test_gate2_release_bat_defaults) ... ok
+test_gate_ids_are_mapped (test_robot_framework_layout.RobotFrameworkLayoutTests.test_gate_ids_are_mapped) ... ok
 test_hil_ids_are_mapped (test_robot_framework_layout.RobotFrameworkLayoutTests.test_hil_ids_are_mapped) ... ok
 test_launcher_imports_without_running (test_robot_framework_layout.RobotFrameworkLayoutTests.test_launcher_imports_without_running) ... ok
 test_required_files_exist (test_robot_framework_layout.RobotFrameworkLayoutTests.test_required_files_exist) ... ok
 test_runtime_ids_are_mapped (test_robot_framework_layout.RobotFrameworkLayoutTests.test_runtime_ids_are_mapped) ... ok
-test_windows_bat_safety_guards (test_robot_framework_layout.RobotFrameworkLayoutTests.test_windows_bat_safety_guards) ... ok
 test_windows_bat_stable_root_usage (test_robot_framework_layout.RobotFrameworkLayoutTests.test_windows_bat_stable_root_usage) ... ok
+test_fault_launcher_has_interlocks (test_robot_only_package.RobotOnlyPackageTests.test_fault_launcher_has_interlocks) ... ok
+test_gate4_bat_defaults_and_crlf (test_robot_only_package.RobotOnlyPackageTests.test_gate4_bat_defaults_and_crlf) ... ok
+test_gate4_fault_launcher_has_interlocks (test_robot_only_package.RobotOnlyPackageTests.test_gate4_fault_launcher_has_interlocks) ... ok
+test_no_user_facing_python_or_source_build_launchers (test_robot_only_package.RobotOnlyPackageTests.test_no_user_facing_python_or_source_build_launchers) ... ok
+test_package_versions (test_robot_only_package.RobotOnlyPackageTests.test_package_versions) ... ok
+test_powershell_wrapper_is_robot_only (test_robot_only_package.RobotOnlyPackageTests.test_powershell_wrapper_is_robot_only) ... ok
+test_start_asserts_dtr_for_rp2040_usb_cdc (test_serial_monitor_dtr.SerialMonitorDtrTest.test_start_asserts_dtr_for_rp2040_usb_cdc) ... ok
 
 ----------------------------------------------------------------------
-Ran 32 tests in 0.068s
+Ran 27 tests in 0.073s
 
 OK

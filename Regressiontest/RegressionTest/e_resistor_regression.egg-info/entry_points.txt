@@ -1,2 +1,0 @@
-[console_scripts]
-e-resistor-regression = e_resistor_regression.cli:main

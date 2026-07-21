@@ -1,0 +1,6 @@
+--loglevel
+INFO
+--console
+verbose
+--metadata
+Safety:Zero masks only; 1000 two-phase profile transitions

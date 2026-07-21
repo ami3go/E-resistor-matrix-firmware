@@ -1,0 +1,8 @@
+--loglevel
+DEBUG
+--console
+verbose
+--metadata
+Fixture:Gate 4 test firmware + Ethernet SCPI + RP2040 USB COM + USB DMM
+--metadata
+Safety:Injected profile must fail after global clear and remain physically OFF

@@ -61,7 +61,7 @@ def main() -> int:
         if state not in {"code", "line"}: errors.append(f"unterminated lexical state {state}")
         records.append({"file": path.name, "passed": not errors, "errors": errors})
     payload = {
-        "gate": "G3",
+        "gate": "G4",
         "files": len(records),
         "passed": sum(bool(item["passed"]) for item in records),
         "failed": sum(not bool(item["passed"]) for item in records),

@@ -29,12 +29,14 @@ void scpiPrintHelp(WiFiClient& client) {
   client.println("SYST:STAT?");
   client.println("SYST:CORE:TRANSPORT?           - numeric command transport diagnostics");
   client.println("SYST:CORE:SNAPSHOT?            - coherent Core 1 output snapshot");
+  client.println("SYST:CORE:PROFILE?             - Gate 4 profile transition diagnostics");
 #ifdef ERESISTOR_TEST_MODE
   client.println("SYST:TEST:MODE?                - returns 1 for fault-injection build");
   client.println("SYST:TEST:CORE1:DELAY <ms>     - delay next Core 1 command; outputs must be OFF");
   client.println("SYST:TEST:CORE1:PAUSE <ms>     - pause command dequeue; outputs must be OFF");
   client.println("SYST:TEST:CORE1:INVALIDATE:NEXT - invalidate the next queued command; outputs must be OFF");
   client.println("SYST:TEST:CORE1:INVALIDATE      - immediately invalidate generation; outputs must be OFF");
+  client.println("SYST:TEST:PROFILE:FAIL:NEXT     - fail next profile after global clear phase");
 #endif
   client.println("CAL:RES? or CAL:RESISTORS?          - all calibration branch values");
   client.println("CAL:CHANnel<n>:RES?                 - one channel calibration branch values");
@@ -49,6 +51,8 @@ void scpiPrintHelp(WiFiClient& client) {
   client.println("CH<n>:RES?");
   client.println("CH<n>:TARGET:CALC? <ohm>       - read-only nearest-mask calculation");
   client.println("SYST:DIAG:SERIAL?              - emit a USB serial test event");
+  client.println("SYST:DIAG:USB?                 - report USB CDC start/host state");
+  client.println("CAL:STATUS?                    - report saved/loaded calibration masks");
   client.println("CH<n>:CONF?");
   client.println("Example: CH1:MASK 0001");
 }
@@ -463,6 +467,17 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     return;
   }
 
+  if (upper == "CAL:STATUS?" || upper == "CALIBRATION:STATUS?") {
+    client.println(calibrationStorageStatusText());
+    return;
+  }
+
+  if (upper == "SYST:DIAG:USB?" || upper == "SYSTEM:DIAGNOSTIC:USB?") {
+    client.print("cdc_started=1,host_connected=");
+    client.println(Serial ? "1" : "0");
+    return;
+  }
+
   if (upper == "SYST:DIAG:SERIAL?" || upper == "SYSTEM:DIAGNOSTIC:SERIAL?") {
     char eventLine[160];
     snprintf(
@@ -474,6 +489,9 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     );
     Serial.println(eventLine);
     Serial.flush();
+    // Preserve the diagnostic in the firmware event log even when the host has
+    // not asserted USB CDC DTR yet. The COM-port HIL still verifies the USB copy.
+    appendLogEvent(eventLine);
     client.println("OK,SERIAL_TEST");
     return;
   }
@@ -516,7 +534,27 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     client.print(",generation_rejects="); client.print(d.generationRejectCount);
     client.print(",invalid_commands="); client.print(d.invalidCommandCount);
     client.print(",policy_installs="); client.print(d.policyInstallCount);
-    client.print(",core0_failsafe="); client.println(d.core0FailsafeCount);
+    client.print(",core0_failsafe="); client.print(d.core0FailsafeCount);
+    client.print(",profile_transitions="); client.print(d.profileTransitionCount);
+    client.print(",profile_failures="); client.print(d.profileFailureCount);
+    client.print(",profile_bbm_count="); client.print(d.profileBreakBeforeMakeCount);
+    client.print(",profile_last_us="); client.print(d.lastProfileDurationUs);
+    client.print(",profile_max_us="); client.print(d.maxProfileDurationUs);
+    client.print(",profile_clear_last_us="); client.print(d.lastProfileClearDurationUs);
+    client.print(",profile_clear_max_us="); client.println(d.maxProfileClearDurationUs);
+    return;
+  }
+
+  if (upper == "SYST:CORE:PROFILE?" || upper == "SYSTEM:CORE:PROFILE?") {
+    CoreTransportDiagnostics d{};
+    getCoreTransportDiagnostics(d);
+    client.print("transitions="); client.print(d.profileTransitionCount);
+    client.print(",failures="); client.print(d.profileFailureCount);
+    client.print(",bbm_count="); client.print(d.profileBreakBeforeMakeCount);
+    client.print(",last_us="); client.print(d.lastProfileDurationUs);
+    client.print(",max_us="); client.print(d.maxProfileDurationUs);
+    client.print(",clear_last_us="); client.print(d.lastProfileClearDurationUs);
+    client.print(",clear_max_us="); client.println(d.maxProfileClearDurationUs);
     return;
   }
 
@@ -592,6 +630,16 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     client.println("OK");
     return;
   }
+  if (upper == "SYST:TEST:PROFILE:FAIL:NEXT") {
+    refreshCore0OutputMirror();
+    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+      if (channelMask[ch] != 0U) { client.println("ERR,outputs_must_be_off"); return; }
+    }
+    core1TestFailNextProfileAfterClear();
+    client.println("OK");
+    return;
+  }
+
   if (upper == "SYST:TEST:CORE1:INVALIDATE") {
     refreshCore0OutputMirror();
     for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
@@ -615,6 +663,12 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     client.print(deviceSerialNumber);
     client.print(",fw_version=");
     client.print(FIRMWARE_VERSION);
+    client.print(",cal_saved_mask=");
+    client.print(calibrationSavedMask);
+    client.print(",cal_loaded_mask=");
+    client.print(calibrationLoadedMask);
+    client.print(",cal_error_mask=");
+    client.print(calibrationLoadErrorMask);
     // Legacy summary fields report CH1; channel-specific values follow.
     client.print(",min_ohm=");
     client.print(String(safetyMinOhm[0], 3));
@@ -661,7 +715,14 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
     client.print(",transport_command_overflows="); client.print(transport.commandQueueOverflowCount);
     client.print(",transport_result_overflows="); client.print(transport.resultQueueOverflowCount);
     client.print(",transport_policy_installs="); client.print(transport.policyInstallCount);
-    client.print(",transport_core0_failsafe="); client.println(transport.core0FailsafeCount);
+    client.print(",transport_core0_failsafe="); client.print(transport.core0FailsafeCount);
+    client.print(",profile_transitions="); client.print(transport.profileTransitionCount);
+    client.print(",profile_failures="); client.print(transport.profileFailureCount);
+    client.print(",profile_bbm_count="); client.print(transport.profileBreakBeforeMakeCount);
+    client.print(",profile_last_us="); client.print(transport.lastProfileDurationUs);
+    client.print(",profile_max_us="); client.print(transport.maxProfileDurationUs);
+    client.print(",profile_clear_last_us="); client.print(transport.lastProfileClearDurationUs);
+    client.print(",profile_clear_max_us="); client.println(transport.maxProfileClearDurationUs);
     return;
   }
 

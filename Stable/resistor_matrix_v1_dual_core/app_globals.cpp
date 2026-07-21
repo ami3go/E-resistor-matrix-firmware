@@ -48,6 +48,9 @@ float channelResistorOhms[CHANNEL_COUNT][BIT_COUNT] = {};
 
 bool ethernetFault = false;
 bool littleFsReady = false;
+uint8_t calibrationSavedMask = 0;
+uint8_t calibrationLoadedMask = 0;
+uint8_t calibrationLoadErrorMask = 0;
 uint8_t w5500Version = 0;
 
 uint16_t channelMask[CHANNEL_COUNT] = {

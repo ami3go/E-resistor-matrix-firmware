@@ -1,5 +1,4 @@
+# Installed automatically by setup_robot_environment.bat
+robotframework>=7.0,<8.0
 pyserial>=3.5
 PyVISA>=1.14
-# Install the VISA backend/driver appropriate for the bench:
-# - Keysight IO Libraries Suite, NI-VISA, or another vendor VISA implementation
-# - Optionally: PyVISA-py for supported USBTMC/TCPIP/serial resources

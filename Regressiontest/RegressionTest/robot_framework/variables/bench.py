@@ -46,7 +46,7 @@ def _list(name: str, default: list[str]) -> list[str]:
 def get_variables() -> dict[str, Any]:
     return {
         "PROJECT_ROOT": str(ROOT),
-        "GATE": _env("GATE", "G2"),
+        "GATE": _env("GATE", "G4"),
         "ERESISTOR_HOST": _env("HOST", "192.168.0.55"),
         "HTTP_PORT": _int("HTTP_PORT", 80),
         "SCPI_PORT": _int("SCPI_PORT", 5025),
@@ -55,7 +55,6 @@ def get_variables() -> dict[str, Any]:
         "STRESS_ITERATIONS": _int("STRESS_ITERATIONS", 100),
         "HEAP_DRIFT_LIMIT_BYTES": _int("HEAP_DRIFT_LIMIT_BYTES", 2048),
         "LATENCY_REGRESSION_PERCENT": _float("LATENCY_REGRESSION_PERCENT", 15.0),
-        "SOURCE_DIR": _env("SOURCE_DIR", ""),
         "BASELINE": _env("BASELINE", ""),
         "GATE_MANIFEST": _env("GATE_MANIFEST", ""),
         "ALLOW_OUTPUT_TESTS": _bool("ALLOW_OUTPUT_TESTS", False),
@@ -77,7 +76,7 @@ def get_variables() -> dict[str, Any]:
         "HIL_CHANNEL": _int("HIL_CHANNEL", 1),
         "HIL_BITS": _env("HIL_BITS", "0-15"),
         "HIL_COMBINATION_MASKS": _env("HIL_COMBINATION_MASKS", "0003,0005,0009"),
-        "HIL_REPEAT_CYCLES": _int("HIL_REPEAT_CYCLES", 10),
+        "HIL_REPEAT_CYCLES": _int("HIL_REPEAT_CYCLES", 50),
         "HIL_ERROR_LIMIT_PERCENT": _float("HIL_ERROR_LIMIT_PERCENT", 1.0),
         "HIL_SETTLE_TIMEOUT_S": _float("HIL_SETTLE_TIMEOUT_S", 20.0),
         "HIL_SAMPLE_COUNT": _int("HIL_SAMPLE_COUNT", 5),

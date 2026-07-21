@@ -4,24 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "e-resistor-regression"
-version = "2.5.2"
-description = "Gate-based Python and Robot Framework regression harness for E-Resistor firmware"
+version = "2.7.0"
+description = "Robot Framework regression harness for E-Resistor firmware"
 requires-python = ">=3.10"
-dependencies = []
-
-[project.optional-dependencies]
-hil = [
-  "pyserial>=3.5",
-  "PyVISA>=1.14"
-]
-robot = [
+dependencies = [
   "robotframework>=7.0,<8.0",
   "pyserial>=3.5",
   "PyVISA>=1.14"
 ]
 
-[project.scripts]
-e-resistor-regression = "e_resistor_regression.cli:main"
-
 [tool.setuptools.packages.find]
-include = ["e_resistor_regression*"]
+include = ["e_resistor_regression*", "robot_framework*"]

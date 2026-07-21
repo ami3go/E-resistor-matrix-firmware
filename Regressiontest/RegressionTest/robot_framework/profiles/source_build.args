@@ -1,6 +1,0 @@
---loglevel
-INFO
---console
-verbose
---metadata
-Profile:Offline source and Arduino build

@@ -35,6 +35,11 @@ SCPI-003 Calibration Table Integrity
     [Tags]    SCPI-003    scpi    calibration
     Run Regression Check    SCPI-003    Calibration table integrity    test_calibration
 
+
+CAL-001 Saved Calibration Presence
+    [Tags]    CAL-001    calibration    persistence
+    Run Regression Check    CAL-001    Saved calibration presence    test_calibration_storage_presence
+
 SCPI-004 Undefined Header Error Queue
     [Tags]    SCPI-004    scpi    negative
     Run Regression Check    SCPI-004    Undefined-header error queue    test_scpi_error_queue
@@ -46,6 +51,19 @@ SCPI-005 Oversized Line Recovery
 SCPI-006 Read-Only Target-Mask Calculation
     [Tags]    SCPI-006    scpi    target-search    gate2
     Run Regression Check    SCPI-006    Read-only target-mask calculation    test_scpi_target_calculation
+
+G3-001 Core Transport Diagnostics
+    [Tags]    G3-001    gate3    transport    diagnostics
+    Run Regression Check    G3-001    Core transport diagnostics    test_core_transport_diagnostics
+
+G3-002 Coherent Output Snapshot
+    [Tags]    G3-002    gate3    transport    snapshot
+    Run Regression Check    G3-002    Coherent output snapshot    test_core_snapshot_consistency
+
+
+G4-001 Gate 4 Profile Diagnostics
+    [Tags]    G4-001    gate4    profile    diagnostics
+    Run Regression Check    G4-001    Gate 4 profile diagnostics    test_gate4_profile_diagnostics
 
 PERF-001 HTTP Latency Sample
     [Tags]    PERF-001    performance    http

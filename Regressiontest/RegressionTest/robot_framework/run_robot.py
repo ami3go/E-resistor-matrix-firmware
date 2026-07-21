@@ -14,7 +14,9 @@ SUITES = {
     "read_only": RF_ROOT / "suites" / "read_only.robot",
     "safe_output": RF_ROOT / "suites" / "safe_output.robot",
     "hil_single_channel": RF_ROOT / "suites" / "hil_single_channel.robot",
-    "source_check": RF_ROOT / "suites" / "source_check.robot",
+    "gate3_transport_fault": RF_ROOT / "suites" / "gate3_transport_fault.robot",
+    "gate4_profile": RF_ROOT / "suites" / "gate4_profile.robot",
+    "gate4_profile_fault": RF_ROOT / "suites" / "gate4_profile_fault.robot",
 }
 
 
@@ -23,7 +25,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Run E-Resistor regression using Robot Framework"
     )
     parser.add_argument("--profile", choices=sorted(SUITES), default="read_only")
-    parser.add_argument("--gate", choices=[f"G{i}" for i in range(10)], default="G2")
+    parser.add_argument("--gate", choices=[f"G{i}" for i in range(10)], default="G4")
     parser.add_argument("--output", default=str(ROOT / "results" / "robot"))
     parser.add_argument("--host", default="192.168.0.55")
     parser.add_argument("--http-port", type=int, default=80)
@@ -33,7 +35,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--stress-iterations", type=int, default=100)
     parser.add_argument("--heap-drift-limit", type=int, default=2048)
     parser.add_argument("--latency-regression-percent", type=float, default=15.0)
-    parser.add_argument("--source-dir", default="")
     parser.add_argument("--baseline", default="")
     parser.add_argument("--gate-manifest", default="")
     parser.add_argument("--allow-output-tests", action="store_true")
@@ -53,7 +54,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--hil-channel", type=int, choices=range(1, 9), default=1)
     parser.add_argument("--hil-bits", default="0-15")
     parser.add_argument("--hil-combination-masks", default="0003,0005,0009")
-    parser.add_argument("--hil-repeat-cycles", type=int, default=10)
+    parser.add_argument("--hil-repeat-cycles", type=int, default=50)
     parser.add_argument("--hil-error-limit-percent", type=float, default=1.0)
     parser.add_argument("--hil-settle-timeout", type=float, default=20.0)
     parser.add_argument("--hil-sample-count", type=int, default=5)
@@ -76,18 +77,16 @@ def _set(env: dict[str, str], name: str, value: object) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
-    if args.profile == "safe_output" and not args.allow_output_tests:
-        raise SystemExit("safe_output requires --allow-output-tests")
-    if args.profile == "hil_single_channel":
+    if args.profile in {"safe_output", "gate4_profile"} and not args.allow_output_tests:
+        raise SystemExit(f"{args.profile} requires --allow-output-tests")
+    if args.profile in {"hil_single_channel", "gate3_transport_fault", "gate4_profile_fault"}:
         if not args.allow_active_output_tests:
-            raise SystemExit("hil_single_channel requires --allow-active-output-tests")
+            raise SystemExit(f"{args.profile} requires --allow-active-output-tests")
         if args.fixture_confirmation != "E_RESISTOR_SINGLE_CHANNEL_DMM":
             raise SystemExit(
-                "hil_single_channel requires --fixture-confirmation "
+                f"{args.profile} requires --fixture-confirmation "
                 "E_RESISTOR_SINGLE_CHANNEL_DMM"
             )
-    if args.profile == "source_check" and not args.source_dir:
-        raise SystemExit("source_check requires --source-dir")
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     output_dir = Path(args.output).expanduser().resolve() / f"{args.gate}-{args.profile}-{timestamp}"
@@ -104,7 +103,6 @@ def main(argv: list[str] | None = None) -> int:
         "STRESS_ITERATIONS": args.stress_iterations,
         "HEAP_DRIFT_LIMIT_BYTES": args.heap_drift_limit,
         "LATENCY_REGRESSION_PERCENT": args.latency_regression_percent,
-        "SOURCE_DIR": args.source_dir,
         "BASELINE": args.baseline,
         "GATE_MANIFEST": args.gate_manifest,
         "ALLOW_OUTPUT_TESTS": args.allow_output_tests,

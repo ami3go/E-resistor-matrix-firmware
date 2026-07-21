@@ -48,7 +48,7 @@ inline constexpr const char* DEFAULT_DEVICE_IP_TEXT = "192.168.0.55";
 // ============================================================
 inline constexpr const char* FIRMWARE_NAME = "E-Resistor";
 inline constexpr const char* FIRMWARE_VENDOR = "OpenBench";
-inline constexpr const char* FIRMWARE_VERSION = "0.6.0";
+inline constexpr const char* FIRMWARE_VERSION = "0.7.0";
 inline constexpr const char* FIRMWARE_BUILD_DATE = __DATE__;
 inline constexpr const char* FIRMWARE_BUILD_TIME = __TIME__;
 
@@ -121,6 +121,9 @@ extern float channelResistorOhms[CHANNEL_COUNT][BIT_COUNT];
 
 extern bool ethernetFault;
 extern bool littleFsReady;
+extern uint8_t calibrationSavedMask;
+extern uint8_t calibrationLoadedMask;
+extern uint8_t calibrationLoadErrorMask;
 extern uint8_t w5500Version;
 
 extern uint16_t channelMask[CHANNEL_COUNT];
@@ -390,6 +393,8 @@ bool loadChannelConfigFromLittleFS(uint8_t channelIndex);
  * @brief Load all per-channel runtime resistor configuration files from LittleFS.
  */
 void loadAllRuntimeConfigs();
+bool allChannelsHaveSavedCalibration();
+String calibrationStorageStatusText();
 
 // Resistance calculation helpers
 /**

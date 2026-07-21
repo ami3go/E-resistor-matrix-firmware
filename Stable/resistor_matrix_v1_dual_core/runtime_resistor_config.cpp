@@ -470,19 +470,70 @@ bool loadChannelConfigFromLittleFS(uint8_t channelIndex) {
   return parseChannelConfigText(channelIndex, text, error, sizeof(error));
 }
 
+bool allChannelsHaveSavedCalibration() {
+  const uint8_t requiredMask = uint8_t((1U << CHANNEL_COUNT) - 1U);
+  return calibrationSavedMask == requiredMask &&
+         calibrationLoadedMask == requiredMask &&
+         calibrationLoadErrorMask == 0U;
+}
+
+String calibrationStorageStatusText() {
+  String out;
+  out.reserve(96);
+  out += "saved_mask=0x";
+  if (calibrationSavedMask < 0x10U) out += "0";
+  out += String(calibrationSavedMask, HEX);
+  out += ",loaded_mask=0x";
+  if (calibrationLoadedMask < 0x10U) out += "0";
+  out += String(calibrationLoadedMask, HEX);
+  out += ",error_mask=0x";
+  if (calibrationLoadErrorMask < 0x10U) out += "0";
+  out += String(calibrationLoadErrorMask, HEX);
+  out += ",all_saved=";
+  out += allChannelsHaveSavedCalibration() ? "1" : "0";
+  return out;
+}
+
 void loadAllRuntimeConfigs() {
   copyDefaultConfigToRuntime();
+  calibrationSavedMask = 0U;
+  calibrationLoadedMask = 0U;
+  calibrationLoadErrorMask = 0U;
+
   if (!littleFsReady) {
     Serial.println("LittleFS not ready: using compile-time resistor defaults");
+    appendLogEvent("WARNING: LittleFS unavailable; nominal resistor defaults active");
     rebuildConductanceCache();
     return;
   }
 
   for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
-    if (loadChannelConfigFromLittleFS(ch)) {
-      Serial.print("Loaded runtime config for CH");
+    const uint8_t channelBit = uint8_t(1U << ch);
+    const String path = channelConfigPath(ch);
+    const bool exists = LittleFS.exists(path);
+    if (exists) calibrationSavedMask |= channelBit;
+
+    if (exists && loadChannelConfigFromLittleFS(ch)) {
+      calibrationLoadedMask |= channelBit;
+      Serial.print("Loaded runtime calibration for CH");
       Serial.println(ch + 1);
+    } else if (exists) {
+      calibrationLoadErrorMask |= channelBit;
+      char message[112];
+      snprintf(message, sizeof(message), "WARNING: CH%u calibration file exists but is invalid; nominal defaults active", unsigned(ch + 1U));
+      Serial.println(message);
+      appendLogEvent(message);
+    } else {
+      char message[96];
+      snprintf(message, sizeof(message), "WARNING: CH%u has no saved calibration; nominal defaults active", unsigned(ch + 1U));
+      Serial.println(message);
+      appendLogEvent(message);
     }
   }
+
   rebuildConductanceCache();
+  const String status = calibrationStorageStatusText();
+  Serial.print("Calibration storage: ");
+  Serial.println(status);
+  appendLogEvent((String("Calibration storage: ") + status).c_str());
 }

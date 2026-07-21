@@ -31,14 +31,12 @@ class RunConfig:
     gate: str = "G0"
     profile: str = "read_only"
     output_dir: str = "results"
-    source_dir: str | None = None
     baseline: str | None = None
     allow_output_tests: bool = False
     allow_active_output_tests: bool = False
     allow_storage_tests: bool = False
     allow_ota_tests: bool = False
     allow_watchdog_tests: bool = False
-    skip_device: bool = False
     serial_port: str = "auto"
     serial_baud: int = 115200
     serial_match: str = ""

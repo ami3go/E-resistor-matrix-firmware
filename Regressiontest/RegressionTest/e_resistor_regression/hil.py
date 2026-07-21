@@ -182,10 +182,17 @@ class SerialMonitor:
             timeout=0.2,
             write_timeout=1.0,
         )
-        # Avoid intentional 1200-baud bootloader behavior and minimize DTR side effects.
+        # RP2040 Arduino-Pico USB CDC suppresses transmit data while the host has
+        # not asserted DTR. Keep the requested baud far from the 1200-baud
+        # bootloader trigger, assert DTR for normal CDC traffic, and leave RTS low.
         try:
-            self._serial.dtr = False
+            self._serial.dtr = True
             self._serial.rts = False
+        except Exception:
+            pass
+        time.sleep(0.20)
+        try:
+            self._serial.reset_input_buffer()
         except Exception:
             pass
         self._stop.clear()

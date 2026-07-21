@@ -35,7 +35,6 @@ from e_resistor_regression.reports import (
     write_markdown_report,
     write_metrics_csv,
 )
-from e_resistor_regression.source_checks import evaluate_gate_expectations, scan_source
 from e_resistor_regression.suite import RegressionSuite
 
 try:
@@ -82,7 +81,7 @@ class EResistorRobotLibrary:
     and then converts PASS/FAIL/SKIP into Robot Framework status.
     """
 
-    ROBOT_LIBRARY_VERSION = "2.5.2"
+    ROBOT_LIBRARY_VERSION = "2.7.0"
 
     def __init__(self) -> None:
         self.initialized = False
@@ -94,7 +93,6 @@ class EResistorRobotLibrary:
         self.config: RunConfig | None = None
         self.suite: RegressionSuite | None = None
         self.results: list[TestResult] = []
-        self.source_metrics: dict[str, Any] | None = None
         self.baseline_path: Path | None = None
         self.gate_manifest_path: Path | None = None
 
@@ -106,7 +104,7 @@ class EResistorRobotLibrary:
         self,
         output_dir: str,
         profile: str = "read_only",
-        gate: str = "G0",
+        gate: str = "G3",
         host: str = "192.168.0.55",
         http_port: int = 80,
         scpi_port: int = 5025,
@@ -115,7 +113,6 @@ class EResistorRobotLibrary:
         stress_iterations: int = 100,
         heap_drift_limit_bytes: int = 2048,
         latency_regression_percent: float = 15.0,
-        source_dir: str = "",
         baseline: str = "",
         gate_manifest: str = "",
         allow_output_tests: bool = False,
@@ -134,7 +131,7 @@ class EResistorRobotLibrary:
         hil_channel: int = 1,
         hil_bits: str = "0-15",
         hil_combination_masks: str = "0003,0005,0009",
-        hil_repeat_cycles: int = 10,
+        hil_repeat_cycles: int = 50,
         hil_error_limit_percent: float = 1.0,
         hil_settle_timeout_s: float = 20.0,
         hil_sample_count: int = 5,
@@ -154,19 +151,19 @@ class EResistorRobotLibrary:
         if gate not in {f"G{i}" for i in range(10)}:
             raise AssertionError(f"Unsupported optimization gate: {gate!r}")
         if profile not in {
-            "read_only", "safe_output", "hil_single_channel", "source_check",
-            "active_output", "storage", "ota", "watchdog",
+            "read_only", "safe_output", "hil_single_channel", "gate3_transport_fault",
+            "gate4_profile", "gate4_profile_fault", "active_output", "storage", "ota", "watchdog",
         }:
             raise AssertionError(f"Unsupported regression profile: {profile!r}")
 
-        if profile == "safe_output" and not self._to_bool(allow_output_tests):
-            raise AssertionError("safe_output requires allow_output_tests=True")
-        if profile == "hil_single_channel":
+        if profile in {"safe_output", "gate4_profile"} and not self._to_bool(allow_output_tests):
+            raise AssertionError(f"{profile} requires allow_output_tests=True")
+        if profile in {"hil_single_channel", "gate3_transport_fault", "gate4_profile_fault"}:
             if not self._to_bool(allow_active_output_tests):
-                raise AssertionError("hil_single_channel requires allow_active_output_tests=True")
+                raise AssertionError(f"{profile} requires allow_active_output_tests=True")
             if fixture_confirmation != "E_RESISTOR_SINGLE_CHANNEL_DMM":
                 raise AssertionError(
-                    "hil_single_channel requires fixture_confirmation="
+                    f"{profile} requires fixture_confirmation="
                     "E_RESISTOR_SINGLE_CHANNEL_DMM"
                 )
 
@@ -199,14 +196,12 @@ class EResistorRobotLibrary:
             gate=gate,
             profile=profile,
             output_dir=str(evidence_dir),
-            source_dir=str(source_dir).strip() or None,
             baseline=str(baseline).strip() or None,
             allow_output_tests=self._to_bool(allow_output_tests),
             allow_active_output_tests=self._to_bool(allow_active_output_tests),
             allow_storage_tests=self._to_bool(allow_storage_tests),
             allow_ota_tests=self._to_bool(allow_ota_tests),
             allow_watchdog_tests=self._to_bool(allow_watchdog_tests),
-            skip_device=(profile == "source_check"),
             serial_port=str(serial_port),
             serial_baud=max(1, int(serial_baud)),
             serial_match=str(serial_match),
@@ -218,7 +213,11 @@ class EResistorRobotLibrary:
             hil_channel=int(hil_channel),
             hil_bits=str(hil_bits),
             hil_combination_masks=str(hil_combination_masks),
-            hil_repeat_cycles=max(1, int(hil_repeat_cycles)),
+            hil_repeat_cycles=(
+                max(50, int(hil_repeat_cycles))
+                if int(gate[1:]) >= 3 and profile in {"hil_single_channel", "gate3_transport_fault", "gate4_profile_fault"}
+                else max(1, int(hil_repeat_cycles))
+            ),
             hil_error_limit_percent=max(0.0, float(hil_error_limit_percent)),
             hil_settle_timeout_s=max(1.0, float(hil_settle_timeout_s)),
             hil_sample_count=max(2, int(hil_sample_count)),
@@ -276,6 +275,24 @@ class EResistorRobotLibrary:
 
         try:
             self._close_runtime_resources()
+            # Enrich the version manifest after the device has been queried.
+            environment_path = self.output_dir / "environment.json"
+            environment = json.loads(environment_path.read_text(encoding="utf-8"))
+            device_state = self.suite.state_before or self.suite.state_after
+            if device_state:
+                environment["device_identity"] = {
+                    "firmware_name": device_state.get("firmware_name", ""),
+                    "firmware_version": device_state.get("firmware_version", ""),
+                    "firmware_serial": device_state.get("firmware_serial", ""),
+                    "ip": device_state.get("ip", self.config.host),
+                }
+            hardware_path = self.output_dir / "hardware_manifest.json"
+            if hardware_path.exists():
+                environment["hil_hardware"] = json.loads(hardware_path.read_text(encoding="utf-8"))
+            environment_path.write_text(
+                json.dumps(environment, indent=2, sort_keys=True), encoding="utf-8"
+            )
+
             all_results = list(self.results)
             counts = {
                 status: sum(1 for item in all_results if item.status == status)
@@ -290,7 +307,6 @@ class EResistorRobotLibrary:
                 "overall_status": "FAIL" if counts["FAIL"] else "PASS",
                 "results": [item.to_dict() for item in all_results],
                 "flat_metrics": flatten_metrics(all_results),
-                "source_metrics": self.source_metrics,
             }
             comparisons = compare_baseline(
                 summary,
@@ -345,7 +361,7 @@ class EResistorRobotLibrary:
     def safety_cleanup_after_test(self) -> None:
         if not self.initialized or self.suite is None or self.config is None:
             return
-        if self.config.profile in {"safe_output", "hil_single_channel", "active_output", "ota", "watchdog"}:
+        if self.config.profile in {"safe_output", "hil_single_channel", "gate3_transport_fault", "gate4_profile", "gate4_profile_fault", "active_output", "ota", "watchdog"}:
             self.suite.best_effort_all_off()
 
     @keyword("Emergency All Off")
@@ -405,55 +421,6 @@ class EResistorRobotLibrary:
         return result.to_dict()
 
     # ------------------------------------------------------------------
-    # Offline source regression adapter
-    # ------------------------------------------------------------------
-    @keyword("Source Gate Checks Should Pass")
-    def source_gate_checks_should_pass(self) -> dict[str, Any]:
-        if not self.initialized or self.config is None or self.output_dir is None:
-            raise AssertionError("Regression suite is not initialized")
-        if not self.config.source_dir:
-            BuiltIn().skip("SOURCE_DIR is not configured")
-        source_dir = Path(self.config.source_dir).expanduser().resolve()
-        self.source_metrics = scan_source(source_dir)
-        (self.output_dir / "source_metrics.json").write_text(
-            json.dumps(self.source_metrics, indent=2, sort_keys=True), encoding="utf-8"
-        )
-        checks = evaluate_gate_expectations(
-            self.source_metrics,
-            source_dir,
-            self.config.gate,
-            self.gate_manifest_path,
-        )
-        failures: list[str] = []
-        if not checks:
-            checks = [{
-                "name": "Source scan completed",
-                "passed": True,
-                "actual": self.source_metrics.get("file_count", 0),
-                "expected": ">= 1 source file",
-            }]
-        for index, check in enumerate(checks, start=1):
-            result = TestResult(
-                f"SRC-{index:03d}",
-                str(check["name"]),
-                "PASS" if check["passed"] else "FAIL",
-                0.0,
-                f"actual={check['actual']!r}, expected={check['expected']!r}",
-                details=check,
-            )
-            self.results.append(result)
-            if self.logger is not None:
-                self.logger.event("test_result", **result.to_dict())
-            if result.status == "FAIL":
-                failures.append(f"{result.test_id}: {result.message}")
-        (self.output_dir / "source_checks.json").write_text(
-            json.dumps(checks, indent=2, sort_keys=True), encoding="utf-8"
-        )
-        if failures:
-            raise AssertionError("; ".join(failures))
-        return {"check_count": len(checks), "source_metrics": self.source_metrics}
-
-    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
     def _close_runtime_resources(self) -> None:
@@ -462,14 +429,13 @@ class EResistorRobotLibrary:
         assert self.output_dir is not None
         assert self.logger is not None
 
-        if self.config.profile in {"safe_output", "hil_single_channel", "active_output", "ota", "watchdog"}:
+        if self.config.profile in {"safe_output", "hil_single_channel", "gate3_transport_fault", "gate4_profile", "gate4_profile_fault", "active_output", "ota", "watchdog"}:
             self.suite.best_effort_all_off()
-        if self.config.profile != "source_check":
-            try:
-                state_text, self.suite.state_after, _ = self.suite._get_state()  # intentional shared implementation
-                (self.output_dir / "state_after.txt").write_text(state_text, encoding="utf-8")
-            except Exception as exc:
-                self.logger.log.error("Unable to capture final state: %s", exc)
+        try:
+            state_text, self.suite.state_after, _ = self.suite._get_state()  # intentional shared implementation
+            (self.output_dir / "state_after.txt").write_text(state_text, encoding="utf-8")
+        except Exception as exc:
+            self.logger.log.error("Unable to capture final state: %s", exc)
 
         if self.suite.hil_measurements:
             from e_resistor_regression.hil import write_hil_measurements

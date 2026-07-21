@@ -1,2 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<testsuite name="E-Resistor regression" tests="1" failures="0" skipped="1"><testcase classname="e_resistor_regression" name="DEVICE-000 Hardware regression" time="0.000000"><skipped message="disabled by --skip-device" /></testcase></testsuite>

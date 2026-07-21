@@ -1,0 +1,136 @@
+{
+  "gate": "G4",
+  "firmware_version": "0.7.0",
+  "passed": 21,
+  "failed": 0,
+  "total": 21,
+  "checks": [
+    {
+      "name": "firmware version 0.7.0",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "USB CDC starts before transport",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile diagnostics structure",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile diagnostics lock protected",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "all-mask command validates every channel first",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile begins with one shared zero shift",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "all latches cleared before global wait",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "one global break-before-make delay",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "make phase follows global delay",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "failed make forces all off",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "failed clear forces all off",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "snapshot publication remains outside physical transition",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile completion event",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile failure event",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "SCPI profile diagnostics",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "HTTP profile diagnostics",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "test failure after clear is compile-time guarded",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "test failure hook requires outputs off",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "separate Gate4 test build",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "production build does not request test mode",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile engine has no text/network/storage dependencies",
+      "passed": true,
+      "actual": [],
+      "expected": []
+    }
+  ],
+  "limitations": "Structural validation only; an Arduino-Pico target compile and HIL run are still required."
+}

@@ -1,2 +1,0 @@
-{"event": "suite_initialized", "gate": "G2", "monotonic_ns": 530279444352, "profile": "read_only", "run_id": "G2-read_only-20260717T124515Z-b5bdd5", "timestamp": "2026-07-17T12:45:15.629549+00:00"}
-{"counts": {"FAIL": 0, "PASS": 0, "SKIP": 1}, "event": "suite_finalized", "gate": "G2", "monotonic_ns": 530283277321, "overall_status": "PASS", "profile": "read_only", "run_id": "G2-read_only-20260717T124515Z-b5bdd5", "timestamp": "2026-07-17T12:45:15.633383+00:00"}

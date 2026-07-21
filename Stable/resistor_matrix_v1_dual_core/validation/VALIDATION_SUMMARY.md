@@ -1,10 +1,12 @@
-# Gate 3 offline validation summary
+# Gate 4 firmware offline validation
 
-| Validation | Result |
+Firmware **0.7.0** was validated without target hardware using structural checks, the two-phase profile model, lexical analysis, and focused host C++ stubs.
+
+| Check | Result |
 |---|---:|
-| Structural source checks | 33/33 passed |
-| Transport model oracle | 8/8 passed |
-| C/C++ lexical validation | 26/26 files passed |
-| Host C++ syntax-only checks | 6/6 passed |
+| Gate 4 source checks | 21/21 PASS |
+| C/C++ lexical checks | 26/26 PASS |
+| Focused host syntax checks | 6/6 PASS |
+| Gate 4 profile model cases | 5/5 PASS |
 
-The host syntax checks use minimal Arduino/Pico stubs and are not a replacement for an Arduino-Pico target compile or link. Connected hardware regression is also not represented as completed in this source package.
+The actual Arduino-Pico target compile/link, UF2 boot, profile timing, USB enumeration, and HIL execution remain required on the RP2040 bench.

@@ -1,12 +1,7 @@
 # Package information
 
-- Package version: **2.5.2**
-- Recommended archive filename: `E-Resistor_RegressionTest_Gate2_Python_Robot_HIL_BAT_v2.5.2.zip`
-- Required internal ZIP root: **`RegressionTest/`**
-- Firmware gate target: **G2 / firmware 0.5.0**
-
-The descriptive outer archive name may change. The internal root folder must remain exactly `RegressionTest/`.
-
-## v2.5.2 packaging note
-
-Arduino CLI integration and firmware compilation checks are not included. Offline source checks remain available through the `source_check` profile.
+- Package version: **2.7.0**
+- Firmware target: **Gate G4 / firmware 0.7.0**
+- Internal ZIP root: **`RegressionTest/`**
+- User-facing execution: **Robot Framework only**
+- Recommended filename: `E-Resistor_RegressionTest_Gate4_Robot_HIL_BAT_v2.7.0.zip`
