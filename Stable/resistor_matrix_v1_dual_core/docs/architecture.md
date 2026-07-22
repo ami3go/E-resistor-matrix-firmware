@@ -1,6 +1,6 @@
 # Gate 3 dual-core architecture
 
-Firmware 0.6.0 uses an explicit ownership and message-transport boundary. Core 0 never directly toggles resistor shift-register GPIO. Core 1 never performs networking, filesystem, UI, SCPI/HTTP parsing, dynamic text construction, or USB serial formatting.
+Firmware 0.6.2 uses an explicit ownership and message-transport boundary. Core 0 never directly toggles resistor shift-register GPIO. Core 1 never performs networking, filesystem, UI, SCPI/HTTP parsing, dynamic text construction, or USB serial formatting.
 
 ```text
 Core 0                                        Core 1

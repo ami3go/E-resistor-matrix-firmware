@@ -48,7 +48,7 @@ inline constexpr const char* DEFAULT_DEVICE_IP_TEXT = "192.168.0.55";
 // ============================================================
 inline constexpr const char* FIRMWARE_NAME = "E-Resistor";
 inline constexpr const char* FIRMWARE_VENDOR = "OpenBench";
-inline constexpr const char* FIRMWARE_VERSION = "0.7.0";
+inline constexpr const char* FIRMWARE_VERSION = "0.7.2";
 inline constexpr const char* FIRMWARE_BUILD_DATE = __DATE__;
 inline constexpr const char* FIRMWARE_BUILD_TIME = __TIME__;
 
@@ -621,6 +621,8 @@ bool installCore1PolicySnapshot(char* reason = nullptr, size_t reasonLen = 0);
 void getCoreTransportDiagnostics(CoreTransportDiagnostics& diagnostics);
 void coreTransportKickCore0Heartbeat();
 uint32_t coreTransportInvalidateGeneration();
+uint32_t coreTransportGetCore1StartupStage();
+uint32_t coreTransportGetCore1ReadyToken();
 
 // Core-0 safe wrappers. HTTP and SCPI call only these functions.
 bool applyChannelMask(uint8_t channelIndex, uint16_t newMask);

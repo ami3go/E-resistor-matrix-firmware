@@ -1,18 +1,73 @@
 {
   "gate": "G4",
-  "firmware_version": "0.7.0",
-  "passed": 21,
+  "firmware_version": "0.7.2",
+  "baseline_firmware": "0.6.2",
+  "passed": 30,
   "failed": 0,
-  "total": 21,
+  "total": 30,
   "checks": [
     {
-      "name": "firmware version 0.7.0",
+      "name": "firmware version 0.7.2",
       "passed": true,
       "actual": null,
       "expected": null
     },
     {
-      "name": "USB CDC starts before transport",
+      "name": "accepted Gate 3 startup order preserved",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "event queue initializes once before transport publication",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "Core1 does not race event queue initialization",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "Core1 retries startup handshake",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "cross-core publication uses memory barriers",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "persistent startup ready token",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "startup wait is level-triggered",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "startup snapshot polling fallback",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "startup stages published",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "startup failure diagnostics",
       "passed": true,
       "actual": null,
       "expected": null
@@ -30,19 +85,19 @@
       "expected": null
     },
     {
-      "name": "all-mask command validates every channel first",
+      "name": "all-mask command validates all channels before physical call",
       "passed": true,
       "actual": null,
       "expected": null
     },
     {
-      "name": "profile begins with one shared zero shift",
+      "name": "profile starts with one shared zero shift",
       "passed": true,
       "actual": null,
       "expected": null
     },
     {
-      "name": "all latches cleared before global wait",
+      "name": "all latches clear before global wait",
       "passed": true,
       "actual": null,
       "expected": null
@@ -60,19 +115,19 @@
       "expected": null
     },
     {
-      "name": "failed make forces all off",
+      "name": "clear failure forces all off",
       "passed": true,
       "actual": null,
       "expected": null
     },
     {
-      "name": "failed clear forces all off",
+      "name": "make failure forces all off",
       "passed": true,
       "actual": null,
       "expected": null
     },
     {
-      "name": "snapshot publication remains outside physical transition",
+      "name": "intermediate profile states are not published",
       "passed": true,
       "actual": null,
       "expected": null
@@ -108,13 +163,13 @@
       "expected": null
     },
     {
-      "name": "test failure hook requires outputs off",
+      "name": "test hook requires outputs off",
       "passed": true,
       "actual": null,
       "expected": null
     },
     {
-      "name": "separate Gate4 test build",
+      "name": "separate Gate 4 test build",
       "passed": true,
       "actual": null,
       "expected": null
@@ -132,5 +187,5 @@
       "expected": []
     }
   ],
-  "limitations": "Structural validation only; an Arduino-Pico target compile and HIL run are still required."
+  "limitations": "Structural validation only; Arduino-Pico target build and connected HIL remain required."
 }

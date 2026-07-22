@@ -68,8 +68,29 @@ def main() -> int:
     http = (ROOT / "http_handlers.cpp").read_text(encoding="utf-8")
     scpi = (ROOT / "scpi_server.cpp").read_text(encoding="utf-8")
     setup = (ROOT / "setup_loop.cpp").read_text(encoding="utf-8")
+    runtime_config = (ROOT / "runtime_resistor_config.cpp").read_text(encoding="utf-8")
 
-    checks.append(check("firmware version 0.6.0", 'FIRMWARE_VERSION = "0.6.0"' in app))
+    checks.append(check("firmware version 0.6.2", 'FIRMWARE_VERSION = "0.6.2"' in app))
+    checks.append(check("Core transport starts before setup delay",
+                        setup.index("initCoreCommandEngine()") < setup.index("Serial.begin(115200)") < setup.index("delay(100)")))
+    checks.append(check("event queue initializes before transport ready",
+                        command.index("initCore1EventQueue()") < command.rindex("coreTransportInitialize()")))
+    checks.append(check("Core1 does not race event queue initialization",
+                        "initCore1EventQueue()" not in runtime))
+    checks.append(check("Core1 startup wait retries instead of exiting",
+                        "while (!coreTransportWaitUntilInitialized(CORE_STARTUP_TIMEOUT_MS))" in runtime))
+    checks.append(check("Core0 startup consumes coherent snapshot flags",
+                        "return shiftRegistersReady && outputsKnownSafe;" in command))
+    checks.append(check("transport initialization has cross-core memory barrier",
+                        transport.count("__dmb();") >= 2 and "s_initialized = true;" in transport))
+    checks.append(check("calibration persistence masks tracked",
+                        "calibrationSavedMask" in app and "calibrationLoadedMask" in app and
+                        "calibrationLoadErrorMask" in app))
+    checks.append(check("missing calibration is diagnosed",
+                        "has no saved calibration" in runtime_config and "Calibration storage:" in runtime_config))
+    checks.append(check("SCPI calibration status query", "CAL:STATUS?" in scpi))
+    checks.append(check("SCPI USB diagnostic query", "SYST:DIAG:USB?" in scpi))
+    checks.append(check("HTTP state exposes calibration masks", "calibration_saved_mask=" in http))
     checks.append(check("fixed-size command queue", "CORE_COMMAND_QUEUE_DEPTH" in transport_types and "CoreCommand s_commandQueue" in transport))
     checks.append(check("fixed-size result queue", "CORE_RESULT_QUEUE_DEPTH" in transport_types and "CoreResult s_resultQueue" in transport))
     checks.append(check("command sequence field", "uint32_t sequence;" in transport_types))
@@ -117,7 +138,7 @@ def main() -> int:
 
     summary = {
         "gate": "G3",
-        "firmware_version": "0.6.0",
+        "firmware_version": "0.6.2",
         "passed": sum(bool(item["passed"]) for item in checks),
         "failed": sum(not bool(item["passed"]) for item in checks),
         "total": len(checks),

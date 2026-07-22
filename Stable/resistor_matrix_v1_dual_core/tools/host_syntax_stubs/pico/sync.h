@@ -11,3 +11,4 @@ inline void sem_release(semaphore_t*){}
 inline bool sem_acquire_timeout_ms(semaphore_t*, uint32_t){return true;}
 inline void __sev(){}
 inline void __wfe(){}
+inline void __dmb(){}

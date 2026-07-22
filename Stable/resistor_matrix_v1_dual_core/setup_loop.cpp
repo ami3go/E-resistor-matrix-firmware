@@ -16,12 +16,14 @@
  * @brief Arduino Core 0 startup entry point for communications and non-real-time services.
  */
 void setup() {
-  // Start USB CDC before any cross-core or peripheral initialization so the
-  // normal firmware enumerates as a COM port as early as possible.
+  // Initialize every shared cross-core primitive before any startup delay.
+  // Arduino-Pico enables USB and USB CDC before it launches Core 1 and before
+  // this setup() function is entered, so delaying the transport here provides
+  // no USB-enumeration benefit and can let Core 1 exhaust its startup wait.
+  initCoreCommandEngine();
+
   Serial.begin(115200);
   delay(100);
-
-  initCoreCommandEngine();
 
   heartbeatBegin();
   setLedMode(LED_BOOT);
@@ -56,12 +58,21 @@ void setup() {
 
   if (!waitForCore1Startup(CORE_STARTUP_TIMEOUT_MS)) {
     Serial.println("Core 1 hardware engine did not enter safe state. Network services not started.");
+    Serial.print("Core 1 startup stage: ");
+    Serial.println(coreTransportGetCore1StartupStage());
+    Serial.print("Core 1 ready token: 0x");
+    Serial.println(coreTransportGetCore1ReadyToken(), HEX);
+    Serial.print("Core 1 mirror: shift_registers_ready=");
+    Serial.print(shiftRegistersReady ? 1 : 0);
+    Serial.print(" outputs_safe=");
+    Serial.println(outputsKnownSafe ? 1 : 0);
     Serial.flush();
     safeState("Core 1 hardware engine not ready");
     return;
   }
 
-  Serial.println("Core 1 hardware engine ready; all outputs OFF");
+  Serial.print("Core 1 hardware engine ready; all outputs OFF; startup stage=");
+  Serial.println(coreTransportGetCore1StartupStage());
   Serial.flush();
   appendLogEvent("Boot: Core 1 ready, all outputs OFF");
 

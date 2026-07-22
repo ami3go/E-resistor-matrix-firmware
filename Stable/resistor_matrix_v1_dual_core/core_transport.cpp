@@ -19,8 +19,12 @@ static spin_lock_t* s_policyLock = nullptr;
 static spin_lock_t* s_generationLock = nullptr;
 static spin_lock_t* s_diagLock = nullptr;
 static semaphore_t s_resultReady;
-static semaphore_t s_core1Ready;
 static volatile bool s_initialized = false;
+// Startup uses a persistent one-way token in addition to the normal snapshot.
+// A semaphore-only handshake can be timing-sensitive during concurrent
+// setup()/setup1() startup. The token cannot be consumed or lost.
+static volatile uint32_t s_core1ReadyToken = 0U;
+static volatile uint32_t s_core1StartupStage = CORE1_STARTUP_NOT_STARTED;
 
 static uint32_t s_nextSequence = 1;
 static uint32_t s_safetyGeneration = 1;
@@ -66,8 +70,11 @@ void coreTransportInitialize() {
   memset(&s_diag, 0, sizeof(s_diag));
   s_diag.currentSafetyGeneration = s_safetyGeneration;
   sem_init(&s_resultReady, 0, CORE_RESULT_QUEUE_DEPTH);
-  sem_init(&s_core1Ready, 0, 1);
   s_core0HeartbeatMs = millis();
+
+  // Ensure every queue, lock, semaphore, snapshot, and diagnostic write is
+  // globally visible before Core 1 observes the initialized flag.
+  __dmb();
   s_initialized = true;
   __sev();
 }
@@ -79,7 +86,9 @@ bool coreTransportWaitUntilInitialized(uint32_t timeoutMs) {
   while (!s_initialized && (millis() - start) < timeoutMs) {
     __wfe();
   }
-  return s_initialized;
+  if (!s_initialized) return false;
+  __dmb();
+  return true;
 }
 
 uint32_t coreTransportAllocateSequence() {
@@ -181,12 +190,48 @@ bool coreTransportWaitForResult(CoreResult& result, uint32_t timeoutMs) {
   return popResult(result);
 }
 
+void coreTransportSetCore1StartupStage(uint32_t stage) {
+  s_core1StartupStage = stage;
+  __dmb();
+  __sev();
+}
+
+uint32_t coreTransportGetCore1StartupStage() {
+  __dmb();
+  return s_core1StartupStage;
+}
+
+uint32_t coreTransportGetCore1ReadyToken() {
+  __dmb();
+  return s_core1ReadyToken;
+}
+
 void coreTransportSignalCore1Ready() {
-  if (s_initialized) sem_release(&s_core1Ready);
+  if (!s_initialized) return;
+  // Publish a level-triggered token after the snapshot. Unlike a semaphore,
+  // this indication remains visible even if Core 1 becomes ready before
+  // Core 0 starts waiting.
+  __dmb();
+  s_core1ReadyToken = CORE1_READY_TOKEN;
+  const uint32_t stage = s_core1StartupStage;
+  if (stage != CORE1_STARTUP_GPIO_FAILED && stage != CORE1_STARTUP_ALL_OFF_FAILED) {
+    coreTransportSetCore1StartupStage(CORE1_STARTUP_READY_SIGNALLED);
+  }
+  __dmb();
+  __sev();
 }
 
 bool coreTransportWaitForCore1Ready(uint32_t timeoutMs) {
-  return s_initialized && sem_acquire_timeout_ms(&s_core1Ready, timeoutMs);
+  if (!s_initialized) return false;
+  const uint32_t startMs = millis();
+  while (s_core1ReadyToken != CORE1_READY_TOKEN) {
+    if ((millis() - startMs) >= timeoutMs) return false;
+    // A short delay guarantees progress even if an event notification was
+    // observed before this core entered WFE.
+    delay(1);
+  }
+  __dmb();
+  return true;
 }
 
 void coreTransportPublishSnapshot(const CoreOutputSnapshot& snapshot) {

@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 STUBS = ROOT / "tools" / "host_syntax_stubs"
-OUT = ROOT / "validation" / "gate4_host_cpp_syntax_validation.json"
+OUT = ROOT / "validation" / "host_cpp_syntax_validation.json"
 
 
 def run_command(name: str, command: list[str]) -> dict:
@@ -31,7 +31,7 @@ def main() -> int:
     compiler = shutil.which("g++")
     if compiler is None:
         payload = {
-            "gate": "G4",
+            "gate": "G3",
             "passed": 0,
             "failed": 1,
             "failures": ["g++ was not found"],
@@ -52,7 +52,7 @@ def main() -> int:
     ):
         records.append(run_command(name, common + [str(ROOT / name)]))
 
-    with tempfile.TemporaryDirectory(prefix="e_resistor_g4_syntax_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="e_resistor_g3_syntax_") as tmp:
         focused = Path(tmp) / "core_command.cpp"
         source = (ROOT / "core_command.cpp").read_text(encoding="utf-8")
         source = source.replace('#include "app.h"', '#include "app_stub.h"', 1)
@@ -61,7 +61,7 @@ def main() -> int:
         records.append(run_command("core_command.cpp (focused stub)", command))
 
     payload = {
-        "gate": "G4",
+        "gate": "G3",
         "compiler": compiler,
         "passed": sum(bool(item["passed"]) for item in records),
         "failed": sum(not bool(item["passed"]) for item in records),

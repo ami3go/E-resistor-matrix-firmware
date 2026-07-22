@@ -1,64 +1,69 @@
-# Optimization Gate 4 — firmware v0.7.0
+# Gate 4 build and test
 
-Gate 4 implements one two-phase eight-channel profile transition owned entirely by Core 1.
+## Arduino IDE production image
 
-## Transition invariant
+Open `resistor_matrix_v1_dual_core.ino` and use:
 
-1. Core 0 validates all eight masks against the immutable safety policy.
-2. Core 1 shifts one zero word and pulses every channel latch.
-3. Core 1 waits one global `BREAK_BEFORE_MAKE_MS` interval.
-4. Core 1 stages and latches all requested channel masks.
-5. Core 1 publishes one coherent output snapshot only after the complete profile succeeds.
-6. Any failure forces all eight outputs OFF.
+- Board: Waveshare RP2040 Zero
+- Arduino-Pico core: 5.6.1
+- CPU: 200 MHz
+- Flash: 2 MB, Sketch 1 MB / FS 1 MB
+- Optimize: Small (`-Os`)
+- USB stack: Pico SDK
+- IP stack: IPv4 only, 32K
+- Debug port and level: Disabled / None
+- Exceptions, RTTI, stack protector: Disabled
+- Operating system: None
+- Upload: Default UF2
 
-Single-channel commands retain their existing per-channel break-before-make behavior.
+After flashing, verify:
 
-## Production build
+```text
+*IDN?                 -> OpenBench,E-Resistor,<serial>,0.7.2
+SYST:CORE:PROFILE?    -> profile diagnostics
+/state                -> firmware_version=0.7.2 and test_mode=0
+```
+
+## Arduino CLI production image
 
 ```powershell
 .\build_firmware.bat
 .\build_and_flash_COM17.bat
 ```
 
-When the device is in BOOTSEL mode:
+## Gate 4 fault-injection image
 
-```powershell
-.\build_firmware.bat
-.\flash_firmware_BOOTSEL.bat
-```
-
-Restore persistent calibration after a flash layout or filesystem reset using a same-board backup:
-
-```powershell
-.\extract_calibration_from_report.ps1 -ReportZip "C:\path\to\same-board-passing-report.zip"
-.\restore_calibration.ps1 -FilePath .\calibration-recovered-YYYYMMDD-HHMMSS.txt
-```
-
-The restore script blocks a bundle/device serial mismatch by default.
-
-## Gate 4 production regression
-
-Use RegressionTest v2.7.0:
-
-```powershell
-.\run_robot_read_only.bat G4
-.\run_robot_safe_output.bat G4
-.\run_robot_hil_single_channel.bat G4
-.\run_robot_gate4_profile.bat G4 <G3-safe-output-results.json>
-```
-
-## Gate 4 fault injection
-
-Only after production profiles pass:
+Arduino CLI:
 
 ```powershell
 .\build_and_flash_COM17_gate4_test.bat
 ```
 
-Then:
+Arduino IDE users should use the separate `E-Resistor_Firmware_Gate4_v0.7.2_ArduinoIDE_TEST.zip` package. Confirm:
+
+```text
+SYST:TEST:MODE? -> 1
+```
+
+## Robot Framework execution
+
+Using RegressionTest v2.7.1:
+
+```powershell
+.\run_robot_read_only.bat G4
+.\run_robot_safe_output.bat G4
+.\run_robot_hil_single_channel.bat G4
+.\run_robot_gate4_profile.bat G4
+```
+
+Then flash the Gate 4 test image and run:
 
 ```powershell
 .\run_robot_gate4_profile_fault.bat G4
 ```
 
-Reflash the production image afterward.
+Restore production firmware and finish with:
+
+```powershell
+.\run_robot_read_only.bat G4
+```

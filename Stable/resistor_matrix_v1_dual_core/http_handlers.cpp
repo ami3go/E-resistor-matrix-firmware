@@ -209,6 +209,14 @@ void handleState() {
   text += core1EngineReady ? "ready" : "not_ready";
   text += "\n";
 
+  text += "core1_startup_stage=";
+  text += String(coreTransportGetCore1StartupStage());
+  text += "\n";
+
+  text += "core1_ready_token=";
+  text += String(coreTransportGetCore1ReadyToken());
+  text += "\n";
+
   text += "core1_outputs_ready=";
   text += core1OutputsReady ? "1" : "0";
   text += "\n";

@@ -1,0 +1,44 @@
+{
+  "gate": "G4",
+  "firmware": "0.7.2",
+  "passed": 6,
+  "failed": 0,
+  "cases": [
+    {
+      "name": "ready before Core0 starts waiting",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "token before snapshot",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "snapshot before token",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "safe snapshot survives missed edge",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "token without safe snapshot is rejected",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "name": "fault snapshot is rejected",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Gate 3 build and hardware-test sequence
 
-Firmware: **0.6.0**  
+Firmware: **0.6.2 corrective release**  
 Target: Waveshare RP2040 Zero, Arduino-Pico 5.6.1, Arduino CLI 1.5.1
 
 ## 1. Production image
@@ -20,11 +20,11 @@ From PowerShell in the firmware root:
 .\build_firmware_verbose.bat
 ```
 
-Confirm the build manifest identifies firmware 0.6.0 and `test_mode=false`.
+Confirm the build manifest identifies firmware 0.6.2 and `test_mode=false`.
 
 ## 2. Production regression
 
-From the `RegressionTest` v2.6.0 root:
+From the `RegressionTest` v2.6.2 root:
 
 ```powershell
 .\run_robot_read_only.bat G3

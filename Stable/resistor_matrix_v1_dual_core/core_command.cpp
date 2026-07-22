@@ -8,6 +8,8 @@ void coreTransportInitialize();
 bool coreTransportPushCommand(const CoreCommand& command);
 bool coreTransportWaitForResult(CoreResult& result, uint32_t timeoutMs);
 bool coreTransportWaitForCore1Ready(uint32_t timeoutMs);
+uint32_t coreTransportGetCore1StartupStage();
+uint32_t coreTransportGetCore1ReadyToken();
 uint32_t coreTransportAllocateSequence();
 uint32_t coreTransportCurrentGeneration();
 uint32_t coreTransportInvalidateGeneration();
@@ -23,15 +25,36 @@ static bool allMasksZero(const CoreOutputSnapshot& snapshot) {
 }
 
 void initCoreCommandEngine() {
-  coreTransportInitialize();
+  // The event queue must be initialized exactly once by Core 0 before the
+  // transport-ready flag can wake Core 1. This removes a dual-core race where
+  // both cores could attempt to claim and install the event-queue spin lock.
   initCore1EventQueue();
+  coreTransportInitialize();
   coreTransportKickCore0Heartbeat();
 }
 
 bool waitForCore1Startup(uint32_t timeoutMs) {
-  if (!coreTransportWaitForCore1Ready(timeoutMs)) return false;
+  const uint32_t startMs = millis();
+  bool readyTokenSeen = false;
+
+  // Poll both the persistent ready token and the coherent snapshot. This is
+  // level-triggered and therefore cannot lose an early Core 1 notification.
+  while ((millis() - startMs) < timeoutMs) {
+    readyTokenSeen = coreTransportGetCore1ReadyToken() == CORE1_READY_TOKEN;
+    if (refreshCore0OutputMirror()) {
+      if (shiftRegistersReady && outputsKnownSafe) return true;
+      const uint32_t stage = coreTransportGetCore1StartupStage();
+      if (readyTokenSeen && (stage == CORE1_STARTUP_GPIO_FAILED ||
+                             stage == CORE1_STARTUP_ALL_OFF_FAILED)) {
+        return false;
+      }
+    }
+    delay(1);
+  }
+
+  // One final read covers a readiness publication concurrent with timeout.
   refreshCore0OutputMirror();
-  return core1EngineReady && outputsKnownSafe;
+  return shiftRegistersReady && outputsKnownSafe;
 }
 
 static void updateCore0MirrorFromSnapshot(const CoreOutputSnapshot& snapshot) {

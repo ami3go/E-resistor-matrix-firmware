@@ -1,6 +1,6 @@
 # Gate 3 firmware release status
 
-Firmware target: **v0.6.0**
+Firmware target: **v0.6.2 corrective release**
 
 Gate 2 acceptance is recorded from the user's completed bench regression. Gate 3 source implementation is complete. Arduino target compilation and connected hardware acceptance are not claimed by this source package.
 
@@ -28,7 +28,7 @@ Gate 2 acceptance is recorded from the user's completed bench regression. Gate 3
 
 Gate 3 closes only after:
 
-1. production firmware 0.6.0 builds and flashes;
+1. production firmware 0.6.2 builds and flashes;
 2. Robot read-only, safe-output, and single-channel HIL profiles pass at G3;
 3. transport queues do not overflow and normal-run timeout, expiry, generation-reject, invalid-command, and Core 0 fail-safe deltas remain zero;
 4. HTTP and SCPI snapshots are coherent;

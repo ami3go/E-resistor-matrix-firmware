@@ -342,7 +342,7 @@ function Build-Firmware {
     )
     if ($TestBuild) {
         $Arguments += @("--build-property", "compiler.cpp.extra_flags=-DERESISTOR_TEST_MODE=1")
-        Write-Host "Gate 3 TEST MODE enabled. Do not use this image as a production release." -ForegroundColor Red
+        Write-Host "FAULT-INJECTION TEST MODE enabled. Do not use this image as a production release." -ForegroundColor Red
     }
     if ($VerboseBuild) {
         $Arguments += "--verbose"

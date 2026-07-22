@@ -1,4 +1,13 @@
-# E-Resistor Firmware — Dual-Core + SCPI Calibration + Doxygen
+# E-Resistor Firmware — Gate 4 v0.7.2
+
+This release advances the accepted Gate 3 v0.6.2 firmware to Gate 4. Full eight-channel profile updates now use one global two-phase break-before-make transition while preserving the corrected dual-core startup and USB CDC behavior.
+
+- Production firmware: `0.7.2`
+- Accepted baseline: `0.6.2`
+- Gate: `G4`
+- Test image: compile-time only; never leave installed for normal operation
+
+Read `GATE4_RELEASE_STATUS.md`, `G4_BUILD_AND_TEST.md`, and `docs/gate4_changes.md` first.
 
 This package is the documented version of the dual-core Arduino RP2040 firmware.
 
@@ -133,7 +142,7 @@ The browser **Files** tab places LittleFS capacity and its combined file invento
 
 
 
-## 2026-07-17 optimization Gate 3 — v0.6.0
+## 2026-07-20 Gate 3 corrective release — v0.6.2
 
 - Made Core 1 the deterministic and authoritative shift-register/output engine.
 - Added fixed-size command, result, and numeric event queues with no dynamic allocation.
@@ -243,9 +252,9 @@ The normal build prints a periodic elapsed-time heartbeat; `build_firmware_verbo
 
 The configuration matches the documented Waveshare RP2040 Zero IDE settings: 2 MB flash split as 1 MB sketch plus 1 MB LittleFS, 200 MHz CPU, IPv4-only 32 KB lwIP, `-Os`, Pico SDK USB, no OS, exceptions, RTTI, profiling, stack protector, or debug output. See `tools/arduino_cli/README.md`.
 
-## Optimization Gate 4 — v0.7.0
+## Gate 3 corrective release — v0.6.2
 
-Eight-channel profile updates now use one global clear/wait/make transaction with coherent snapshot publication. See `G4_BUILD_AND_TEST.md` and `docs/gate4_changes.md`.
+See `G3_CORRECTIVE_BUILD_AND_TEST.md`. USB CDC starts before Core transport, calibration persistence is exposed and recoverable, and missing calibration is explicitly diagnosed.
 
 ### Same-board calibration recovery
 

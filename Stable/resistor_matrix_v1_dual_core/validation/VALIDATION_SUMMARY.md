@@ -1,12 +1,12 @@
-# Gate 4 firmware offline validation
+# Gate 4 offline validation summary
 
-Firmware **0.7.0** was validated without target hardware using structural checks, the two-phase profile model, lexical analysis, and focused host C++ stubs.
-
-| Check | Result |
+| Validation | Result |
 |---|---:|
-| Gate 4 source checks | 21/21 PASS |
-| C/C++ lexical checks | 26/26 PASS |
-| Focused host syntax checks | 6/6 PASS |
-| Gate 4 profile model cases | 5/5 PASS |
+| Gate 4 structural source checks | 25/25 passed |
+| Two-phase profile model oracle | 5/5 passed |
+| C/C++ lexical checks | 26/26 passed |
+| Host C++ syntax-only checks | 6/6 passed |
 
-The actual Arduino-Pico target compile/link, UF2 boot, profile timing, USB enumeration, and HIL execution remain required on the RP2040 bench.
+Baseline-preservation assertions in the Gate 4 source checker verify the accepted v0.6.2 startup order, single event-queue initialization, retrying Core 1 handshake, and cross-core memory barriers.
+
+An Arduino-Pico 5.6.1 target build, flash, USB enumeration, Ethernet startup, and connected HIL regression remain required for Gate 4 acceptance.

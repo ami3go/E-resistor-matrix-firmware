@@ -1,4 +1,4 @@
-# Optimization Gate 3 changes — firmware v0.6.0
+# Optimization Gate 3 changes — firmware v0.6.2 corrective release
 
 Gate 3 makes Core 1 the deterministic and authoritative resistor-output engine. Core 0 retains networking, HTTP/SCPI parsing, files, calibration editing, UI rendering, and human-readable logging.
 

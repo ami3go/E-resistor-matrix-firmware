@@ -133,6 +133,6 @@ Runtime calibration values are stored as 32-bit floating-point ohm values. Exter
 
 ## Gate 3 deterministic output engine
 
-Firmware 0.6.0 replaces ad-hoc shared command state with bounded numeric queues and one coherent Core 1 state snapshot. Core 0 submits commands and waits for a sequence-matched result for a bounded interval. Core 1 rejects expired, invalidated, or policy-inconsistent commands before shift-register access. A timeout invalidates all queued work from the old generation and requests a direct physical all-OFF operation. Core 1 also monitors a Core 0 heartbeat and can force OFF independently if communications processing stops while an output is active.
+Firmware 0.6.2 preserves and hardens ad-hoc shared command state with bounded numeric queues and one coherent Core 1 state snapshot. Core 0 submits commands and waits for a sequence-matched result for a bounded interval. Core 1 rejects expired, invalidated, or policy-inconsistent commands before shift-register access. A timeout invalidates all queued work from the old generation and requests a direct physical all-OFF operation. Core 1 also monitors a Core 0 heartbeat and can force OFF independently if communications processing stops while an output is active.
 
 Production firmware exposes transport and snapshot diagnostics but excludes fault-injection commands. The separate Gate 3 test build enables output-OFF-interlocked hooks used to prove queued-generation and timeout safety with a DMM.

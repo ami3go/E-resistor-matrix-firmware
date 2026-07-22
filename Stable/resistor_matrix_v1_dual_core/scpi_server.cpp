@@ -524,7 +524,9 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
   if (upper == "SYST:CORE:TRANSPORT?" || upper == "SYSTEM:CORE:TRANSPORT?") {
     CoreTransportDiagnostics d{};
     getCoreTransportDiagnostics(d);
-    client.print("generation="); client.print(d.currentSafetyGeneration);
+    client.print("startup_stage="); client.print(coreTransportGetCore1StartupStage());
+    client.print(",ready_token="); client.print(coreTransportGetCore1ReadyToken());
+    client.print(",generation="); client.print(d.currentSafetyGeneration);
     client.print(",last_submitted="); client.print(d.lastSubmittedSequence);
     client.print(",last_completed="); client.print(d.lastCompletedSequence);
     client.print(",command_overflows="); client.print(d.commandQueueOverflowCount);
