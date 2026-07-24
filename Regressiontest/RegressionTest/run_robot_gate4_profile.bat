@@ -12,12 +12,7 @@ if /I not "%RUN_GATE%"=="G4" (
 
 set "G3_BASELINE=%~2"
 if "%G3_BASELINE%"=="" set "G3_BASELINE=%ERESISTOR_BASELINE%"
-if "%G3_BASELINE%"=="" (
-    echo ERROR: Gate 3 baseline results.json is required.
-    echo Usage:
-    echo   .\run_robot_gate4_profile.bat G4 "C:\path\to\G3-safe_output-...\e_resistor_evidence\safe_output\results.json"
-    exit /b 3
-)
+if "%G3_BASELINE%"=="" set "G3_BASELINE=%REGRESSION_ROOT%\baselines\G3_v0.6.2_board_503359277A981F9F\results.json"
 if not exist "%G3_BASELINE%" (
     echo ERROR: Gate 3 baseline not found:
     echo   %G3_BASELINE%

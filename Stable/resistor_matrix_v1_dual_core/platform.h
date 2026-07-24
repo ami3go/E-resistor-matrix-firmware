@@ -1,0 +1,23 @@
+/** @file platform.h @brief Arduino-Pico platform and fixed hardware dependencies. */
+#pragma once
+#include <Arduino.h>
+#include <SPI.h>
+#include <W5500lwIP.h>
+#include <WiFiClient.h>
+#include <WiFiServer.h>
+#include <WebServer.h>
+#include <Adafruit_NeoPixel.h>
+#include <LittleFS.h>
+#include <Updater.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <math.h>
+#include <pico/sync.h>
+#include "board_config.h"
+#include "hardware_config.h"
+#include "core_transport_types.h"

@@ -1,0 +1,9 @@
+# Copy to arduino_cli.local.ps1 to override machine-specific values.
+# This file is intentionally not required for the default COM17 setup.
+
+$DefaultPort = "COM17"
+
+# Optional examples:
+# $ArduinoCliVersion = "1.5.1"
+# $Rp2040CoreVersion = "5.6.1"
+# $NeoPixelVersion = "1.15.5"

@@ -122,18 +122,23 @@ class StateRetryTests(unittest.TestCase):
             def connect(self): pass
 
         with tempfile.TemporaryDirectory() as tmp:
-            suite = RegressionSuite(RunConfig(host="127.0.0.1", gate="G3"), ExtendedLogger(Path(tmp)))
-            raw, parsed, elapsed, attempts = suite._query_scpi_state(FakeClient())
-            self.assertEqual(len(parsed), 8)
-            self.assertIn("CH8", raw)
-            self.assertEqual(attempts, 2)
-            self.assertEqual(elapsed, 3.0)
+            with ExtendedLogger(Path(tmp)) as logger:
+                suite = RegressionSuite(RunConfig(host="127.0.0.1", gate="G3"), logger)
+                raw, parsed, elapsed, attempts = suite._query_scpi_state(FakeClient())
+                self.assertEqual(len(parsed), 8)
+                self.assertIn("CH8", raw)
+                self.assertEqual(attempts, 2)
+                self.assertEqual(elapsed, 3.0)
 
     def test_known_firmware_gate_mapping(self) -> None:
         from e_resistor_regression.suite import RegressionSuite
         self.assertEqual(RegressionSuite._expected_gate_for_firmware("0.6.0"), "G3")
         self.assertEqual(RegressionSuite._expected_gate_for_firmware("0.6.1"), "G3")
         self.assertEqual(RegressionSuite._expected_gate_for_firmware("0.7.0"), "G4")
+        self.assertEqual(RegressionSuite._expected_gate_for_firmware("0.7.1"), "G4")
+        self.assertEqual(RegressionSuite._expected_gate_for_firmware("0.7.2"), "G4")
+        self.assertEqual(RegressionSuite._expected_gate_for_firmware("0.8.0"), "G5")
+        self.assertEqual(RegressionSuite._expected_gate_for_firmware("0.6.2"), "G3")
         self.assertEqual(RegressionSuite._expected_gate_for_firmware("0.5.0"), "G2")
         self.assertIsNone(RegressionSuite._expected_gate_for_firmware("9.9.9"))
 

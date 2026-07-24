@@ -1,0 +1,77 @@
+{
+  "checks": [
+    {
+      "detail": "",
+      "name": "firmware version 0.5.0",
+      "passed": false
+    },
+    {
+      "detail": "",
+      "name": "numeric runtime table",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "legacy runtime struct removed",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "legacy runtime table removed",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "single shared default table",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "direct bit indexing",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "target search has no logf",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "target search stats",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "target dry-run SCPI",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "serial diagnostic SCPI",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "strict resistance suffix parser",
+      "passed": true
+    },
+    {
+      "detail": "",
+      "name": "Core1 Serial still absent",
+      "passed": true
+    },
+    {
+      "detail": "estimated_saved_bytes=2688",
+      "name": "estimated model RAM saving >= 2 KiB",
+      "passed": true
+    },
+    {
+      "detail": "masks=8136 targets=704",
+      "name": "oracle vectors pass",
+      "passed": true
+    }
+  ],
+  "failed": 1,
+  "gate": "G2",
+  "passed": 13
+}

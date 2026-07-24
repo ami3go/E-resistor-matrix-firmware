@@ -1,13 +1,14 @@
-# E-Resistor Firmware — Gate 4 v0.7.2
+# E-Resistor Firmware — Gate 5 v0.8.0
 
-This release advances the accepted Gate 3 v0.6.2 firmware to Gate 4. Full eight-channel profile updates now use one global two-phase break-before-make transition while preserving the corrected dual-core startup and USB CDC behavior.
+Gate 5 restructures the Core 0 HTTP and SCPI services while preserving the accepted Gate 4 physical-output engine. It introduces streamed HTTP output, flash-backed browser assets, a shared SCPI registry, POST-only mutation paths, and the versioned `/api/v1/` interface.
 
-- Production firmware: `0.7.2`
-- Accepted baseline: `0.6.2`
-- Gate: `G4`
-- Test image: compile-time only; never leave installed for normal operation
+- Production firmware: `0.8.0`
+- Accepted predecessor: `0.7.2`
+- Gate: `G5`
+- Public compatibility: legacy state and calibration query aliases retained
+- Physical switching: unchanged from accepted Gate 4
 
-Read `GATE4_RELEASE_STATUS.md`, `G4_BUILD_AND_TEST.md`, and `docs/gate4_changes.md` first.
+Read `GATE5_RELEASE_STATUS.md`, `G5_BUILD_AND_TEST.md`, and `docs/gate5_architecture.md` first.
 
 This package is the documented version of the dual-core Arduino RP2040 firmware.
 
@@ -24,11 +25,11 @@ This package is the documented version of the dual-core Arduino RP2040 firmware.
 ## Main files
 
 - `resistor_matrix_v1_dual_core.ino` — Arduino sketch entry file.
-- `app.h` — documented shared API and global declarations.
+- `app.h` — small compatibility umbrella over focused application headers.
 - `core_command.cpp` — dual-core command engine.
 - `shift_registers.cpp` — Core 1 physical output driver.
 - `scpi_server.cpp` — SCPI command parser and calibration table query support.
-- `http_handlers.cpp` — web UI and SCPI web-help page.
+- `http_routes.cpp` and focused `http_*.cpp` modules — web UI, API, streaming, and maintenance services.
 - `Doxyfile` — Doxygen configuration.
 
 ## Documentation
@@ -100,6 +101,8 @@ FIRM:VERS?
 FIRM:BUILD?
 SYST:STAT?
 ```
+
+`*IDN?` also triggers a 5-second bright-blue identify blink so a test operator can associate a SCPI connection with the physical PCB.
 
 The new **Firmware** web tab opens `/firmware`, which accepts Arduino-Pico compiled `.bin` firmware files.
 Before staging the update, the firmware requests all resistor outputs OFF through the existing safe Core 1 command path.

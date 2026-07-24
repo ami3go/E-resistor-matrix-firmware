@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SUITES = ROOT / "robot_framework" / "suites"
 SUITE_MODULE = ROOT / "e_resistor_regression" / "suite.py"
-OUTPUT = ROOT / "validation" / "G4_robot_static_validation.json"
+OUTPUT = ROOT / "validation" / "G5_robot_static_validation.json"
 
 
 def parse_suite(path: Path) -> dict:
@@ -47,10 +47,11 @@ def main() -> int:
     expected = {
         "read_only.robot": 20,
         "safe_output.robot": 23,
-        "hil_single_channel.robot": 29,
+        "hil_single_channel.robot": 31,
         "gate3_transport_fault.robot": 7,
         "gate4_profile.robot": 6,
         "gate4_profile_fault.robot": 7,
+        "gate5_service.robot": 7,
     }
     records = []
     failures = []
@@ -69,6 +70,7 @@ def main() -> int:
             failures.append(str(exc))
     required_g3 = {"G3-001", "G3-002", "G3-003", "G3-FI-001", "G3-FI-002", "G3-FI-003"}
     required_g4 = {"G4-001", "G4-002", "G4-003", "G4-FI-001"}
+    required_g5 = {"G5-001", "G5-002", "G5-003", "G5-004", "G5-005", "G5-006", "G5-HIL-001", "G5-HIL-002"}
     mapped = {m["test_id"] for r in records for m in r["mappings"]}
     missing_g3 = sorted(required_g3 - mapped)
     if missing_g3:
@@ -76,11 +78,14 @@ def main() -> int:
     missing_g4 = sorted(required_g4 - mapped)
     if missing_g4:
         failures.append(f"missing Gate 4 IDs: {missing_g4}")
+    missing_g5 = sorted(required_g5 - mapped)
+    if missing_g5:
+        failures.append(f"missing Gate 5 IDs: {missing_g5}")
     robot_dryrun = {"available": False, "passed": None, "returncode": None}
     try:
         import robot  # noqa: F401
         robot_dryrun["available"] = True
-        dryrun_dir = ROOT / "validation" / "G4_robot_dryrun"
+        dryrun_dir = ROOT / "validation" / "G5_robot_dryrun"
         dryrun_dir.mkdir(parents=True, exist_ok=True)
         command = [
             sys.executable, "-m", "robot", "--dryrun",
@@ -97,12 +102,13 @@ def main() -> int:
         pass
 
     payload = {
-        "gate": "G4",
-        "package_version": "2.7.0",
+        "gate": "G5",
+        "package_version": "2.8.1",
         "suite_count": len(records),
         "test_count": sum(r["test_count"] for r in records),
         "required_gate3_ids": sorted(required_g3),
         "required_gate4_ids": sorted(required_g4),
+        "required_gate5_ids": sorted(required_g5),
         "robot_dryrun": robot_dryrun,
         "failures": failures,
         "passed": not failures,

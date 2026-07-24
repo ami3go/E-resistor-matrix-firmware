@@ -1,7 +1,9 @@
 # Package information
 
-- Package version: **2.7.0**
-- Firmware target: **Gate G4 / firmware 0.7.0**
-- Internal ZIP root: **`RegressionTest/`**
-- User-facing execution: **Robot Framework only**
-- Recommended filename: `E-Resistor_RegressionTest_Gate4_Robot_HIL_BAT_v2.7.0.zip`
+- Package: E-Resistor RegressionTest
+- Version: 2.8.1
+- Workflow: Robot Framework only
+- Target gate: G5
+- Target firmware: 0.8.0
+- ZIP root: `RegressionTest/`
+- Required acceptance profiles: `read_only`, `safe_output`, `gate5_service`, `hil_single_channel`

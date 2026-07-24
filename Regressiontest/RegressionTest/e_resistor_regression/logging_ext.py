@@ -34,6 +34,43 @@ class ExtendedLogger:
         console.setLevel(logging.DEBUG if verbose else logging.INFO)
         console.setFormatter(formatter)
         self.log.addHandler(console)
+        self._closed = False
+
+    def close(self) -> None:
+        """Flush, close, and detach all logging handlers.
+
+        Explicit closure is required on Windows because an open FileHandler keeps
+        run.log locked and prevents temporary evidence directories from being
+        removed. The method is idempotent so test and suite cleanup may call it
+        safely more than once.
+        """
+        with self._lock:
+            if self._closed:
+                return
+            handlers = list(self.log.handlers)
+            for handler in handlers:
+                try:
+                    handler.flush()
+                except Exception:
+                    pass
+                try:
+                    handler.close()
+                except Exception:
+                    pass
+                self.log.removeHandler(handler)
+            self._closed = True
+
+    def __enter__(self) -> "ExtendedLogger":
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        self.close()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
 
     @staticmethod
     def _utc_now() -> str:

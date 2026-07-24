@@ -1,0 +1,191 @@
+{
+  "gate": "G4",
+  "firmware_version": "0.7.2",
+  "baseline_firmware": "0.6.2",
+  "passed": 30,
+  "failed": 0,
+  "total": 30,
+  "checks": [
+    {
+      "name": "firmware version 0.7.2",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "accepted Gate 3 startup order preserved",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "event queue initializes once before transport publication",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "Core1 does not race event queue initialization",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "Core1 retries startup handshake",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "cross-core publication uses memory barriers",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "persistent startup ready token",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "startup wait is level-triggered",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "startup snapshot polling fallback",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "startup stages published",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "startup failure diagnostics",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile diagnostics structure",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile diagnostics lock protected",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "all-mask command validates all channels before physical call",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile starts with one shared zero shift",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "all latches clear before global wait",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "one global break-before-make delay",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "make phase follows global delay",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "clear failure forces all off",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "make failure forces all off",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "intermediate profile states are not published",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile completion event",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile failure event",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "SCPI profile diagnostics",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "HTTP profile diagnostics",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "test failure after clear is compile-time guarded",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "test hook requires outputs off",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "separate Gate 4 test build",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "production build does not request test mode",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "profile engine has no text/network/storage dependencies",
+      "passed": true,
+      "actual": [],
+      "expected": []
+    }
+  ],
+  "limitations": "Structural validation only; Arduino-Pico target build and connected HIL remain required."
+}

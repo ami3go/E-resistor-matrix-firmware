@@ -1,7 +1,7 @@
 {
   "failures": [],
   "gate": "G4",
-  "package_version": "2.7.0",
+  "package_version": "2.7.2",
   "passed": true,
   "required_gate3_ids": [
     "G3-001",

@@ -1,4 +1,4 @@
-# Regression harness correction v2.7.0
+# Regression harness correction v2.7.2
 
 - Asserts USB CDC DTR while capturing RP2040 serial output. The previous harness explicitly deasserted DTR, which caused Arduino-Pico USB CDC writes to be suppressed even though COM17 opened successfully.
 - Keeps RTS low and avoids the 1200-baud bootloader trigger.

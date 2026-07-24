@@ -26,12 +26,12 @@ Reference firmware: **v0.4.4**.
 | G0 | 0.4.5-test | Baseline and test infrastructure |
 | G1 | 0.4.6 | Low-risk cleanup and observability |
 | G2 | 0.5.0 | Numeric resistor model and target-search optimization |
-| G3 | 0.6.0 | Dual-core ownership and command transport |
-| G4 | 0.7.0 | Two-phase multi-channel switching |
-| G5 | 0.7.0 | HTTP and SCPI restructuring |
-| G6 | 0.8.0 | Atomic storage and streamed calibration |
-| G7 | 0.9.0 | Transactional single-copy OTA |
-| G8 | 1.0.0-rc1 | Watchdog and recovery mode |
+| G3 | 0.6.2 | Dual-core ownership and command transport |
+| G4 | 0.7.2 | Two-phase multi-channel switching |
+| G5 | 0.8.0 | HTTP and SCPI restructuring |
+| G6 | 0.9.0 | Atomic storage and streamed calibration |
+| G7 | 1.0.0-rc1 | Transactional single-copy OTA |
+| G8 | 1.0.0-rc2 | Watchdog and recovery mode |
 | G9 | 1.0.0 | Legacy removal and release hardening |
 
 # Gate G0 — Baseline and regression infrastructure

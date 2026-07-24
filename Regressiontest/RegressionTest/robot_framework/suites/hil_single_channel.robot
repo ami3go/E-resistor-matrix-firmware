@@ -99,6 +99,11 @@ HIL-002 Fixture Safe State Precheck
     [Timeout]    2 minutes
     Run Regression Check    HIL-002    Fixture safe-state precheck    test_hil_safe_state_precheck
 
+G5-HIL-001 Start Concurrent HTTP And SCPI Service Stress
+    [Tags]    G5-HIL-001    gate5    hil    stress    http    scpi
+    [Timeout]    2 minutes
+    Run Regression Check    G5-HIL-001    Start concurrent HTTP and SCPI service stress    test_gate5_start_hil_service_stress
+
 HIL-003 Single Bit Physical Resistance Walk
     [Tags]    HIL-003    resistance    dmm    active-output
     [Timeout]    15 minutes
@@ -113,6 +118,11 @@ HIL-005 Repeated Physical Switching
     [Tags]    HIL-005    repeatability    dmm    active-output
     [Timeout]    15 minutes
     Run Regression Check    HIL-005    Repeated physical switching    test_hil_repeated_switching
+
+G5-HIL-002 Stop And Evaluate Concurrent Service Stress
+    [Tags]    G5-HIL-002    gate5    hil    stress    http    scpi
+    [Timeout]    2 minutes
+    Run Regression Check    G5-HIL-002    Stop and evaluate concurrent service stress    test_gate5_stop_hil_service_stress
 
 G4-003 Coherent Profile Snapshot Observation
     [Tags]    G4-003    gate4    profile    snapshot    dmm    active-output

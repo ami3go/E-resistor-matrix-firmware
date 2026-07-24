@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 export ERESISTOR_HOST="192.168.0.55"
-export ERESISTOR_GATE="G4"
+export ERESISTOR_GATE="G5"
 export ERESISTOR_SERIAL_PORT="/dev/ttyACM0"
 export ERESISTOR_SERIAL_BAUD="115200"
 export ERESISTOR_DMM_RESOURCE="auto"

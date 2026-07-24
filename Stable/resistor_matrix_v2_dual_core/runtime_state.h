@@ -1,0 +1,150 @@
+/** @file runtime_state.h @brief Shared runtime state and atomic formatting snapshot. */
+#pragma once
+#include "firmware_identity.h"
+#include "firmware_types.h"
+
+extern Adafruit_NeoPixel heartbeatPixel;
+extern LedMode ledMode;
+extern LedMode ledModeBeforeIdentify;
+extern bool ledPhase;
+extern uint32_t lastLedUpdateMs;
+extern uint32_t ledIdentifyUntilMs;
+extern uint8_t ledIdentifyPatternStep;
+
+extern IPAddress DEVICE_IP;
+extern IPAddress DEVICE_DNS;
+extern IPAddress DEVICE_GATEWAY;
+extern IPAddress DEVICE_SUBNET;
+extern Wiznet5500lwIP eth;
+extern WebServer server;
+extern WiFiServer scpiServer;
+extern WiFiClient scpiClient;
+extern char scpiLine[160];
+extern size_t scpiLineLen;
+extern bool scpiDiscardUntilNewline;
+
+extern float channelResistorOhms[CHANNEL_COUNT][BIT_COUNT];
+extern bool ethernetFault;
+extern bool littleFsReady;
+extern uint8_t calibrationSavedMask;
+extern uint8_t calibrationLoadedMask;
+extern uint8_t calibrationLoadErrorMask;
+extern uint8_t w5500Version;
+extern uint16_t channelMask[CHANNEL_COUNT];
+extern uint32_t applyCounter[CHANNEL_COUNT];
+extern bool shiftRegistersReady;
+extern bool outputsKnownSafe;
+extern bool fatalSafeStateActive;
+
+extern volatile bool core1EngineReady;
+extern volatile bool core1OutputsReady;
+extern volatile bool core1Fault;
+extern volatile bool emergencyOffRequested;
+extern volatile uint32_t core1HeartbeatMs;
+extern volatile uint32_t core1LoopCounter;
+extern volatile uint32_t core1CommandCounter;
+extern volatile uint32_t core1QueueOverflowCounter;
+extern volatile uint32_t core1LastCommandMs;
+extern volatile uint32_t core1LoopMaxUs;
+extern volatile uint32_t core1MinFreeStackBytes;
+extern volatile uint32_t core1EventCounter;
+extern volatile uint32_t core1EventDropCounter;
+
+extern uint32_t targetSearchLastCandidates;
+extern uint32_t targetSearchLastElapsedUs;
+extern uint32_t targetSearchTimeoutCount;
+extern uint32_t targetSearchCancelCount;
+extern char statusText[128];
+extern char lastError[128];
+extern String deviceSerialNumber;
+extern uint32_t runtimeWindowStartMs;
+extern uint64_t runtimeBusyAccumUs;
+extern uint32_t runtimeLoopCountWindow;
+extern uint32_t runtimeLoopMaxUs;
+extern float runtimeCore0LoadPct;
+extern float runtimeLoopsPerSecond;
+extern uint32_t httpRequestCount;
+extern uint32_t scpiCommandCount;
+extern uint32_t bootMillis;
+extern double safetyMinOhm[CHANNEL_COUNT];
+extern double safetyMaxOhm[CHANNEL_COUNT];
+extern uint8_t safetyMaxActiveBits[CHANNEL_COUNT];
+extern bool safetyExpertMode;
+extern char eventLog[32][128];
+extern uint8_t eventLogCount;
+extern uint8_t eventLogHead;
+extern char lastScpiCommand[96];
+extern bool firmwareUpdateInProgress;
+extern bool firmwareUpdateSucceeded;
+extern char firmwareUpdateStatus[160];
+
+// Gate 5 HTTP allocation/streaming telemetry.
+extern uint32_t httpStreamedResponseCount;
+extern uint32_t httpCalibrationPageLastTempBytes;
+extern uint32_t httpCalibrationPagePeakTempBytes;
+extern uint32_t httpStateLastTempBytes;
+extern uint32_t httpStatePeakTempBytes;
+extern uint32_t httpMethodRejectedCount;
+extern uint32_t httpApiV1RequestCount;
+
+struct RuntimeStateSnapshot {
+  char status[128];
+  char error[128];
+  char serial[40];
+  char ip[20];
+  char firmwareUpdateStatus[160];
+  uint16_t masks[CHANNEL_COUNT];
+  uint32_t applyCounters[CHANNEL_COUNT];
+  bool outputSnapshotValid;
+  uint32_t outputSnapshotSequence;
+  uint32_t outputLastCommandSequence;
+  uint32_t outputSafetyGeneration;
+  uint16_t outputFlags;
+  bool testMode;
+  bool littleFsReady;
+  uint8_t calibrationSavedMask;
+  uint8_t calibrationLoadedMask;
+  uint8_t calibrationLoadErrorMask;
+  uint8_t w5500Version;
+  bool shiftRegistersReady;
+  bool outputsKnownSafe;
+  bool fatalSafeStateActive;
+  bool core1EngineReady;
+  bool core1OutputsReady;
+  bool core1Fault;
+  uint32_t core1HeartbeatMs;
+  uint32_t core1HeartbeatAgeMs;
+  uint32_t core1LoopCounter;
+  uint32_t core1CommandCounter;
+  uint32_t core1QueueOverflowCounter;
+  uint32_t core1LoopMaxUs;
+  uint32_t core1MinFreeStackBytes;
+  uint32_t core1EventCounter;
+  uint32_t core1EventDropCounter;
+  uint32_t heapTotalBytes;
+  uint32_t heapUsedBytes;
+  uint32_t heapFreeBytes;
+  float heapUsedPercent;
+  float core0LoadPercent;
+  float loopsPerSecond;
+  uint32_t runtimeLoopMaxUs;
+  uint32_t httpRequestCount;
+  uint32_t scpiCommandCount;
+  uint32_t uptimeMs;
+  uint32_t targetCandidates;
+  uint32_t targetElapsedUs;
+  uint32_t targetTimeouts;
+  uint32_t targetCancels;
+  uint32_t core1StartupStage;
+  uint32_t core1ReadyToken;
+  uint32_t streamedResponseCount;
+  uint32_t calibrationPageLastTempBytes;
+  uint32_t calibrationPagePeakTempBytes;
+  uint32_t stateLastTempBytes;
+  uint32_t statePeakTempBytes;
+  uint32_t methodRejectedCount;
+  uint32_t apiV1RequestCount;
+  CoreTransportDiagnostics transport;
+};
+
+bool captureRuntimeStateSnapshot(RuntimeStateSnapshot& out);

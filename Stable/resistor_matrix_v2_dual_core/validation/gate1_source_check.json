@@ -1,0 +1,46 @@
+{
+  "gate": "G1",
+  "passed": true,
+  "checks": [
+    {
+      "name": "firmware version",
+      "passed": true
+    },
+    {
+      "name": "no Core 1 Serial calls",
+      "passed": true
+    },
+    {
+      "name": "compact Core 1 event queue",
+      "passed": true
+    },
+    {
+      "name": "verified bool forceAllOff",
+      "passed": true
+    },
+    {
+      "name": "SCPI discard-until-newline",
+      "passed": true
+    },
+    {
+      "name": "separate Core 1 stack",
+      "passed": true
+    },
+    {
+      "name": "Core 1 stack telemetry",
+      "passed": true
+    },
+    {
+      "name": "central default IP",
+      "passed": true
+    },
+    {
+      "name": "no obsolete split comments",
+      "passed": true
+    },
+    {
+      "name": "channel constants in default table",
+      "passed": true
+    }
+  ]
+}

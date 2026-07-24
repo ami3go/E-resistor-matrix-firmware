@@ -122,6 +122,8 @@ FIRM:BUILD?
 OpenBench,E-Resistor,<serial>,<firmware_version>
 ```
 
+As of Gate 5 r5, `*IDN?` also starts the same temporary bright-blue identify blink used by the web UI. The returned SCPI text remains unchanged for driver compatibility.
+
 `SYST:VERS?` and `FIRM:VERS?` return only the firmware version string.
 `FIRM:BUILD?` returns the compile date and time.
 

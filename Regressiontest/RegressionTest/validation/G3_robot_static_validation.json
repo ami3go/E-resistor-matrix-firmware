@@ -1,12 +1,13 @@
 {
   "failures": [],
   "gate": "G3",
-  "package_version": "2.7.0",
+  "package_version": "2.6.3",
   "passed": true,
   "required_gate3_ids": [
     "G3-001",
     "G3-002",
     "G3-003",
+    "G3-004",
     "G3-FI-001",
     "G3-FI-002",
     "G3-FI-003"
@@ -54,6 +55,11 @@
           "method": "test_calibration",
           "test_case": "SCPI-003 Calibration Table Integrity",
           "test_id": "SCPI-003"
+        },
+        {
+          "method": "test_calibration_storage_presence",
+          "test_case": "CAL-001 Saved Calibration Presence",
+          "test_id": "CAL-001"
         },
         {
           "method": "test_scpi_error_queue",
@@ -112,7 +118,7 @@
         }
       ],
       "suite": "read_only.robot",
-      "test_count": 18
+      "test_count": 19
     },
     {
       "mappings": [
@@ -150,6 +156,11 @@
           "method": "test_calibration",
           "test_case": "SCPI-003 Calibration Table Integrity",
           "test_id": "SCPI-003"
+        },
+        {
+          "method": "test_calibration_storage_presence",
+          "test_case": "CAL-001 Saved Calibration Presence",
+          "test_id": "CAL-001"
         },
         {
           "method": "test_scpi_error_queue",
@@ -220,10 +231,15 @@
           "method": "test_core_transport_safe_stress",
           "test_case": "G3-003 Sequenced Safe-Output Transport Stress",
           "test_id": "G3-003"
+        },
+        {
+          "method": "test_gate3_profile_zero_baseline",
+          "test_case": "G3-004 Eight-Channel Zero-Profile Baseline",
+          "test_id": "G3-004"
         }
       ],
       "suite": "safe_output.robot",
-      "test_count": 21
+      "test_count": 23
     },
     {
       "mappings": [
@@ -261,6 +277,11 @@
           "method": "test_calibration",
           "test_case": "SCPI-003 Calibration Table Integrity",
           "test_id": "SCPI-003"
+        },
+        {
+          "method": "test_calibration_storage_presence",
+          "test_case": "CAL-001 Saved Calibration Presence",
+          "test_id": "CAL-001"
         },
         {
           "method": "test_scpi_error_queue",
@@ -359,7 +380,7 @@
         }
       ],
       "suite": "hil_single_channel.robot",
-      "test_count": 26
+      "test_count": 27
     },
     {
       "mappings": [
@@ -403,5 +424,5 @@
       "test_count": 7
     }
   ],
-  "test_count": 72
+  "test_count": 76
 }

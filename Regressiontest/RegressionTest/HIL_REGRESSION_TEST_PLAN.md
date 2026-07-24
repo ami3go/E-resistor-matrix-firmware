@@ -2,7 +2,7 @@
 
 ## Bench topology
 
-- E-Resistor firmware 0.7.0 reachable by Ethernet HTTP/SCPI.
+- E-Resistor firmware 0.7.2 reachable by Ethernet HTTP/SCPI.
 - RP2040 USB CDC connected for structured diagnostic capture.
 - One USB/VISA DMM connected across exactly one selected channel.
 - The other seven channels remain OFF for the complete physical run.
@@ -47,3 +47,8 @@ The profile performs two all-OFF fault cases. First, Core 1 invalidates the next
 - Snapshot masks: identical between HTTP and SCPI.
 - Final masks: CH1-CH8 all `0000`.
 - Evidence manifest verification: pass.
+
+
+## Gate 5 service-stress extension
+
+Gate 5 runs the complete selected-channel bit, combination, and repeatability sequence while a background HTTP worker continuously alternates `/api/v1/state` and `/api/v1/diagnostics`. The firmware supports one SCPI client at a time, so SCPI stress is measured through the active HIL control connection: every verified `STATE?` transaction is counted while the stress interval is active. `G5-HIL-001` starts the interval and `G5-HIL-002` stops it and requires zero HTTP errors plus at least 20 successful HTTP and SCPI polls.

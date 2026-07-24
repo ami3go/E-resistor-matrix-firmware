@@ -1,0 +1,11 @@
+PASS - SCPI whitespace/case normalization
+PASS - SCPI channel alias parsing
+PASS - SCPI invalid channels rejected
+PASS - SCPI exact registry has no duplicate command
+PASS - SCPI registry has canonical help coverage
+PASS - HTTP mutation POST/GET rejection sets match
+PASS - API v1 route set is non-empty and unique
+PASS - Legacy state compatibility keys retained
+PASS - Focused API handler schemas present
+PASS - Calibration page fixed-buffer allocation model
+Summary: 10 passed, 0 failed

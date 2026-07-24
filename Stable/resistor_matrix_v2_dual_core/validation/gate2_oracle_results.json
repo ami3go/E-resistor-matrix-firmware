@@ -1,0 +1,25 @@
+{
+  "calibration_source": "/mnt/data/g2_fw_work/validation/g1_calibration_snapshot.json",
+  "mask_equivalence_failure_count": 0,
+  "mask_equivalence_failures": [],
+  "mask_vector_count": 8136,
+  "pass": true,
+  "python_reference_new_seconds": 15.579457412999545,
+  "python_reference_old_seconds": 13.863644038995517,
+  "python_reference_speedup": 0.8898669364074034,
+  "ram_model": {
+    "estimated_saved_bytes": 2688,
+    "g1_conductance_cache_bytes": 512,
+    "g1_runtime_text_table_bytes": 3200,
+    "g1_total_bytes": 3712,
+    "g2_conductance_cache_bytes": 512,
+    "g2_numeric_resistance_bytes": 512,
+    "g2_total_bytes": 1024
+  },
+  "schema_version": 1,
+  "seed": 20260717,
+  "target_case_count": 704,
+  "target_new_better_count": 1,
+  "target_new_worse_cases": [],
+  "target_new_worse_count": 0
+}

@@ -3,7 +3,7 @@
  * @brief SCPI TCP command help, parser, command executor, and calibration-table query implementation.
  */
 
-#include "app.h"
+#include "scpi_api.h"
 #include <math.h>
 
 
@@ -15,47 +15,7 @@
  * @brief Print the supported SCPI command list to an active TCP client.
  * @param client Connected TCP client used for the response.
  */
-void scpiPrintHelp(WiFiClient& client) {
-  client.println("Commands:");
-  client.println("*IDN?");
-  client.println("SYST:SER?");
-  client.println("SYST:VERS?");
-  client.println("FIRM:VERS?");
-  client.println("FIRM:BUILD?");
-  client.println("*CLS");
-  client.println("SYST:ERR?");
-  client.println("SYST:ERR:CLEAR");
-  client.println("STATE?");
-  client.println("SYST:STAT?");
-  client.println("SYST:CORE:TRANSPORT?           - numeric command transport diagnostics");
-  client.println("SYST:CORE:SNAPSHOT?            - coherent Core 1 output snapshot");
-  client.println("SYST:CORE:PROFILE?             - Gate 4 profile transition diagnostics");
-#ifdef ERESISTOR_TEST_MODE
-  client.println("SYST:TEST:MODE?                - returns 1 for fault-injection build");
-  client.println("SYST:TEST:CORE1:DELAY <ms>     - delay next Core 1 command; outputs must be OFF");
-  client.println("SYST:TEST:CORE1:PAUSE <ms>     - pause command dequeue; outputs must be OFF");
-  client.println("SYST:TEST:CORE1:INVALIDATE:NEXT - invalidate the next queued command; outputs must be OFF");
-  client.println("SYST:TEST:CORE1:INVALIDATE      - immediately invalidate generation; outputs must be OFF");
-  client.println("SYST:TEST:PROFILE:FAIL:NEXT     - fail next profile after global clear phase");
-#endif
-  client.println("CAL:RES? or CAL:RESISTORS?          - all calibration branch values");
-  client.println("CAL:CHANnel<n>:RES?                 - one channel calibration branch values");
-  client.println("CAL:FILES?                          - list saved calibration/config files");
-  client.println("CAL:FILE? CH<n>                     - download one channel calibration CSV");
-  client.println("CAL:ALL:FILES?                      - download all channel calibration CSV tables");
-  client.println("ALL:OFF");
-  client.println("OUTP:ALL OFF");
-  client.println("ROUT:ALL:MASK <m1>,<m2>,...,<m8>");
-  client.println("CH<n>:MASK? or ROUT:CHANnel<n>:MASK?");
-  client.println("CH<n>:MASK <hex> or ROUT:CHANnel<n>:MASK <hex>");
-  client.println("CH<n>:RES?");
-  client.println("CH<n>:TARGET:CALC? <ohm>       - read-only nearest-mask calculation");
-  client.println("SYST:DIAG:SERIAL?              - emit a USB serial test event");
-  client.println("SYST:DIAG:USB?                 - report USB CDC start/host state");
-  client.println("CAL:STATUS?                    - report saved/loaded calibration masks");
-  client.println("CH<n>:CONF?");
-  client.println("Example: CH1:MASK 0001");
-}
+
 
 /**
  * @brief Parse SCPI channel-command aliases and return a zero-based channel index.
@@ -65,55 +25,12 @@ void scpiPrintHelp(WiFiClient& client) {
  * @return Result value; for bool, true means the operation succeeded.
  */
 bool parseScpiChannelCommand(String cmd, uint8_t& channelIndex, String& rest) {
-  cmd.trim();
-
-  while (cmd.startsWith(":")) {
-    cmd.remove(0, 1);
-    cmd.trim();
-  }
-
-  String upper = cmd;
-  upper.toUpperCase();
-
-  // Accept both the original prototype format and the specification-style
-  // ROUT:CHANnel<n>:... / ROUT:CHAN<n>:... forms.
-  if (upper.startsWith("ROUTE:")) {
-    cmd.remove(0, 6);
-    upper.remove(0, 6);
-  } else if (upper.startsWith("ROUT:")) {
-    cmd.remove(0, 5);
-    upper.remove(0, 5);
-  }
-
-  int pos = -1;
-  if (upper.startsWith("CHANNEL")) {
-    pos = 7;
-  } else if (upper.startsWith("CHAN")) {
-    pos = 4;
-  } else if (upper.startsWith("CH")) {
-    pos = 2;
-  } else {
-    return false;
-  }
-
-  if (pos >= int(upper.length()) || !isdigit(upper[pos])) {
-    return false;
-  }
-
-  int ch = 0;
-  while (pos < int(upper.length()) && isdigit(upper[pos])) {
-    ch = ch * 10 + (upper[pos] - '0');
-    pos++;
-  }
-
-  if (ch < 1 || ch > int(CHANNEL_COUNT)) {
-    return false;
-  }
-
-  channelIndex = uint8_t(ch - 1);
-  rest = cmd.substring(pos);
+  char normalized[160];
+  if (!normalizeScpiLine(cmd.c_str(), normalized, sizeof(normalized))) return false;
+  const char* tail = nullptr;
+  if (!parseScpiChannelCommandFixed(normalized, channelIndex, tail)) return false;
+  rest = String(tail ? tail : "");
   rest.trim();
-
   return true;
 }
 
@@ -426,160 +343,188 @@ static bool tryHandleCalibrationFileQuery(String cmd, WiFiClient& client) {
  * @param client Connected TCP client used for the response.
  */
 void processScpiLine(const char* rawLine, WiFiClient& client) {
-  refreshCore0OutputMirror();
-  String cmd(rawLine);
-  cmd.trim();
-
-  if (cmd.length() == 0) {
+  char normalized[160];
+  if (!normalizeScpiLine(rawLine, normalized, sizeof(normalized))) {
+    setLastError("-113,\"Invalid or oversized command\"");
+    client.println("ERR,-113,\"Invalid or oversized command\"");
     return;
   }
 
   noteScpiCommand();
-  strncpy(lastScpiCommand, cmd.c_str(), sizeof(lastScpiCommand) - 1);
-  lastScpiCommand[sizeof(lastScpiCommand) - 1] = '\0';
-
+  strncpy(lastScpiCommand, normalized, sizeof(lastScpiCommand) - 1U);
+  lastScpiCommand[sizeof(lastScpiCommand) - 1U] = '\0';
   Serial.print("SCPI: ");
-  Serial.println(cmd);
+  Serial.println(normalized);
   Serial.flush();
 
-  String upper = cmd;
-  upper.toUpperCase();
-
-  if (upper == "*IDN?") {
-    client.println(firmwareIdentityString());
-    return;
+  RuntimeStateSnapshot atomicState{};
+  const ScpiCommandId exactCommand = scpiLookupExactCommand(normalized);
+  switch (exactCommand) {
+    case ScpiCommandId::Help:
+      scpiPrintHelp(client); return;
+    case ScpiCommandId::IdnQuery:
+      // Requested instrument-identification behavior: a SCPI *IDN? query also
+      // starts the same temporary blue identify blink used by the web UI.
+      // Keep the protocol response unchanged for PC driver compatibility.
+      startIdentifyLedBlink(5000U);
+      client.println(firmwareIdentityString()); return;
+    case ScpiCommandId::SerialQuery:
+      client.println(deviceSerialNumber); return;
+    case ScpiCommandId::SystemVersionQuery:
+    case ScpiCommandId::FirmwareVersionQuery:
+      client.println(FIRMWARE_VERSION); return;
+    case ScpiCommandId::FirmwareBuildQuery:
+      client.print(FIRMWARE_BUILD_DATE); client.print(" "); client.println(FIRMWARE_BUILD_TIME); return;
+    case ScpiCommandId::ClearStatus:
+    case ScpiCommandId::ErrorClear:
+      clearLastError(); client.println("OK"); return;
+    case ScpiCommandId::ErrorQuery:
+      client.println(lastError); clearLastError(); return;
+    case ScpiCommandId::CalibrationStatusQuery:
+      client.println(calibrationStorageStatusText()); return;
+    case ScpiCommandId::UsbDiagnosticQuery:
+      client.print("cdc_started=1,host_connected="); client.println(Serial ? "1" : "0"); return;
+    case ScpiCommandId::SerialDiagnosticQuery: {
+      char eventLine[160];
+      snprintf(eventLine, sizeof(eventLine),
+               "EVT ts_us=%lu core=0 seq=%lu level=1 code=SERIAL_TEST ch=0 mask=0x0000 detail=0 duration_us=0",
+               static_cast<unsigned long>(micros()), static_cast<unsigned long>(scpiCommandCount));
+      Serial.println(eventLine); Serial.flush(); appendLogEvent(eventLine); client.println("OK,SERIAL_TEST"); return;
+    }
+    case ScpiCommandId::CoreTransportQuery:
+      captureRuntimeStateSnapshot(atomicState);
+      client.print("startup_stage="); client.print(atomicState.core1StartupStage);
+      client.print(",ready_token="); client.print(atomicState.core1ReadyToken);
+      client.print(",generation="); client.print(atomicState.transport.currentSafetyGeneration);
+      client.print(",last_submitted="); client.print(atomicState.transport.lastSubmittedSequence);
+      client.print(",last_completed="); client.print(atomicState.transport.lastCompletedSequence);
+      client.print(",command_overflows="); client.print(atomicState.transport.commandQueueOverflowCount);
+      client.print(",result_overflows="); client.print(atomicState.transport.resultQueueOverflowCount);
+      client.print(",timeouts="); client.print(atomicState.transport.commandTimeoutCount);
+      client.print(",expired="); client.print(atomicState.transport.commandExpiredCount);
+      client.print(",generation_rejects="); client.print(atomicState.transport.generationRejectCount);
+      client.print(",invalid_commands="); client.print(atomicState.transport.invalidCommandCount);
+      client.print(",policy_installs="); client.print(atomicState.transport.policyInstallCount);
+      client.print(",core0_failsafe="); client.print(atomicState.transport.core0FailsafeCount);
+      client.print(",profile_transitions="); client.print(atomicState.transport.profileTransitionCount);
+      client.print(",profile_failures="); client.print(atomicState.transport.profileFailureCount);
+      client.print(",profile_bbm_count="); client.print(atomicState.transport.profileBreakBeforeMakeCount);
+      client.print(",profile_last_us="); client.print(atomicState.transport.lastProfileDurationUs);
+      client.print(",profile_max_us="); client.print(atomicState.transport.maxProfileDurationUs);
+      client.print(",profile_clear_last_us="); client.print(atomicState.transport.lastProfileClearDurationUs);
+      client.print(",profile_clear_max_us="); client.println(atomicState.transport.maxProfileClearDurationUs); return;
+    case ScpiCommandId::CoreProfileQuery:
+      captureRuntimeStateSnapshot(atomicState);
+      client.print("transitions="); client.print(atomicState.transport.profileTransitionCount);
+      client.print(",failures="); client.print(atomicState.transport.profileFailureCount);
+      client.print(",bbm_count="); client.print(atomicState.transport.profileBreakBeforeMakeCount);
+      client.print(",last_us="); client.print(atomicState.transport.lastProfileDurationUs);
+      client.print(",max_us="); client.print(atomicState.transport.maxProfileDurationUs);
+      client.print(",clear_last_us="); client.print(atomicState.transport.lastProfileClearDurationUs);
+      client.print(",clear_max_us="); client.println(atomicState.transport.maxProfileClearDurationUs); return;
+    case ScpiCommandId::CoreSnapshotQuery:
+      captureRuntimeStateSnapshot(atomicState);
+      if (!atomicState.outputSnapshotValid) { client.println("ERR,snapshot_unavailable"); return; }
+      client.print("snapshot_sequence="); client.print(atomicState.outputSnapshotSequence);
+      client.print(",last_command_sequence="); client.print(atomicState.outputLastCommandSequence);
+      client.print(",generation="); client.print(atomicState.outputSafetyGeneration);
+      client.print(",flags="); client.print(atomicState.outputFlags);
+      for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+        client.print(",ch"); client.print(ch + 1U); client.print("_mask=0x");
+        if (atomicState.masks[ch] < 0x1000U) client.print('0');
+        if (atomicState.masks[ch] < 0x0100U) client.print('0');
+        if (atomicState.masks[ch] < 0x0010U) client.print('0');
+        client.print(atomicState.masks[ch], HEX);
+        client.print(",ch"); client.print(ch + 1U); client.print("_apply="); client.print(atomicState.applyCounters[ch]);
+      }
+      client.println(); return;
+    case ScpiCommandId::StateQuery:
+      captureRuntimeStateSnapshot(atomicState);
+      for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+        if (ch) client.print(';');
+        client.print("CH"); client.print(ch + 1U); client.print('=');
+        if (atomicState.masks[ch] < 0x1000U) client.print('0');
+        if (atomicState.masks[ch] < 0x0100U) client.print('0');
+        if (atomicState.masks[ch] < 0x0010U) client.print('0');
+        client.print(atomicState.masks[ch], HEX);
+        char resistance[32];
+        formatOutputResistanceText(ch, atomicState.masks[ch], resistance, sizeof(resistance));
+        client.print(','); client.print(resistance);
+      }
+      client.println(); return;
+    case ScpiCommandId::SystemStatusQuery:
+      captureRuntimeStateSnapshot(atomicState);
+      client.print("heap_free="); client.print(atomicState.heapFreeBytes);
+      client.print(",core0_load="); client.print(atomicState.core0LoadPercent, 1);
+      client.print(",http_count="); client.print(atomicState.httpRequestCount);
+      client.print(",scpi_count="); client.print(atomicState.scpiCommandCount);
+      client.print(",serial="); client.print(atomicState.serial);
+      client.print(",fw_version="); client.print(FIRMWARE_VERSION);
+      client.print(",cal_saved_mask="); client.print(atomicState.calibrationSavedMask);
+      client.print(",cal_loaded_mask="); client.print(atomicState.calibrationLoadedMask);
+      client.print(",cal_error_mask="); client.print(atomicState.calibrationLoadErrorMask);
+      client.print(",min_ohm="); client.print(safetyMinOhm[0], 3);
+      client.print(",max_ohm="); client.print(safetyMaxOhm[0], 3);
+      for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
+        client.print(",ch"); client.print(ch + 1U); client.print("_min_ohm="); client.print(safetyMinOhm[ch], 3);
+        client.print(",ch"); client.print(ch + 1U); client.print("_max_ohm="); client.print(safetyMaxOhm[ch], 3);
+        client.print(",ch"); client.print(ch + 1U); client.print("_max_bits="); client.print(safetyMaxActiveBits[ch]);
+      }
+      client.print(",expert="); client.print(safetyExpertMode ? "1" : "0");
+      client.print(",target_candidates="); client.print(atomicState.targetCandidates);
+      client.print(",target_elapsed_us="); client.print(atomicState.targetElapsedUs);
+      client.print(",target_timeouts="); client.print(atomicState.targetTimeouts);
+      client.print(",target_cancels="); client.print(atomicState.targetCancels);
+      client.print(",core1_ready="); client.print(atomicState.core1EngineReady ? "1" : "0");
+      client.print(",core1_cmds="); client.print(atomicState.core1CommandCounter);
+      client.print(",core1_overflows="); client.print(atomicState.core1QueueOverflowCounter);
+      client.print(",core1_loop_max_us="); client.print(atomicState.core1LoopMaxUs);
+      client.print(",core1_stack_min_free="); client.print(atomicState.core1MinFreeStackBytes);
+      client.print(",core1_events="); client.print(atomicState.core1EventCounter);
+      client.print(",core1_event_drops="); client.print(atomicState.core1EventDropCounter);
+      client.print(",transport_generation="); client.print(atomicState.transport.currentSafetyGeneration);
+      client.print(",transport_timeouts="); client.print(atomicState.transport.commandTimeoutCount);
+      client.print(",transport_expired="); client.print(atomicState.transport.commandExpiredCount);
+      client.print(",transport_generation_rejects="); client.print(atomicState.transport.generationRejectCount);
+      client.print(",transport_command_overflows="); client.print(atomicState.transport.commandQueueOverflowCount);
+      client.print(",transport_result_overflows="); client.print(atomicState.transport.resultQueueOverflowCount);
+      client.print(",transport_policy_installs="); client.print(atomicState.transport.policyInstallCount);
+      client.print(",transport_core0_failsafe="); client.print(atomicState.transport.core0FailsafeCount);
+      client.print(",profile_transitions="); client.print(atomicState.transport.profileTransitionCount);
+      client.print(",profile_failures="); client.print(atomicState.transport.profileFailureCount);
+      client.print(",profile_bbm_count="); client.print(atomicState.transport.profileBreakBeforeMakeCount);
+      client.print(",profile_last_us="); client.print(atomicState.transport.lastProfileDurationUs);
+      client.print(",profile_max_us="); client.print(atomicState.transport.maxProfileDurationUs);
+      client.print(",profile_clear_last_us="); client.print(atomicState.transport.lastProfileClearDurationUs);
+      client.print(",profile_clear_max_us="); client.print(atomicState.transport.maxProfileClearDurationUs);
+      client.print(",http_streamed="); client.print(atomicState.streamedResponseCount);
+      client.print(",http_cal_last_temp="); client.print(atomicState.calibrationPageLastTempBytes);
+      client.print(",http_cal_peak_temp="); client.print(atomicState.calibrationPagePeakTempBytes);
+      client.print(",http_state_last_temp="); client.print(atomicState.stateLastTempBytes);
+      client.print(",http_state_peak_temp="); client.print(atomicState.statePeakTempBytes);
+      client.print(",http_method_rejections="); client.print(atomicState.methodRejectedCount);
+      client.print(",http_api_v1_requests="); client.println(atomicState.apiV1RequestCount); return;
+    case ScpiCommandId::AllOff: {
+      char reason[128] = {0};
+      if (!forceAllOff(reason, sizeof(reason))) {
+        client.print("ERR,-500,\""); client.print(reason[0] ? reason : "All-off failed"); client.println("\"");
+      } else { clearLastError(); client.println("OK"); }
+      return;
+    }
+    case ScpiCommandId::Unknown:
+      break;
   }
 
-  if (upper == "SYST:SER?" || upper == "SYSTEM:SERIAL?" || upper == "SERIAL?" || upper == "SER?") {
-    client.println(deviceSerialNumber);
-    return;
-  }
-
-  if (upper == "SYST:VERS?" || upper == "SYSTEM:VERSION?" || upper == "FIRM:VERS?" || upper == "FIRMWARE:VERSION?" || upper == "VERS?") {
-    client.println(FIRMWARE_VERSION);
-    return;
-  }
-
-  if (upper == "FIRM:BUILD?" || upper == "FIRMWARE:BUILD?") {
-    client.print(FIRMWARE_BUILD_DATE);
-    client.print(" ");
-    client.println(FIRMWARE_BUILD_TIME);
-    return;
-  }
-
-  if (upper == "CAL:STATUS?" || upper == "CALIBRATION:STATUS?") {
-    client.println(calibrationStorageStatusText());
-    return;
-  }
-
-  if (upper == "SYST:DIAG:USB?" || upper == "SYSTEM:DIAGNOSTIC:USB?") {
-    client.print("cdc_started=1,host_connected=");
-    client.println(Serial ? "1" : "0");
-    return;
-  }
-
-  if (upper == "SYST:DIAG:SERIAL?" || upper == "SYSTEM:DIAGNOSTIC:SERIAL?") {
-    char eventLine[160];
-    snprintf(
-      eventLine,
-      sizeof(eventLine),
-      "EVT ts_us=%lu core=0 seq=%lu level=1 code=SERIAL_TEST ch=0 mask=0x0000 detail=0 duration_us=0",
-      static_cast<unsigned long>(micros()),
-      static_cast<unsigned long>(scpiCommandCount)
-    );
-    Serial.println(eventLine);
-    Serial.flush();
-    // Preserve the diagnostic in the firmware event log even when the host has
-    // not asserted USB CDC DTR yet. The COM-port HIL still verifies the USB copy.
-    appendLogEvent(eventLine);
-    client.println("OK,SERIAL_TEST");
-    return;
-  }
-
-  if (upper == "*CLS" || upper == "SYST:ERR:CLEAR" || upper == "SYSTEM:ERROR:CLEAR") {
-    clearLastError();
-    client.println("OK");
-    return;
-  }
-
-  if (upper == "SYST:ERR?" || upper == "SYSTEM:ERROR?") {
-    client.println(lastError);
-    clearLastError();
-    return;
-  }
-
-  if (upper == "HELP?" || upper == "HELP") {
-    scpiPrintHelp(client);
-    return;
-  }
+  // Parameterized and calibration commands retain bounded String compatibility
+  // at the protocol boundary. Exact commands above use no parser String.
+  String cmd(normalized);
+  String upper(normalized);
 
   if (tryHandleCalibrationFileQuery(cmd, client)) {
     return;
   }
 
   if (tryHandleCalibrationQuery(cmd, client)) {
-    return;
-  }
-
-  if (upper == "SYST:CORE:TRANSPORT?" || upper == "SYSTEM:CORE:TRANSPORT?") {
-    CoreTransportDiagnostics d{};
-    getCoreTransportDiagnostics(d);
-    client.print("startup_stage="); client.print(coreTransportGetCore1StartupStage());
-    client.print(",ready_token="); client.print(coreTransportGetCore1ReadyToken());
-    client.print(",generation="); client.print(d.currentSafetyGeneration);
-    client.print(",last_submitted="); client.print(d.lastSubmittedSequence);
-    client.print(",last_completed="); client.print(d.lastCompletedSequence);
-    client.print(",command_overflows="); client.print(d.commandQueueOverflowCount);
-    client.print(",result_overflows="); client.print(d.resultQueueOverflowCount);
-    client.print(",timeouts="); client.print(d.commandTimeoutCount);
-    client.print(",expired="); client.print(d.commandExpiredCount);
-    client.print(",generation_rejects="); client.print(d.generationRejectCount);
-    client.print(",invalid_commands="); client.print(d.invalidCommandCount);
-    client.print(",policy_installs="); client.print(d.policyInstallCount);
-    client.print(",core0_failsafe="); client.print(d.core0FailsafeCount);
-    client.print(",profile_transitions="); client.print(d.profileTransitionCount);
-    client.print(",profile_failures="); client.print(d.profileFailureCount);
-    client.print(",profile_bbm_count="); client.print(d.profileBreakBeforeMakeCount);
-    client.print(",profile_last_us="); client.print(d.lastProfileDurationUs);
-    client.print(",profile_max_us="); client.print(d.maxProfileDurationUs);
-    client.print(",profile_clear_last_us="); client.print(d.lastProfileClearDurationUs);
-    client.print(",profile_clear_max_us="); client.println(d.maxProfileClearDurationUs);
-    return;
-  }
-
-  if (upper == "SYST:CORE:PROFILE?" || upper == "SYSTEM:CORE:PROFILE?") {
-    CoreTransportDiagnostics d{};
-    getCoreTransportDiagnostics(d);
-    client.print("transitions="); client.print(d.profileTransitionCount);
-    client.print(",failures="); client.print(d.profileFailureCount);
-    client.print(",bbm_count="); client.print(d.profileBreakBeforeMakeCount);
-    client.print(",last_us="); client.print(d.lastProfileDurationUs);
-    client.print(",max_us="); client.print(d.maxProfileDurationUs);
-    client.print(",clear_last_us="); client.print(d.lastProfileClearDurationUs);
-    client.print(",clear_max_us="); client.println(d.maxProfileClearDurationUs);
-    return;
-  }
-
-  if (upper == "SYST:CORE:SNAPSHOT?" || upper == "SYSTEM:CORE:SNAPSHOT?") {
-    CoreOutputSnapshot snapshot{};
-    if (!readCoreOutputSnapshot(snapshot)) {
-      client.println("ERR,snapshot_unavailable");
-      return;
-    }
-    client.print("snapshot_sequence="); client.print(snapshot.snapshotSequence);
-    client.print(",last_command_sequence="); client.print(snapshot.lastCommandSequence);
-    client.print(",generation="); client.print(snapshot.safetyGeneration);
-    client.print(",flags="); client.print(snapshot.flags);
-    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ++ch) {
-      client.print(",ch"); client.print(ch + 1U); client.print("_mask=0x");
-      if (snapshot.masks[ch] < 0x1000U) client.print('0');
-      if (snapshot.masks[ch] < 0x0100U) client.print('0');
-      if (snapshot.masks[ch] < 0x0010U) client.print('0');
-      client.print(snapshot.masks[ch], HEX);
-      client.print(",ch"); client.print(ch + 1U); client.print("_apply=");
-      client.print(snapshot.applyCounter[ch]);
-    }
-    client.println();
     return;
   }
 
@@ -652,97 +597,7 @@ void processScpiLine(const char* rawLine, WiFiClient& client) {
   }
 #endif
 
-  if (upper == "SYST:STAT?" || upper == "SYSTEM:STATUS?") {
-    client.print("heap_free=");
-    client.print(getHeapFreeBytes());
-    client.print(",core0_load=");
-    client.print(String(runtimeCore0LoadPct, 1));
-    client.print(",http_count=");
-    client.print(httpRequestCount);
-    client.print(",scpi_count=");
-    client.print(scpiCommandCount);
-    client.print(",serial=");
-    client.print(deviceSerialNumber);
-    client.print(",fw_version=");
-    client.print(FIRMWARE_VERSION);
-    client.print(",cal_saved_mask=");
-    client.print(calibrationSavedMask);
-    client.print(",cal_loaded_mask=");
-    client.print(calibrationLoadedMask);
-    client.print(",cal_error_mask=");
-    client.print(calibrationLoadErrorMask);
-    // Legacy summary fields report CH1; channel-specific values follow.
-    client.print(",min_ohm=");
-    client.print(String(safetyMinOhm[0], 3));
-    client.print(",max_ohm=");
-    client.print(String(safetyMaxOhm[0], 3));
-    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-      client.print(",ch"); client.print(ch + 1); client.print("_min_ohm=");
-      client.print(String(safetyMinOhm[ch], 3));
-      client.print(",ch"); client.print(ch + 1); client.print("_max_ohm=");
-      client.print(String(safetyMaxOhm[ch], 3));
-      client.print(",ch"); client.print(ch + 1); client.print("_max_bits=");
-      client.print(safetyMaxActiveBits[ch]);
-    }
-    client.print(",expert=");
-    client.print(safetyExpertMode ? "1" : "0");
-    client.print(",target_candidates=");
-    client.print(targetSearchLastCandidates);
-    client.print(",target_elapsed_us=");
-    client.print(targetSearchLastElapsedUs);
-    client.print(",target_timeouts=");
-    client.print(targetSearchTimeoutCount);
-    client.print(",target_cancels=");
-    client.print(targetSearchCancelCount);
-    client.print(",core1_ready=");
-    client.print(core1EngineReady ? "1" : "0");
-    client.print(",core1_cmds=");
-    client.print((uint32_t)core1CommandCounter);
-    client.print(",core1_overflows=");
-    client.print((uint32_t)core1QueueOverflowCounter);
-    client.print(",core1_loop_max_us=");
-    client.print((uint32_t)core1LoopMaxUs);
-    client.print(",core1_stack_min_free=");
-    client.print((uint32_t)core1MinFreeStackBytes);
-    client.print(",core1_events=");
-    client.print((uint32_t)core1EventCounter);
-    client.print(",core1_event_drops=");
-    client.print((uint32_t)core1EventDropCounter);
-    CoreTransportDiagnostics transport{};
-    getCoreTransportDiagnostics(transport);
-    client.print(",transport_generation="); client.print(transport.currentSafetyGeneration);
-    client.print(",transport_timeouts="); client.print(transport.commandTimeoutCount);
-    client.print(",transport_expired="); client.print(transport.commandExpiredCount);
-    client.print(",transport_generation_rejects="); client.print(transport.generationRejectCount);
-    client.print(",transport_command_overflows="); client.print(transport.commandQueueOverflowCount);
-    client.print(",transport_result_overflows="); client.print(transport.resultQueueOverflowCount);
-    client.print(",transport_policy_installs="); client.print(transport.policyInstallCount);
-    client.print(",transport_core0_failsafe="); client.print(transport.core0FailsafeCount);
-    client.print(",profile_transitions="); client.print(transport.profileTransitionCount);
-    client.print(",profile_failures="); client.print(transport.profileFailureCount);
-    client.print(",profile_bbm_count="); client.print(transport.profileBreakBeforeMakeCount);
-    client.print(",profile_last_us="); client.print(transport.lastProfileDurationUs);
-    client.print(",profile_max_us="); client.print(transport.maxProfileDurationUs);
-    client.print(",profile_clear_last_us="); client.print(transport.lastProfileClearDurationUs);
-    client.print(",profile_clear_max_us="); client.println(transport.maxProfileClearDurationUs);
-    return;
-  }
 
-  if (upper == "STATE?") {
-    for (uint8_t ch = 0; ch < CHANNEL_COUNT; ch++) {
-      client.print("CH");
-      client.print(ch + 1);
-      client.print("=");
-      client.print(hex16(channelMask[ch]));
-      client.print(",");
-      client.print(calculateOutputResistanceText(ch, channelMask[ch]));
-      if (ch < CHANNEL_COUNT - 1) {
-        client.print(";");
-      }
-    }
-    client.println();
-    return;
-  }
 
   if (upper.startsWith("ROUT:ALL:MASK") || upper.startsWith("ROUTE:ALL:MASK")) {
     int maskPos = upper.indexOf("MASK");

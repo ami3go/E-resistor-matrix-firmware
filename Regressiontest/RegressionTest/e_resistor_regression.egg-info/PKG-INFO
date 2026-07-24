@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: e-resistor-regression
-Version: 2.7.0
+Version: 2.8.1
 Summary: Robot Framework regression harness for E-Resistor firmware
 Requires-Python: >=3.10
 Requires-Dist: robotframework<8.0,>=7.0

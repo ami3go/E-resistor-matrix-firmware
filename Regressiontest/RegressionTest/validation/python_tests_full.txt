@@ -18,15 +18,20 @@ test_launcher_imports_without_running (test_robot_framework_layout.RobotFramewor
 test_required_files_exist (test_robot_framework_layout.RobotFrameworkLayoutTests.test_required_files_exist) ... ok
 test_runtime_ids_are_mapped (test_robot_framework_layout.RobotFrameworkLayoutTests.test_runtime_ids_are_mapped) ... ok
 test_windows_bat_stable_root_usage (test_robot_framework_layout.RobotFrameworkLayoutTests.test_windows_bat_stable_root_usage) ... ok
+test_bundled_gate3_profile_baseline (test_robot_only_package.RobotOnlyPackageTests.test_bundled_gate3_profile_baseline) ... ok
+test_bundled_gate4_service_baseline (test_robot_only_package.RobotOnlyPackageTests.test_bundled_gate4_service_baseline) ... ok
 test_fault_launcher_has_interlocks (test_robot_only_package.RobotOnlyPackageTests.test_fault_launcher_has_interlocks) ... ok
-test_gate4_bat_defaults_and_crlf (test_robot_only_package.RobotOnlyPackageTests.test_gate4_bat_defaults_and_crlf) ... ok
 test_gate4_fault_launcher_has_interlocks (test_robot_only_package.RobotOnlyPackageTests.test_gate4_fault_launcher_has_interlocks) ... ok
+test_gate4_runner_defaults_to_bundled_baseline (test_robot_only_package.RobotOnlyPackageTests.test_gate4_runner_defaults_to_bundled_baseline) ... ok
+test_gate5_bat_defaults_and_crlf (test_robot_only_package.RobotOnlyPackageTests.test_gate5_bat_defaults_and_crlf) ... ok
+test_gate5_runner_defaults_to_bundled_baseline (test_robot_only_package.RobotOnlyPackageTests.test_gate5_runner_defaults_to_bundled_baseline) ... ok
 test_no_user_facing_python_or_source_build_launchers (test_robot_only_package.RobotOnlyPackageTests.test_no_user_facing_python_or_source_build_launchers) ... ok
 test_package_versions (test_robot_only_package.RobotOnlyPackageTests.test_package_versions) ... ok
 test_powershell_wrapper_is_robot_only (test_robot_only_package.RobotOnlyPackageTests.test_powershell_wrapper_is_robot_only) ... ok
+test_windows_setup_script_paths_are_literal_and_clean (test_robot_only_package.RobotOnlyPackageTests.test_windows_setup_script_paths_are_literal_and_clean) ... ok
 test_start_asserts_dtr_for_rp2040_usb_cdc (test_serial_monitor_dtr.SerialMonitorDtrTest.test_start_asserts_dtr_for_rp2040_usb_cdc) ... ok
 
 ----------------------------------------------------------------------
-Ran 27 tests in 0.073s
+Ran 32 tests in 0.063s
 
 OK

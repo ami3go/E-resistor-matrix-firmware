@@ -1,0 +1,256 @@
+{
+  "checks": [
+    {
+      "details": {
+        "actual": {
+          "  outp:all    off  ": "OUTP:ALL OFF",
+          " *idn? ": "*IDN?",
+          "route:channel8:mask?": "ROUTE:CHANNEL8:MASK?",
+          "system:status?": "SYSTEM:STATUS?"
+        },
+        "expected": {
+          "  outp:all    off  ": "OUTP:ALL OFF",
+          " *idn? ": "*IDN?",
+          "route:channel8:mask?": "ROUTE:CHANNEL8:MASK?",
+          "system:status?": "SYSTEM:STATUS?"
+        }
+      },
+      "name": "SCPI whitespace/case normalization",
+      "passed": true
+    },
+    {
+      "details": {
+        "actual": {
+          "CH1:MASK?": [
+            0,
+            "MASK?"
+          ],
+          "CHAN8:RES?": [
+            7,
+            "RES?"
+          ],
+          "CHANNEL3:TARGET:CALC? 1000": [
+            2,
+            "TARGET:CALC? 1000"
+          ],
+          "ROUT:CH4:MASK 0001": [
+            3,
+            "MASK 0001"
+          ],
+          "ROUTE:CHANNEL2:CONF?": [
+            1,
+            "CONF?"
+          ]
+        },
+        "expected": {
+          "CH1:MASK?": [
+            0,
+            "MASK?"
+          ],
+          "CHAN8:RES?": [
+            7,
+            "RES?"
+          ],
+          "CHANNEL3:TARGET:CALC? 1000": [
+            2,
+            "TARGET:CALC? 1000"
+          ],
+          "ROUT:CH4:MASK 0001": [
+            3,
+            "MASK 0001"
+          ],
+          "ROUTE:CHANNEL2:CONF?": [
+            1,
+            "CONF?"
+          ]
+        }
+      },
+      "name": "SCPI channel alias parsing",
+      "passed": true
+    },
+    {
+      "details": {
+        "commands": [
+          "CH0:MASK?",
+          "CH9:MASK?",
+          "ROUT:BAD1:MASK?",
+          "CH:MASK?"
+        ]
+      },
+      "name": "SCPI invalid channels rejected",
+      "passed": true
+    },
+    {
+      "details": {
+        "exact_count": 38,
+        "unique_count": 38
+      },
+      "name": "SCPI exact registry has no duplicate command",
+      "passed": true
+    },
+    {
+      "details": {
+        "canonical_help_count": 30,
+        "commands": [
+          "HELP?",
+          "*IDN?",
+          "SYST:SER?",
+          "SYST:VERS?",
+          "FIRM:VERS?",
+          "FIRM:BUILD?",
+          "*CLS",
+          "SYST:ERR:CLEAR",
+          "SYST:ERR?",
+          "STATE?",
+          "SYST:STAT?",
+          "SYST:CORE:TRANSPORT?",
+          "SYST:CORE:SNAPSHOT?",
+          "SYST:CORE:PROFILE?",
+          "SYST:DIAG:SERIAL?",
+          "SYST:DIAG:USB?",
+          "CAL:STATUS?",
+          "ALL:OFF",
+          "OUTP:ALL OFF",
+          "ROUT:ALL:MASK <M1>,...,<M8>",
+          "CH<N>:MASK <HEX>",
+          "CH<N>:MASK?",
+          "CH<N>:RES?",
+          "CH<N>:TARGET:CALC? <OHM>",
+          "CH<N>:CONF?",
+          "CAL:RES?",
+          "CAL:RES? CH<N>",
+          "CAL:FILES?",
+          "CAL:FILE? CH<N>",
+          "CAL:ALL:FILES?"
+        ]
+      },
+      "name": "SCPI registry has canonical help coverage",
+      "passed": true
+    },
+    {
+      "details": {
+        "post_paths": [
+          "/set",
+          "/toggle_bit",
+          "/alloff",
+          "/target_apply",
+          "/identify_led",
+          "/profile_save",
+          "/profile_apply",
+          "/profile_delete",
+          "/factory_reset",
+          "/safety_save",
+          "/network_save",
+          "/network_delete",
+          "/file_delete",
+          "/meta_save",
+          "/meta_delete",
+          "/upload_config",
+          "/calibration_import_all",
+          "/firmware_update",
+          "/api/upload_config",
+          "/api/calibration/upload"
+        ],
+        "rejected_gets": [
+          "/set",
+          "/toggle_bit",
+          "/alloff",
+          "/target_apply",
+          "/identify_led",
+          "/profile_apply",
+          "/profile_delete",
+          "/factory_reset",
+          "/profile_save",
+          "/safety_save",
+          "/network_save",
+          "/network_delete",
+          "/file_delete",
+          "/meta_save",
+          "/meta_delete",
+          "/upload_config",
+          "/calibration_import_all",
+          "/firmware_update",
+          "/api/upload_config",
+          "/api/calibration/upload"
+        ]
+      },
+      "name": "HTTP mutation POST/GET rejection sets match",
+      "passed": true
+    },
+    {
+      "details": {
+        "count": 13,
+        "paths": [
+          "/api/v1/health",
+          "/api/v1/state",
+          "/api/v1/channels",
+          "/api/v1/diagnostics",
+          "/api/v1/calibration/files",
+          "/api/v1/calibration/download",
+          "/api/v1/calibration/download_all",
+          "/api/v1/control/channel",
+          "/api/v1/control/all_off",
+          "/api/v1/control/profile",
+          "/api/v1/control/target",
+          "/api/v1/control/toggle",
+          "/api/v1/identify"
+        ]
+      },
+      "name": "API v1 route set is non-empty and unique",
+      "passed": true
+    },
+    {
+      "details": {
+        "keys": [
+          "status=",
+          "firmware_version=",
+          "test_mode=",
+          "heap_free_bytes=",
+          "core1_state=",
+          "core_transport_generation=",
+          "core_profile_transition_count=",
+          "calibration_saved_mask=",
+          "target_search_last_candidates=",
+          "configured_ip=",
+          "safety_ch%u_min_ohm=",
+          "last_scpi_command=",
+          "ch%u=%04X resistance=%s count=%lu"
+        ]
+      },
+      "name": "Legacy state compatibility keys retained",
+      "passed": true
+    },
+    {
+      "details": {
+        "handlers": [
+          "handleApiV1Health",
+          "handleApiV1State",
+          "handleApiV1Channels",
+          "handleApiV1Diagnostics"
+        ],
+        "schema_markers": 4
+      },
+      "name": "Focused API handler schemas present",
+      "passed": true
+    },
+    {
+      "details": {
+        "baseline_whole_string_reserve_bytes": 24000,
+        "source_allocation_reduction_percent": 82.933,
+        "stream_buffer_bytes": 4096
+      },
+      "name": "Calibration page fixed-buffer allocation model",
+      "passed": true
+    }
+  ],
+  "failed": 0,
+  "firmware_version": "0.8.0",
+  "gate": "G5",
+  "limitations": [
+    "The parser checks model the source algorithm but do not execute on RP2040.",
+    "The source allocation reduction compares the old 24000-byte reserve to the fixed 4096-byte static stream buffer; connected heap telemetry is authoritative.",
+    "HTTP latency, persistent heap drift and physical output behavior require Robot Framework HIL."
+  ],
+  "passed": 10,
+  "total": 10
+}

@@ -16,7 +16,7 @@ if not "%ERESISTOR_FIXTURE_CONFIRMATION%"=="E_RESISTOR_SINGLE_CHANNEL_DMM" (
     exit /b 3
 )
 
-set "RUN_GATE=G4"
+set "RUN_GATE=G5"
 if not "%~1"=="" set "RUN_GATE=%~1"
 if /I not "%ERESISTOR_GATE%"=="%RUN_GATE%" echo NOTE: package default gate is %RUN_GATE%; bench_config.local.bat contains %ERESISTOR_GATE%.
 

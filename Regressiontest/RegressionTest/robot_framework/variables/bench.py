@@ -46,7 +46,7 @@ def _list(name: str, default: list[str]) -> list[str]:
 def get_variables() -> dict[str, Any]:
     return {
         "PROJECT_ROOT": str(ROOT),
-        "GATE": _env("GATE", "G4"),
+        "GATE": _env("GATE", "G5"),
         "ERESISTOR_HOST": _env("HOST", "192.168.0.55"),
         "HTTP_PORT": _int("HTTP_PORT", 80),
         "SCPI_PORT": _int("SCPI_PORT", 5025),

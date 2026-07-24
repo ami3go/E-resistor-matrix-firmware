@@ -1,52 +1,12 @@
 @echo off
-rem Copy this file to bench_config.local.bat and edit the values for your bench.
-rem The local file is intentionally not shipped in later release archives.
-
+rem Copy to bench_config.local.bat and edit for the bench.
 set "ERESISTOR_HOST=192.168.0.55"
-set "ERESISTOR_HTTP_PORT=80"
-set "ERESISTOR_SCPI_PORT=5025"
-set "ERESISTOR_TIMEOUT=3.0"
-set "ERESISTOR_GATE=G4"
-set "ERESISTOR_OUTPUT_DIR=%REGRESSION_ROOT%
-esults
-obot"
-set "ERESISTOR_ITERATIONS=30"
-set "ERESISTOR_STRESS_ITERATIONS=100"
-set "ERESISTOR_HEAP_DRIFT_LIMIT=2048"
-set "ERESISTOR_LATENCY_REGRESSION_PERCENT=15.0"
-
-rem RP2040 USB CDC diagnostic port.
+set "ERESISTOR_GATE=G5"
+set "ERESISTOR_OUTPUT_DIR=%REGRESSION_ROOT%\results\robot"
 set "ERESISTOR_SERIAL_PORT=COM17"
-set "ERESISTOR_SERIAL_BAUD=115200"
-set "ERESISTOR_SERIAL_MATCH="
-
-rem USB/VISA DMM. Use auto or a complete VISA resource string.
 set "ERESISTOR_DMM_RESOURCE=auto"
 set "ERESISTOR_DMM_IDN_CONTAINS=34401"
-set "ERESISTOR_DMM_BACKEND="
-set "ERESISTOR_DMM_INIT_COMMANDS=*CLS|CONF:RES AUTO|TRIG:SOUR IMM|SAMP:COUN 1"
-set "ERESISTOR_DMM_MEASURE_COMMAND=READ?"
-
-rem One physically connected channel; every other channel must remain OFF.
 set "ERESISTOR_HIL_CHANNEL=1"
-set "ERESISTOR_HIL_BITS=0-15"
-set "ERESISTOR_HIL_COMBINATION_MASKS=0003,0005,0009"
 set "ERESISTOR_HIL_REPEAT_CYCLES=50"
-set "ERESISTOR_HIL_ERROR_LIMIT_PERCENT=1.0"
-set "ERESISTOR_HIL_SETTLE_TIMEOUT=20.0"
-set "ERESISTOR_HIL_SAMPLE_COUNT=5"
-set "ERESISTOR_HIL_SAMPLE_INTERVAL=0.25"
-set "ERESISTOR_HIL_STABILITY_PERCENT=0.20"
-set "ERESISTOR_HIL_MINIMUM_WAIT=0.5"
-set "ERESISTOR_HIL_OFF_MIN_OHM=50000000"
-set "ERESISTOR_HIL_SERIAL_FAULT_PATTERNS=fatal|panic|assert|hardfault|queue overflow"
-
-rem Active HIL remains disabled until the fixture is intentionally authorized.
 set "ERESISTOR_ALLOW_ACTIVE_OUTPUT_TESTS=false"
 set "ERESISTOR_FIXTURE_CONFIRMATION="
-rem To authorize the fixture, use exactly:
-rem set "ERESISTOR_ALLOW_ACTIVE_OUTPUT_TESTS=true"
-rem set "ERESISTOR_FIXTURE_CONFIRMATION=E_RESISTOR_SINGLE_CHANNEL_DMM"
-
-rem Point this at the accepted Gate 2 results.json when baseline comparison is wanted.
-set "ERESISTOR_BASELINE="

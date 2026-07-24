@@ -201,6 +201,39 @@ String calculateOutputResistanceText(uint8_t channelIndex, uint16_t mask) {
 }
 
 /**
+ * @brief Format one output resistance into a caller-owned fixed buffer.
+ *
+ * Gate 5 HTTP and SCPI state formatters use this API to avoid temporary String
+ * allocations while repeatedly reporting all eight channels.
+ */
+bool formatOutputResistanceText(uint8_t channelIndex, uint16_t mask,
+                                char* destination, size_t destinationLength) {
+    if (!destination || destinationLength == 0U) return false;
+    destination[0] = '\0';
+    if (channelIndex >= CHANNEL_COUNT) {
+        snprintf(destination, destinationLength, "CONFIG ERROR");
+        return false;
+    }
+    if (mask == 0x0000U) {
+        snprintf(destination, destinationLength, "OPEN");
+        return true;
+    }
+    double ohms = 0.0;
+    if (!calcEquivFast(channelIndex, mask, ohms)) {
+        snprintf(destination, destinationLength, "CONFIG ERROR");
+        return false;
+    }
+    if (ohms >= 1000000.0) {
+        snprintf(destination, destinationLength, "%.3f MOhm", ohms / 1000000.0);
+    } else if (ohms >= 1000.0) {
+        snprintf(destination, destinationLength, "%.3f kOhm", ohms / 1000.0);
+    } else {
+        snprintf(destination, destinationLength, "%.3f Ohm", ohms);
+    }
+    return true;
+}
+
+/**
  * @brief Calculate the equivalent resistance of all active branches in one channel mask.
  * @param channelIndex  Zero-based channel index.
  * @param mask          16-bit resistance switch mask.
@@ -715,12 +748,12 @@ void appendProfileManager(String& html) {
     html += "<button type='submit'>Save current state</button>";
     html += "</form>";
 
-    html += "<form method='GET' action='/profile_apply'>";
+    html += "<form method='POST' action='/profile_apply'>";
     html += "<select name='name'>"; html += profileListOptions(); html += "</select>";
     html += "<button type='submit'>Apply profile</button>";
     html += "</form>";
 
-    html += "<form method='GET' action='/profile_delete'>";
+    html += "<form method='POST' action='/profile_delete'>";
     html += "<select name='name'>"; html += profileListOptions(); html += "</select>";
     html += "<button class='off' type='submit'>Delete profile</button>";
     html += "</form>";
@@ -807,9 +840,8 @@ void appendCombinedChannelResistorTable(String& html) {
  * @param html  HTML string that receives generated markup.
  */
 void appendLiveStateScript(String& html) {
-    html += "<script>";
-    html += "function upd(){fetch('/state').then(r=>r.text()).then(t=>{var e=document.getElementById('liveState');if(e)e.textContent=t;}).catch(()=>{});}setInterval(upd,2000);window.addEventListener('load',upd);";
-    html += "</script>";
+    // Gate 5: the polling implementation is served from /assets/app.js.
+    html += "<noscript><p class='warn'>JavaScript is required for live updates.</p></noscript>";
 }
 
 /**
@@ -822,21 +854,19 @@ void appendLiveStateScript(String& html) {
 void appendBitIndicator(String& html, uint8_t channelIndex, uint16_t mask) {
     html += "<div class='bits'>";
     for (int bit = 15; bit >= 0; bit--) {
-        bool on = (mask & (uint16_t(1) << bit)) != 0;
+        const bool on = (mask & (uint16_t(1) << bit)) != 0;
         const float resistanceOhm = getRuntimeResistanceOhms(channelIndex, uint8_t(bit));
-
-        html += "<a class='bit "; html += on ? "on" : "off";
-        html += "' href='/toggle_bit?ch="; html += String(channelIndex + 1);
-        html += "&bit="; html += String(bit);
-        html += "' title='Click to "; html += on ? "turn OFF" : "turn ON";
+        html += "<form method='POST' action='/toggle_bit'>";
+        html += "<input type='hidden' name='ch' value='"; html += String(channelIndex + 1); html += "'>";
+        html += "<input type='hidden' name='bit' value='"; html += String(bit); html += "'>";
+        html += "<button class='bit "; html += on ? "on" : "off";
+        html += "' type='submit' title='Click to "; html += on ? "turn OFF" : "turn ON";
         html += " bit "; html += String(bit);
-
         if (isfinite(resistanceOhm) && resistanceOhm > 0.0f) {
             html += " / "; html += mosfetNameForBit(uint8_t(bit));
-            html += " / "; html += String(double(resistanceOhm), 6);
-            html += " Ohm";
+            html += " / "; html += String(double(resistanceOhm), 6); html += " Ohm";
         }
-        html += "'>"; html += String(bit); html += "</a>";
+        html += "'>"; html += String(bit); html += "</button></form>";
     }
     html += "</div>";
 }

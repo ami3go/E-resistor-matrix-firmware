@@ -1,0 +1,39 @@
+PASS - firmware version 0.8.0
+PASS - API version v1
+PASS - focused app umbrella
+PASS - focused application headers exist
+PASS - HTTP service split modules
+PASS - monolithic HTTP module removed
+PASS - flash-backed CSS
+PASS - flash-backed JavaScript
+PASS - static assets cacheable
+PASS - pages reference static assets
+PASS - no inline event handlers
+PASS - fixed 4096-byte static response buffer
+PASS - shared calibration bundle limit
+PASS - chunked response writer
+PASS - calibration page streams
+PASS - calibration page does not build full String
+PASS - calibration heap telemetry
+PASS - legacy state captures one snapshot
+PASS - legacy state streams
+PASS - state formatter uses snapshot masks
+PASS - fixed-buffer resistance formatting
+PASS - large downloads stream
+PASS - all mutation routes are POST
+PASS - all legacy mutation GETs reject
+PASS - method rejection advertises POST
+PASS - canonical API v1 routes
+PASS - legacy calibration aliases retained
+PASS - focused API schemas
+PASS - SCPI fixed input buffer
+PASS - SCPI exact command table
+PASS - SCPI fixed channel parser
+PASS - SCPI help generated from registry
+PASS - SCPI browser table generated from registry
+PASS - SCPI compatibility aliases registered
+PASS - SCPI status compatibility fields preserved
+PASS - exact SCPI dispatch precedes String allocation
+PASS - Core 1 and output engine unchanged from accepted G4
+PASS - critical streamed modules have no 8-24 KB reserve
+Summary: 38 passed, 0 failed

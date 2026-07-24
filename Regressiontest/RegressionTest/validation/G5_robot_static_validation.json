@@ -1,0 +1,586 @@
+{
+  "failures": [],
+  "gate": "G5",
+  "package_version": "2.8.1",
+  "passed": true,
+  "required_gate3_ids": [
+    "G3-001",
+    "G3-002",
+    "G3-003",
+    "G3-FI-001",
+    "G3-FI-002",
+    "G3-FI-003"
+  ],
+  "required_gate4_ids": [
+    "G4-001",
+    "G4-002",
+    "G4-003",
+    "G4-FI-001"
+  ],
+  "required_gate5_ids": [
+    "G5-001",
+    "G5-002",
+    "G5-003",
+    "G5-004",
+    "G5-005",
+    "G5-006",
+    "G5-HIL-001",
+    "G5-HIL-002"
+  ],
+  "robot_dryrun": {
+    "available": true,
+    "passed": true,
+    "returncode": 0
+  },
+  "suite_count": 7,
+  "suites": [
+    {
+      "mappings": [
+        {
+          "method": "test_tcp_reachability",
+          "test_case": "NET-001 TCP Reachability",
+          "test_id": "NET-001"
+        },
+        {
+          "method": "test_http_ping",
+          "test_case": "HTTP-001 HTTP Ping",
+          "test_id": "HTTP-001"
+        },
+        {
+          "method": "test_state_schema",
+          "test_case": "HTTP-002 State Schema And Readiness",
+          "test_id": "HTTP-002"
+        },
+        {
+          "method": "test_pages",
+          "test_case": "HTTP-003 Required GUI Pages",
+          "test_id": "HTTP-003"
+        },
+        {
+          "method": "test_scpi_identity",
+          "test_case": "SCPI-001 Identity And Greeting",
+          "test_id": "SCPI-001"
+        },
+        {
+          "method": "test_scpi_state_consistency",
+          "test_case": "SCPI-002 Status And State Consistency",
+          "test_id": "SCPI-002"
+        },
+        {
+          "method": "test_calibration",
+          "test_case": "SCPI-003 Calibration Table Integrity",
+          "test_id": "SCPI-003"
+        },
+        {
+          "method": "test_calibration_storage_presence",
+          "test_case": "CAL-001 Saved Calibration Presence",
+          "test_id": "CAL-001"
+        },
+        {
+          "method": "test_scpi_error_queue",
+          "test_case": "SCPI-004 Undefined Header Error Queue",
+          "test_id": "SCPI-004"
+        },
+        {
+          "method": "test_scpi_overflow_recovery",
+          "test_case": "SCPI-005 Oversized Line Recovery",
+          "test_id": "SCPI-005"
+        },
+        {
+          "method": "test_scpi_target_calculation",
+          "test_case": "SCPI-006 Read-Only Target-Mask Calculation",
+          "test_id": "SCPI-006"
+        },
+        {
+          "method": "test_core_transport_diagnostics",
+          "test_case": "G3-001 Core Transport Diagnostics",
+          "test_id": "G3-001"
+        },
+        {
+          "method": "test_core_snapshot_consistency",
+          "test_case": "G3-002 Coherent Output Snapshot",
+          "test_id": "G3-002"
+        },
+        {
+          "method": "test_gate4_profile_diagnostics",
+          "test_case": "G4-001 Gate 4 Profile Diagnostics",
+          "test_id": "G4-001"
+        },
+        {
+          "method": "test_http_latency",
+          "test_case": "PERF-001 HTTP Latency Sample",
+          "test_id": "PERF-001"
+        },
+        {
+          "method": "test_scpi_latency",
+          "test_case": "PERF-002 SCPI Latency Sample",
+          "test_id": "PERF-002"
+        },
+        {
+          "method": "test_heap_stability",
+          "test_case": "MEM-001 Repeated State Heap Stability",
+          "test_id": "MEM-001"
+        },
+        {
+          "method": "test_concurrent_polling",
+          "test_case": "STRESS-001 Concurrent HTTP And SCPI Polling",
+          "test_id": "STRESS-001"
+        },
+        {
+          "method": "test_calibration_bundle_download",
+          "test_case": "FILES-001 Calibration Bundle Download",
+          "test_id": "FILES-001"
+        },
+        {
+          "method": "test_log_download",
+          "test_case": "LOG-001 Log Text Export",
+          "test_id": "LOG-001"
+        }
+      ],
+      "suite": "read_only.robot",
+      "test_count": 20
+    },
+    {
+      "mappings": [
+        {
+          "method": "test_tcp_reachability",
+          "test_case": "NET-001 TCP Reachability",
+          "test_id": "NET-001"
+        },
+        {
+          "method": "test_http_ping",
+          "test_case": "HTTP-001 HTTP Ping",
+          "test_id": "HTTP-001"
+        },
+        {
+          "method": "test_state_schema",
+          "test_case": "HTTP-002 State Schema And Readiness",
+          "test_id": "HTTP-002"
+        },
+        {
+          "method": "test_pages",
+          "test_case": "HTTP-003 Required GUI Pages",
+          "test_id": "HTTP-003"
+        },
+        {
+          "method": "test_scpi_identity",
+          "test_case": "SCPI-001 Identity And Greeting",
+          "test_id": "SCPI-001"
+        },
+        {
+          "method": "test_scpi_state_consistency",
+          "test_case": "SCPI-002 Status And State Consistency",
+          "test_id": "SCPI-002"
+        },
+        {
+          "method": "test_calibration",
+          "test_case": "SCPI-003 Calibration Table Integrity",
+          "test_id": "SCPI-003"
+        },
+        {
+          "method": "test_calibration_storage_presence",
+          "test_case": "CAL-001 Saved Calibration Presence",
+          "test_id": "CAL-001"
+        },
+        {
+          "method": "test_scpi_error_queue",
+          "test_case": "SCPI-004 Undefined Header Error Queue",
+          "test_id": "SCPI-004"
+        },
+        {
+          "method": "test_scpi_overflow_recovery",
+          "test_case": "SCPI-005 Oversized Line Recovery",
+          "test_id": "SCPI-005"
+        },
+        {
+          "method": "test_scpi_target_calculation",
+          "test_case": "SCPI-006 Read-Only Target-Mask Calculation",
+          "test_id": "SCPI-006"
+        },
+        {
+          "method": "test_core_transport_diagnostics",
+          "test_case": "G3-001 Core Transport Diagnostics",
+          "test_id": "G3-001"
+        },
+        {
+          "method": "test_core_snapshot_consistency",
+          "test_case": "G3-002 Coherent Output Snapshot",
+          "test_id": "G3-002"
+        },
+        {
+          "method": "test_gate4_profile_diagnostics",
+          "test_case": "G4-001 Gate 4 Profile Diagnostics",
+          "test_id": "G4-001"
+        },
+        {
+          "method": "test_http_latency",
+          "test_case": "PERF-001 HTTP Latency Sample",
+          "test_id": "PERF-001"
+        },
+        {
+          "method": "test_scpi_latency",
+          "test_case": "PERF-002 SCPI Latency Sample",
+          "test_id": "PERF-002"
+        },
+        {
+          "method": "test_heap_stability",
+          "test_case": "MEM-001 Repeated State Heap Stability",
+          "test_id": "MEM-001"
+        },
+        {
+          "method": "test_concurrent_polling",
+          "test_case": "STRESS-001 Concurrent HTTP And SCPI Polling",
+          "test_id": "STRESS-001"
+        },
+        {
+          "method": "test_calibration_bundle_download",
+          "test_case": "FILES-001 Calibration Bundle Download",
+          "test_id": "FILES-001"
+        },
+        {
+          "method": "test_log_download",
+          "test_case": "LOG-001 Log Text Export",
+          "test_id": "LOG-001"
+        },
+        {
+          "method": "test_zero_mask_command_path",
+          "test_case": "SAFE-001 Zero Mask Command Path",
+          "test_id": "SAFE-001"
+        },
+        {
+          "method": "test_repeated_all_off",
+          "test_case": "SAFE-002 Repeated All Off Command Path",
+          "test_id": "SAFE-002"
+        },
+        {
+          "method": "test_core_transport_safe_stress",
+          "test_case": "G3-003 Sequenced Safe-Output Transport Stress",
+          "test_id": "G3-003"
+        }
+      ],
+      "suite": "safe_output.robot",
+      "test_count": 23
+    },
+    {
+      "mappings": [
+        {
+          "method": "test_tcp_reachability",
+          "test_case": "NET-001 TCP Reachability",
+          "test_id": "NET-001"
+        },
+        {
+          "method": "test_http_ping",
+          "test_case": "HTTP-001 HTTP Ping",
+          "test_id": "HTTP-001"
+        },
+        {
+          "method": "test_state_schema",
+          "test_case": "HTTP-002 State Schema And Readiness",
+          "test_id": "HTTP-002"
+        },
+        {
+          "method": "test_pages",
+          "test_case": "HTTP-003 Required GUI Pages",
+          "test_id": "HTTP-003"
+        },
+        {
+          "method": "test_scpi_identity",
+          "test_case": "SCPI-001 Identity And Greeting",
+          "test_id": "SCPI-001"
+        },
+        {
+          "method": "test_scpi_state_consistency",
+          "test_case": "SCPI-002 Status And State Consistency",
+          "test_id": "SCPI-002"
+        },
+        {
+          "method": "test_calibration",
+          "test_case": "SCPI-003 Calibration Table Integrity",
+          "test_id": "SCPI-003"
+        },
+        {
+          "method": "test_calibration_storage_presence",
+          "test_case": "CAL-001 Saved Calibration Presence",
+          "test_id": "CAL-001"
+        },
+        {
+          "method": "test_scpi_error_queue",
+          "test_case": "SCPI-004 Undefined Header Error Queue",
+          "test_id": "SCPI-004"
+        },
+        {
+          "method": "test_scpi_overflow_recovery",
+          "test_case": "SCPI-005 Oversized Line Recovery",
+          "test_id": "SCPI-005"
+        },
+        {
+          "method": "test_scpi_target_calculation",
+          "test_case": "SCPI-006 Read-Only Target-Mask Calculation",
+          "test_id": "SCPI-006"
+        },
+        {
+          "method": "test_core_transport_diagnostics",
+          "test_case": "G3-001 Core Transport Diagnostics",
+          "test_id": "G3-001"
+        },
+        {
+          "method": "test_core_snapshot_consistency",
+          "test_case": "G3-002 Coherent Output Snapshot",
+          "test_id": "G3-002"
+        },
+        {
+          "method": "test_gate4_profile_diagnostics",
+          "test_case": "G4-001 Gate 4 Profile Diagnostics",
+          "test_id": "G4-001"
+        },
+        {
+          "method": "test_http_latency",
+          "test_case": "PERF-001 HTTP Latency Sample",
+          "test_id": "PERF-001"
+        },
+        {
+          "method": "test_scpi_latency",
+          "test_case": "PERF-002 SCPI Latency Sample",
+          "test_id": "PERF-002"
+        },
+        {
+          "method": "test_heap_stability",
+          "test_case": "MEM-001 Repeated State Heap Stability",
+          "test_id": "MEM-001"
+        },
+        {
+          "method": "test_concurrent_polling",
+          "test_case": "STRESS-001 Concurrent HTTP And SCPI Polling",
+          "test_id": "STRESS-001"
+        },
+        {
+          "method": "test_calibration_bundle_download",
+          "test_case": "FILES-001 Calibration Bundle Download",
+          "test_id": "FILES-001"
+        },
+        {
+          "method": "test_log_download",
+          "test_case": "LOG-001 Log Text Export",
+          "test_id": "LOG-001"
+        },
+        {
+          "method": "test_hil_fixture_discovery",
+          "test_case": "HIL-001 COM Port And DMM Discovery",
+          "test_id": "HIL-001"
+        },
+        {
+          "method": "test_hil_safe_state_precheck",
+          "test_case": "HIL-002 Fixture Safe State Precheck",
+          "test_id": "HIL-002"
+        },
+        {
+          "method": "test_gate5_start_hil_service_stress",
+          "test_case": "G5-HIL-001 Start Concurrent HTTP And SCPI Service Stress",
+          "test_id": "G5-HIL-001"
+        },
+        {
+          "method": "test_hil_single_bit_walk",
+          "test_case": "HIL-003 Single Bit Physical Resistance Walk",
+          "test_id": "HIL-003"
+        },
+        {
+          "method": "test_hil_combination_masks",
+          "test_case": "HIL-004 Combination Mask Physical Resistance",
+          "test_id": "HIL-004"
+        },
+        {
+          "method": "test_hil_repeated_switching",
+          "test_case": "HIL-005 Repeated Physical Switching",
+          "test_id": "HIL-005"
+        },
+        {
+          "method": "test_gate5_stop_hil_service_stress",
+          "test_case": "G5-HIL-002 Stop And Evaluate Concurrent Service Stress",
+          "test_id": "G5-HIL-002"
+        },
+        {
+          "method": "test_gate4_profile_snapshot_observation",
+          "test_case": "G4-003 Coherent Profile Snapshot Observation",
+          "test_id": "G4-003"
+        },
+        {
+          "method": "test_hil_serial_health",
+          "test_case": "HIL-006 Serial Fault Log Inspection",
+          "test_id": "HIL-006"
+        },
+        {
+          "method": "test_hil_serial_diagnostic",
+          "test_case": "HIL-008 Deterministic USB Serial Diagnostic",
+          "test_id": "HIL-008"
+        },
+        {
+          "method": "test_hil_final_all_off",
+          "test_case": "HIL-007 Final All Off Isolation Measurement",
+          "test_id": "HIL-007"
+        }
+      ],
+      "suite": "hil_single_channel.robot",
+      "test_count": 31
+    },
+    {
+      "mappings": [
+        {
+          "method": "test_state_schema",
+          "test_case": "HTTP-002 State Schema And Gate Match",
+          "test_id": "HTTP-002"
+        },
+        {
+          "method": "test_hil_fixture_discovery",
+          "test_case": "HIL-001 COM Port And DMM Discovery",
+          "test_id": "HIL-001"
+        },
+        {
+          "method": "test_hil_safe_state_precheck",
+          "test_case": "HIL-002 Fixture Safe State Precheck",
+          "test_id": "HIL-002"
+        },
+        {
+          "method": "test_gate3_test_mode",
+          "test_case": "G3-FI-001 Fault-Injection Build Detection",
+          "test_id": "G3-FI-001"
+        },
+        {
+          "method": "test_gate3_invalidated_command_no_ghost_actuation",
+          "test_case": "G3-FI-002 Queued Generation Invalidation Has No Ghost Actuation",
+          "test_id": "G3-FI-002"
+        },
+        {
+          "method": "test_gate3_timeout_no_ghost_actuation",
+          "test_case": "G3-FI-003 Timed-Out Command Has No Ghost Actuation",
+          "test_id": "G3-FI-003"
+        },
+        {
+          "method": "test_hil_final_all_off",
+          "test_case": "HIL-007 Final All Off Isolation Measurement",
+          "test_id": "HIL-007"
+        }
+      ],
+      "suite": "gate3_transport_fault.robot",
+      "test_count": 7
+    },
+    {
+      "mappings": [
+        {
+          "method": "test_state_schema",
+          "test_case": "HTTP-002 State Schema And Gate Match",
+          "test_id": "HTTP-002"
+        },
+        {
+          "method": "test_calibration_storage_presence",
+          "test_case": "CAL-001 Saved Calibration Presence",
+          "test_id": "CAL-001"
+        },
+        {
+          "method": "test_core_transport_diagnostics",
+          "test_case": "G3-001 Core Transport Diagnostics",
+          "test_id": "G3-001"
+        },
+        {
+          "method": "test_gate4_profile_diagnostics",
+          "test_case": "G4-001 Gate 4 Profile Diagnostics",
+          "test_id": "G4-001"
+        },
+        {
+          "method": "test_gate4_zero_profile_stress",
+          "test_case": "G4-002 Thousand-Cycle Two-Phase Profile Stress",
+          "test_id": "G4-002"
+        },
+        {
+          "method": "test_scpi_state_consistency",
+          "test_case": "SCPI-002 Final State Consistency",
+          "test_id": "SCPI-002"
+        }
+      ],
+      "suite": "gate4_profile.robot",
+      "test_count": 6
+    },
+    {
+      "mappings": [
+        {
+          "method": "test_state_schema",
+          "test_case": "HTTP-002 State Schema And Gate Match",
+          "test_id": "HTTP-002"
+        },
+        {
+          "method": "test_calibration_storage_presence",
+          "test_case": "CAL-001 Saved Calibration Presence",
+          "test_id": "CAL-001"
+        },
+        {
+          "method": "test_hil_fixture_discovery",
+          "test_case": "HIL-001 COM Port And DMM Discovery",
+          "test_id": "HIL-001"
+        },
+        {
+          "method": "test_hil_safe_state_precheck",
+          "test_case": "HIL-002 Fixture Safe State Precheck",
+          "test_id": "HIL-002"
+        },
+        {
+          "method": "test_gate3_test_mode",
+          "test_case": "G3-FI-001 Fault-Injection Build Detection",
+          "test_id": "G3-FI-001"
+        },
+        {
+          "method": "test_gate4_profile_failure_after_clear",
+          "test_case": "G4-FI-001 Failure After Global Clear Leaves All Outputs Off",
+          "test_id": "G4-FI-001"
+        },
+        {
+          "method": "test_hil_final_all_off",
+          "test_case": "HIL-007 Final All Off Isolation Measurement",
+          "test_id": "HIL-007"
+        }
+      ],
+      "suite": "gate4_profile_fault.robot",
+      "test_count": 7
+    },
+    {
+      "mappings": [
+        {
+          "method": "test_state_schema",
+          "test_case": "HTTP-002 State Schema And Gate Match",
+          "test_id": "HTTP-002"
+        },
+        {
+          "method": "test_gate5_browser_assets",
+          "test_case": "G5-001 Browser Content And Flash-Backed Assets",
+          "test_id": "G5-001"
+        },
+        {
+          "method": "test_gate5_api_v1_schema",
+          "test_case": "G5-002 API V1 Schema And Compatibility Aliases",
+          "test_id": "G5-002"
+        },
+        {
+          "method": "test_gate5_http_mutation_methods",
+          "test_case": "G5-003 HTTP Mutation Method Policy",
+          "test_id": "G5-003"
+        },
+        {
+          "method": "test_gate5_scpi_alias_compatibility",
+          "test_case": "G5-004 SCPI Registry And Alias Compatibility",
+          "test_id": "G5-004"
+        },
+        {
+          "method": "test_gate5_calibration_heap_reduction",
+          "test_case": "G5-005 Calibration Page Temporary Heap Reduction",
+          "test_id": "G5-005"
+        },
+        {
+          "method": "test_gate5_page_heap_and_state_latency",
+          "test_case": "G5-006 Thousand-Page Heap And State Latency",
+          "test_id": "G5-006"
+        }
+      ],
+      "suite": "gate5_service.robot",
+      "test_count": 7
+    }
+  ],
+  "test_count": 101
+}

@@ -22,6 +22,7 @@ class RobotFrameworkLayoutTests(unittest.TestCase):
             RF / "suites" / "gate3_transport_fault.robot",
             RF / "suites" / "gate4_profile.robot",
             RF / "suites" / "gate4_profile_fault.robot",
+            RF / "suites" / "gate5_service.robot",
             ROOT / "requirements-robot.txt",
             ROOT / "setup_robot_environment.bat",
             ROOT / "run_robot_read_only.bat",
@@ -30,6 +31,7 @@ class RobotFrameworkLayoutTests(unittest.TestCase):
             ROOT / "run_robot_gate3_transport_fault.bat",
             ROOT / "run_robot_gate4_profile.bat",
             ROOT / "run_robot_gate4_profile_fault.bat",
+            ROOT / "run_robot_gate5_service.bat",
             ROOT / "run_robot_all_safe.bat",
             ROOT / "run_robot_custom.bat",
             ROOT / "validate_robot_suites.bat",
@@ -41,7 +43,7 @@ class RobotFrameworkLayoutTests(unittest.TestCase):
 
     def test_gate_ids_are_mapped(self) -> None:
         text = "\n".join(p.read_text(encoding="utf-8") for p in (RF / "suites").glob("*.robot"))
-        for test_id in ("G3-001", "G3-002", "G3-003", "G3-FI-001", "G3-FI-002", "G3-FI-003", "G4-001", "G4-002", "G4-003", "G4-FI-001"):
+        for test_id in ("G3-001", "G3-002", "G3-003", "G3-FI-001", "G3-FI-002", "G3-FI-003", "G4-001", "G4-002", "G4-003", "G4-FI-001", "G5-001", "G5-002", "G5-003", "G5-004", "G5-005", "G5-006", "G5-HIL-001", "G5-HIL-002"):
             self.assertIn(test_id, text)
 
     def test_runtime_ids_are_mapped(self) -> None:
@@ -65,7 +67,7 @@ class RobotFrameworkLayoutTests(unittest.TestCase):
         spec.loader.exec_module(module)
         args = module.parse_args(["--profile", "read_only"])
         self.assertEqual(args.profile, "read_only")
-        self.assertEqual(args.gate, "G4")
+        self.assertEqual(args.gate, "G5")
         self.assertEqual(args.hil_repeat_cycles, 50)
 
     def test_windows_bat_stable_root_usage(self) -> None:

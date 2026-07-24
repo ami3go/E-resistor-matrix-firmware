@@ -1,0 +1,6 @@
+PASS - core_transport.cpp
+PASS - core1_event_queue.cpp
+PASS - shift_registers.cpp
+PASS - core1_output_engine.cpp
+PASS - core1_runtime.cpp
+PASS - core_command.cpp (focused stub)

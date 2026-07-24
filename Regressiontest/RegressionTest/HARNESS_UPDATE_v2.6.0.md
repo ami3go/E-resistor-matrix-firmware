@@ -1,4 +1,4 @@
-# Regression harness update v2.7.0
+# Regression harness update v2.7.2
 
 - Converted the release surface to Robot Framework only.
 - Removed pure-Python BAT launchers, source/build Robot workflows, and Arduino CLI execution from the regression package.

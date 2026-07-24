@@ -1,0 +1,301 @@
+{
+  "gate": "G5",
+  "firmware_version": "0.8.0",
+  "baseline_firmware": "0.7.2",
+  "passed": 38,
+  "failed": 0,
+  "total": 38,
+  "checks": [
+    {
+      "name": "firmware version 0.8.0",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "API version v1",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "focused app umbrella",
+      "passed": true,
+      "actual": 18,
+      "expected": "<=20 lines"
+    },
+    {
+      "name": "focused application headers exist",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "HTTP service split modules",
+      "passed": true,
+      "actual": [
+        "http_control.cpp",
+        "http_calibration_page.cpp",
+        "http_maintenance.cpp",
+        "http_diagnostics.cpp",
+        "http_api_v1.cpp",
+        "http_response_writer.cpp",
+        "http_page_helpers.cpp",
+        "http_static_assets.cpp",
+        "http_routes.cpp"
+      ],
+      "expected": null
+    },
+    {
+      "name": "monolithic HTTP module removed",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "flash-backed CSS",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "flash-backed JavaScript",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "static assets cacheable",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "pages reference static assets",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "no inline event handlers",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "fixed 4096-byte static response buffer",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "shared calibration bundle limit",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "chunked response writer",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "calibration page streams",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "calibration page does not build full String",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "calibration heap telemetry",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "legacy state captures one snapshot",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "legacy state streams",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "state formatter uses snapshot masks",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "fixed-buffer resistance formatting",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "large downloads stream",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "all mutation routes are POST",
+      "passed": true,
+      "actual": [
+        "/set",
+        "/toggle_bit",
+        "/alloff",
+        "/target_apply",
+        "/identify_led",
+        "/profile_save",
+        "/profile_apply",
+        "/profile_delete",
+        "/factory_reset",
+        "/safety_save",
+        "/network_save",
+        "/network_delete",
+        "/file_delete",
+        "/meta_save",
+        "/meta_delete",
+        "/upload_config",
+        "/calibration_import_all",
+        "/firmware_update"
+      ],
+      "expected": null
+    },
+    {
+      "name": "all legacy mutation GETs reject",
+      "passed": true,
+      "actual": [
+        "/set",
+        "/toggle_bit",
+        "/alloff",
+        "/target_apply",
+        "/identify_led",
+        "/profile_save",
+        "/profile_apply",
+        "/profile_delete",
+        "/factory_reset",
+        "/safety_save",
+        "/network_save",
+        "/network_delete",
+        "/file_delete",
+        "/meta_save",
+        "/meta_delete",
+        "/upload_config",
+        "/calibration_import_all",
+        "/firmware_update"
+      ],
+      "expected": null
+    },
+    {
+      "name": "method rejection advertises POST",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "canonical API v1 routes",
+      "passed": true,
+      "actual": [
+        "/api/v1/health",
+        "/api/v1/state",
+        "/api/v1/channels",
+        "/api/v1/diagnostics",
+        "/api/v1/calibration/files",
+        "/api/v1/calibration/download",
+        "/api/v1/calibration/download_all",
+        "/api/v1/control/channel",
+        "/api/v1/control/all_off",
+        "/api/v1/control/profile",
+        "/api/v1/control/target",
+        "/api/v1/control/toggle",
+        "/api/v1/identify"
+      ],
+      "expected": null
+    },
+    {
+      "name": "legacy calibration aliases retained",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "focused API schemas",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "SCPI fixed input buffer",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "SCPI exact command table",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "SCPI fixed channel parser",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "SCPI help generated from registry",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "SCPI browser table generated from registry",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "SCPI compatibility aliases registered",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "SCPI status compatibility fields preserved",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "exact SCPI dispatch precedes String allocation",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "Core 1 and output engine unchanged from accepted G4",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "critical streamed modules have no 8-24 KB reserve",
+      "passed": true,
+      "actual": [],
+      "expected": []
+    }
+  ],
+  "limitations": "Structural validation only; Arduino-Pico target build and connected Gate 5 HIL remain required."
+}

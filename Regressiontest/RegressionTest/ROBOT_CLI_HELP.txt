@@ -1,5 +1,5 @@
 usage: run_robot.py [-h]
-                    [--profile {gate3_transport_fault,hil_single_channel,read_only,safe_output}]
+                    [--profile {gate3_transport_fault,gate4_profile,gate4_profile_fault,gate5_service,hil_single_channel,read_only,safe_output}]
                     [--gate {G0,G1,G2,G3,G4,G5,G6,G7,G8,G9}] [--output OUTPUT]
                     [--host HOST] [--http-port HTTP_PORT]
                     [--scpi-port SCPI_PORT] [--timeout TIMEOUT]
@@ -37,7 +37,7 @@ Run E-Resistor regression using Robot Framework
 
 options:
   -h, --help            show this help message and exit
-  --profile {gate3_transport_fault,hil_single_channel,read_only,safe_output}
+  --profile {gate3_transport_fault,gate4_profile,gate4_profile_fault,gate5_service,hil_single_channel,read_only,safe_output}
   --gate {G0,G1,G2,G3,G4,G5,G6,G7,G8,G9}
   --output OUTPUT
   --host HOST

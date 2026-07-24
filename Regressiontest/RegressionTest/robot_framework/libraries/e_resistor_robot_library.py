@@ -81,7 +81,7 @@ class EResistorRobotLibrary:
     and then converts PASS/FAIL/SKIP into Robot Framework status.
     """
 
-    ROBOT_LIBRARY_VERSION = "2.7.0"
+    ROBOT_LIBRARY_VERSION = "2.8.1"
 
     def __init__(self) -> None:
         self.initialized = False
@@ -104,7 +104,7 @@ class EResistorRobotLibrary:
         self,
         output_dir: str,
         profile: str = "read_only",
-        gate: str = "G3",
+        gate: str = "G5",
         host: str = "192.168.0.55",
         http_port: int = 80,
         scpi_port: int = 5025,
@@ -152,7 +152,7 @@ class EResistorRobotLibrary:
             raise AssertionError(f"Unsupported optimization gate: {gate!r}")
         if profile not in {
             "read_only", "safe_output", "hil_single_channel", "gate3_transport_fault",
-            "gate4_profile", "gate4_profile_fault", "active_output", "storage", "ota", "watchdog",
+            "gate4_profile", "gate4_profile_fault", "gate5_service", "active_output", "storage", "ota", "watchdog",
         }:
             raise AssertionError(f"Unsupported regression profile: {profile!r}")
 
@@ -352,9 +352,11 @@ class EResistorRobotLibrary:
                 f"Regression evidence finalized and verified "
                 f"({verification['checked_files']} files): {self.output_dir / 'report.md'}"
             )
+            self.logger.close()
             return summary["overall_status"]
         except Exception:
             self.logger.log.exception("Robot suite finalization failed")
+            self.logger.close()
             raise
 
     @keyword("Safety Cleanup After Test")
@@ -429,6 +431,7 @@ class EResistorRobotLibrary:
         assert self.output_dir is not None
         assert self.logger is not None
 
+        self.suite._stop_gate5_hil_stress()
         if self.config.profile in {"safe_output", "hil_single_channel", "gate3_transport_fault", "gate4_profile", "gate4_profile_fault", "active_output", "ota", "watchdog"}:
             self.suite.best_effort_all_off()
         try:

@@ -1,6 +1,6 @@
 # Dot-source this file before a direct Robot run, or translate it to bench_config.local.bat.
 $env:ERESISTOR_HOST = "192.168.0.55"
-$env:ERESISTOR_GATE = "G4"
+$env:ERESISTOR_GATE = "G5"
 $env:ERESISTOR_SERIAL_PORT = "COM17"
 $env:ERESISTOR_SERIAL_BAUD = "115200"
 $env:ERESISTOR_DMM_RESOURCE = "auto"

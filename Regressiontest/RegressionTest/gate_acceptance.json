@@ -12,22 +12,40 @@
     "description": "Numeric model and target search"
   },
   "G3": {
-    "firmware_version": "0.6.0",
-    "description": "Dual-core ownership and command transport",
+    "firmware_version": "0.6.2",
+    "description": "Closed: deterministic Core1 ownership and command transport",
+    "status": "PASS",
+    "board_serial": "503359277A981F9F",
+    "final_masks": "0000"
+  },
+  "G4": {
+    "firmware_version": "0.7.2",
+    "description": "Closed: two-phase eight-channel profile switching",
+    "status": "PASS",
+    "board_serial": "503359277A981F9F",
+    "final_masks": "0000"
+  },
+  "G5": {
+    "firmware_version": "0.8.0",
+    "description": "HTTP and SCPI restructuring",
+    "status": "PENDING_HIL",
+    "board_serial": "503359277A981F9F",
     "required_robot_tests": [
-      "G3-001",
-      "G3-002",
-      "G3-003",
-      "G3-FI-001",
-      "G3-FI-002",
-      "G3-FI-003"
+      "G5-001",
+      "G5-002",
+      "G5-003",
+      "G5-004",
+      "G5-005",
+      "G5-006",
+      "G5-HIL-001",
+      "G5-HIL-002"
     ],
     "normal_profiles": [
       "read_only",
       "safe_output",
+      "gate5_service",
       "hil_single_channel"
     ],
-    "fault_profile": "gate3_transport_fault",
     "final_masks": "0000"
   }
 }

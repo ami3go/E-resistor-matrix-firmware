@@ -17,6 +17,7 @@ SUITES = {
     "gate3_transport_fault": RF_ROOT / "suites" / "gate3_transport_fault.robot",
     "gate4_profile": RF_ROOT / "suites" / "gate4_profile.robot",
     "gate4_profile_fault": RF_ROOT / "suites" / "gate4_profile_fault.robot",
+    "gate5_service": RF_ROOT / "suites" / "gate5_service.robot",
 }
 
 
@@ -25,7 +26,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Run E-Resistor regression using Robot Framework"
     )
     parser.add_argument("--profile", choices=sorted(SUITES), default="read_only")
-    parser.add_argument("--gate", choices=[f"G{i}" for i in range(10)], default="G4")
+    parser.add_argument("--gate", choices=[f"G{i}" for i in range(10)], default="G5")
     parser.add_argument("--output", default=str(ROOT / "results" / "robot"))
     parser.add_argument("--host", default="192.168.0.55")
     parser.add_argument("--http-port", type=int, default=80)

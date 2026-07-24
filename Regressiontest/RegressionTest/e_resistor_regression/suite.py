@@ -6,6 +6,7 @@ import math
 import re
 import socket
 import statistics
+import threading
 import time
 from pathlib import Path
 from typing import Callable
@@ -52,6 +53,14 @@ class RegressionSuite:
         self.hil_measurements: list[HilMeasurement] = []
         self.gate_compatible: bool = False
         self.detected_firmware_version: str = ""
+        self.gate5_hil_stress_active = False
+        self.gate5_hil_stress_stop = threading.Event()
+        self.gate5_hil_stress_thread: threading.Thread | None = None
+        self.gate5_hil_http_poll_count = 0
+        self.gate5_hil_http_errors: list[str] = []
+        self.gate5_hil_http_latencies_ms: list[float] = []
+        self.gate5_hil_scpi_poll_count = 0
+        self.gate5_hil_scpi_latencies_ms: list[float] = []
 
     def add(self, test_id: str, name: str, function: Callable[[], tuple[str, str, dict, dict]]) -> None:
         start = time.perf_counter_ns()
@@ -89,7 +98,11 @@ class RegressionSuite:
             "0.5.0": "G2",
             "0.6.0": "G3",
             "0.6.1": "G3",
+            "0.6.2": "G3",
             "0.7.0": "G4",
+            "0.7.1": "G4",
+            "0.7.2": "G4",
+            "0.8.0": "G5",
         }.get(version.strip())
 
     def _query_scpi_state(
@@ -109,6 +122,9 @@ class RegressionSuite:
             total_elapsed += elapsed
             parsed = parse_scpi_state(last_response)
             if len(parsed) == 8:
+                if self.gate5_hil_stress_active:
+                    self.gate5_hil_scpi_poll_count += 1
+                    self.gate5_hil_scpi_latencies_ms.append(total_elapsed)
                 return last_response, parsed, total_elapsed, attempt
             diagnostic = {
                 "attempt": attempt,
@@ -550,6 +566,8 @@ class RegressionSuite:
             "result_overflows", "timeouts", "expired", "generation_rejects",
             "invalid_commands", "policy_installs", "core0_failsafe",
         }
+        if int(self.config.gate[1:]) >= 4:
+            required.update({"startup_stage", "ready_token"})
         missing = sorted(required - values.keys())
         failures: list[str] = []
         if missing:
@@ -564,6 +582,11 @@ class RegressionSuite:
             failures.append("no installed Core 1 policy")
         if values.get("last_completed", 0) > values.get("last_submitted", 0):
             failures.append("last_completed exceeds last_submitted")
+        if int(self.config.gate[1:]) >= 4:
+            if values.get("startup_stage") != 8:
+                failures.append(f"startup_stage={values.get('startup_stage')} expected=8")
+            if values.get("ready_token") != 0xC011CAFE:
+                failures.append(f"ready_token={values.get('ready_token')} expected={0xC011CAFE}")
         metrics = {f"core_transport_{key}": value for key, value in values.items()}
         metrics["core_transport_query_ms"] = elapsed
         return (
@@ -1325,6 +1348,536 @@ class RegressionSuite:
             {"command_response": response, "samples": samples, "before": before, "after": after,
              "after_raw": after_raw, "state_attempts": state_attempts,
              "state_raw": response_excerpt(state_text), "failures": failures},
+        )
+
+
+    def _gate5_skip_unless_applicable(self):
+        if int(self.config.gate[1:]) < 5:
+            return "SKIP", "Gate 5 service validation requires G5 or later", {}, {}
+        return None
+
+    @staticmethod
+    def _lower_headers(headers) -> dict[str, str]:
+        return {str(key).lower(): str(value) for key, value in headers.items()}
+
+    def _gate4_read_only_baseline(self) -> tuple[dict, Path]:
+        bundled = (
+            Path(__file__).resolve().parents[1]
+            / "baselines"
+            / "G4_v0.7.2_board_503359277A981F9F"
+            / "results.json"
+        )
+        candidate = Path(self.config.baseline).expanduser().resolve() if self.config.baseline else bundled
+        if not candidate.exists():
+            raise AssertionError(f"Gate 4 baseline is missing: {candidate}")
+        return json.loads(candidate.read_text(encoding="utf-8")), candidate
+
+    def test_gate5_browser_assets(self):
+        skipped = self._gate5_skip_unless_applicable()
+        if skipped:
+            return skipped
+        failures: list[str] = []
+        page_details: dict[str, dict] = {}
+        for path in ("/", "/settings", "/files", "/scpi"):
+            response = self.http.request(path)
+            body_lower = response.text.lower()
+            page_details[path] = {
+                "status": response.status,
+                "bytes": len(response.body),
+                "elapsed_ms": response.elapsed_ms,
+            }
+            if response.status != 200:
+                failures.append(f"{path}: HTTP {response.status}")
+                continue
+            if "/assets/app.css" not in body_lower or "/assets/app.js" not in body_lower:
+                failures.append(f"{path}: external CSS/JS references missing")
+            forbidden = ("<style", " onclick=", " onchange=", " onload=", " onsubmit=")
+            present = [token for token in forbidden if token in body_lower]
+            if present:
+                failures.append(f"{path}: inline browser content found {present}")
+
+        asset_details: dict[str, dict] = {}
+        for path, content_marker in (
+            ("/assets/app.css", "text/css"),
+            ("/assets/app.js", "javascript"),
+        ):
+            response = self.http.request(path)
+            headers = self._lower_headers(response.headers)
+            cache = headers.get("cache-control", "")
+            content_type = headers.get("content-type", "")
+            asset_details[path] = {
+                "status": response.status,
+                "bytes": len(response.body),
+                "cache_control": cache,
+                "content_type": content_type,
+                "etag": headers.get("etag", ""),
+            }
+            if response.status != 200 or not response.body:
+                failures.append(f"{path}: missing asset, HTTP {response.status}")
+            if "max-age=" not in cache.lower() or "immutable" not in cache.lower():
+                failures.append(f"{path}: cache policy is not immutable: {cache!r}")
+            if content_marker not in content_type.lower():
+                failures.append(f"{path}: unexpected content type {content_type!r}")
+
+        return (
+            "PASS" if not failures else "FAIL",
+            f"pages={len(page_details)}, assets={len(asset_details)}, failures={len(failures)}",
+            {
+                "gate5_browser_page_count": len(page_details),
+                "gate5_static_asset_count": len(asset_details),
+                "gate5_browser_failure_count": len(failures),
+            },
+            {"pages": page_details, "assets": asset_details, "failures": failures},
+        )
+
+    def test_gate5_api_v1_schema(self):
+        skipped = self._gate5_skip_unless_applicable()
+        if skipped:
+            return skipped
+        failures: list[str] = []
+        payloads: dict[str, dict] = {}
+        for path in ("/api/v1/health", "/api/v1/state", "/api/v1/channels", "/api/v1/diagnostics"):
+            response = self.http.request(path)
+            if response.status != 200:
+                failures.append(f"{path}: HTTP {response.status}")
+                continue
+            try:
+                payload = json.loads(response.text)
+            except Exception as exc:
+                failures.append(f"{path}: invalid JSON: {exc}")
+                continue
+            payloads[path] = payload
+            if payload.get("schema_version") != 1:
+                failures.append(f"{path}: schema_version={payload.get('schema_version')!r}")
+
+        health = payloads.get("/api/v1/health", {})
+        state = payloads.get("/api/v1/state", {})
+        channels = payloads.get("/api/v1/channels", {})
+        diagnostics = payloads.get("/api/v1/diagnostics", {})
+        if health.get("api_version") != "v1" or not health.get("ready"):
+            failures.append(f"health API not ready: {health}")
+        identity = state.get("identity", {})
+        api_firmware_version = str(identity.get("version", ""))
+        if api_firmware_version != "0.8.0":
+            failures.append(f"state identity mismatch: {identity}")
+        if self.detected_firmware_version and api_firmware_version != self.detected_firmware_version:
+            failures.append(
+                f"API version {api_firmware_version} differs from legacy state {self.detected_firmware_version}"
+            )
+        state_channels = state.get("channels", [])
+        focused_channels = channels.get("channels", [])
+        if len(state_channels) != 8 or len(focused_channels) != 8:
+            failures.append(
+                f"channel schema sizes state={len(state_channels)}, focused={len(focused_channels)}"
+            )
+        else:
+            state_masks = [str(item.get("mask", "")).upper() for item in state_channels]
+            focused_masks = [str(item.get("mask", "")).upper() for item in focused_channels]
+            if state_masks != focused_masks:
+                failures.append(f"API channel mask mismatch: {state_masks} != {focused_masks}")
+        for key in ("startup", "transport", "http", "heap"):
+            if not isinstance(diagnostics.get(key), dict):
+                failures.append(f"diagnostics section missing: {key}")
+
+        alias_pairs: dict[str, dict] = {}
+        for canonical, alias in (
+            ("/api/v1/calibration/files", "/api/calibration/files"),
+            ("/api/v1/calibration/download_all", "/api/calibration/download_all"),
+        ):
+            current = self.http.request(canonical)
+            legacy = self.http.request(alias)
+            same = current.status == legacy.status == 200 and current.body == legacy.body
+            alias_pairs[alias] = {
+                "canonical": canonical,
+                "status": [current.status, legacy.status],
+                "bytes": [len(current.body), len(legacy.body)],
+                "identical": same,
+            }
+            if not same:
+                failures.append(f"compatibility alias differs: {alias} vs {canonical}")
+
+        legacy_text, legacy_state, _ = self._get_state()
+        if len(legacy_state.get("channels", {})) != 8:
+            failures.append("legacy /state did not retain eight-channel schema")
+        elif len(state_channels) == 8:
+            legacy_masks = [legacy_state["channels"][ch]["mask"] for ch in range(1, 9)]
+            api_masks = [str(item.get("mask", "")).upper() for item in state_channels]
+            if legacy_masks != api_masks:
+                failures.append(f"legacy/API masks differ: {legacy_masks} != {api_masks}")
+
+        return (
+            "PASS" if not failures else "FAIL",
+            f"endpoints={len(payloads)}/4, aliases={len(alias_pairs)}, failures={len(failures)}",
+            {
+                "gate5_api_v1_endpoint_count": len(payloads),
+                "gate5_api_v1_channel_count": len(state_channels),
+                "gate5_api_alias_count": len(alias_pairs),
+                "gate5_api_schema_failure_count": len(failures),
+            },
+            {
+                "payloads": payloads,
+                "aliases": alias_pairs,
+                "legacy_state_excerpt": response_excerpt(legacy_text),
+                "failures": failures,
+            },
+        )
+
+    def test_gate5_http_mutation_methods(self):
+        skipped = self._gate5_skip_unless_applicable()
+        if skipped:
+            return skipped
+        mutation_paths = (
+            "/set", "/toggle_bit", "/alloff", "/target_apply", "/identify_led",
+            "/profile_save", "/profile_apply", "/profile_delete", "/factory_reset",
+            "/safety_save", "/network_save", "/network_delete", "/file_delete",
+            "/meta_save", "/meta_delete", "/upload_config", "/calibration_import_all",
+            "/firmware_update", "/api/upload_config", "/api/calibration/upload",
+        )
+        before_text, before, _ = self._get_state()
+        before_diag_response = self.http.request("/api/v1/diagnostics")
+        before_diag = json.loads(before_diag_response.text)
+        results: dict[str, dict] = {}
+        failures: list[str] = []
+        for path in mutation_paths:
+            response = self.http.request(path, method="GET")
+            headers = self._lower_headers(response.headers)
+            results[path] = {
+                "status": response.status,
+                "allow": headers.get("allow", ""),
+                "body": response_excerpt(response.text),
+            }
+            if response.status != 405:
+                failures.append(f"{path}: expected 405, received {response.status}")
+            if "post" not in headers.get("allow", "").lower():
+                failures.append(f"{path}: Allow header does not require POST")
+        after_text, after, _ = self._get_state()
+        after_diag = json.loads(self.http.request("/api/v1/diagnostics").text)
+
+        before_masks = [before.get("channels", {}).get(ch, {}).get("mask") for ch in range(1, 9)]
+        after_masks = [after.get("channels", {}).get(ch, {}).get("mask") for ch in range(1, 9)]
+        if before_masks != after_masks:
+            failures.append(f"GET mutation probes changed masks: {before_masks} -> {after_masks}")
+        before_sequence = before.get("core_transport_last_submitted_sequence")
+        after_sequence = after.get("core_transport_last_submitted_sequence")
+        if before_sequence != after_sequence:
+            failures.append(f"GET mutation probes submitted output command: {before_sequence} -> {after_sequence}")
+        before_rejected = int(before_diag.get("http", {}).get("method_rejections", 0))
+        after_rejected = int(after_diag.get("http", {}).get("method_rejections", 0))
+        rejected_delta = after_rejected - before_rejected
+        if rejected_delta != len(mutation_paths):
+            failures.append(
+                f"method rejection counter delta={rejected_delta}, expected={len(mutation_paths)}"
+            )
+
+        return (
+            "PASS" if not failures else "FAIL",
+            f"GET probes={len(mutation_paths)}, rejected_delta={rejected_delta}, failures={len(failures)}",
+            {
+                "gate5_http_mutation_probe_count": len(mutation_paths),
+                "gate5_http_method_rejection_delta": rejected_delta,
+                "gate5_http_mutation_failure_count": len(failures),
+            },
+            {
+                "responses": results,
+                "before_state": response_excerpt(before_text),
+                "after_state": response_excerpt(after_text),
+                "before_masks": before_masks,
+                "after_masks": after_masks,
+                "failures": failures,
+            },
+        )
+
+    def test_gate5_scpi_alias_compatibility(self):
+        skipped = self._gate5_skip_unless_applicable()
+        if skipped:
+            return skipped
+        failures: list[str] = []
+        pair_results: dict[str, dict] = {}
+        with ScpiClient(self.config.host, self.config.scpi_port, max(self.config.timeout_s, 5.0), self.logger) as client:
+            exact_pairs = (
+                ("SYST:SER?", "SYSTEM:SERIAL?"),
+                ("SYST:VERS?", "SYSTEM:VERSION?"),
+                ("FIRM:VERS?", "FIRMWARE:VERSION?"),
+                ("SYST:CORE:TRANSPORT?", "SYSTEM:CORE:TRANSPORT?"),
+                ("SYST:CORE:SNAPSHOT?", "SYSTEM:CORE:SNAPSHOT?"),
+                ("SYST:CORE:PROFILE?", "SYSTEM:CORE:PROFILE?"),
+                ("CAL:STATUS?", "CALIBRATION:STATUS?"),
+            )
+            for canonical, alias in exact_pairs:
+                left, left_ms = client.query(canonical, response_timeout_s=5.0)
+                right, right_ms = client.query(alias, response_timeout_s=5.0)
+                identical = left == right and bool(left)
+                pair_results[alias] = {
+                    "canonical": canonical,
+                    "identical": identical,
+                    "canonical_response": response_excerpt(left),
+                    "alias_response": response_excerpt(right),
+                    "latency_ms": [left_ms, right_ms],
+                }
+                if not identical:
+                    failures.append(f"SCPI alias mismatch: {canonical} != {alias}")
+
+            status_a, _ = client.query("SYST:STAT?", response_timeout_s=5.0)
+            status_b, _ = client.query("SYSTEM:STATUS?", response_timeout_s=5.0)
+            try:
+                parsed_a = parse_key_value_response(status_a)
+                parsed_b = parse_key_value_response(status_b)
+                if set(parsed_a) != set(parsed_b):
+                    failures.append("SYSTEM:STATUS? key set differs from SYST:STAT?")
+                for key in ("fw_version", "serial", "cal_saved_mask", "cal_loaded_mask", "cal_error_mask", "core1_ready", "transport_generation"):
+                    if parsed_a.get(key) != parsed_b.get(key):
+                        failures.append(f"status alias stable field differs: {key}")
+            except Exception as exc:
+                parsed_a = {}
+                parsed_b = {}
+                failures.append(f"status alias parse failed: {exc}")
+
+            help_text, _ = client.query("HELP?", response_timeout_s=8.0)
+
+        scpi_page = self.http.request("/scpi")
+        if scpi_page.status != 200:
+            failures.append(f"/scpi page HTTP {scpi_page.status}")
+        canonical_commands = (
+            "*IDN?", "SYST:SER?", "SYST:VERS?", "FIRM:VERS?", "STATE?",
+            "SYST:STAT?", "SYST:CORE:TRANSPORT?", "SYST:CORE:SNAPSHOT?",
+            "SYST:CORE:PROFILE?", "CAL:STATUS?", "ALL:OFF",
+        )
+        for command in canonical_commands:
+            if command not in help_text:
+                failures.append(f"HELP? missing {command}")
+            if command not in scpi_page.text:
+                failures.append(f"/scpi registry table missing {command}")
+
+        return (
+            "PASS" if not failures else "FAIL",
+            f"alias_pairs={len(pair_results) + 1}, registry_commands={len(canonical_commands)}, failures={len(failures)}",
+            {
+                "gate5_scpi_alias_pair_count": len(pair_results) + 1,
+                "gate5_scpi_registry_command_count": len(canonical_commands),
+                "gate5_scpi_alias_failure_count": len(failures),
+            },
+            {
+                "pairs": pair_results,
+                "status_canonical": parsed_a,
+                "status_alias": parsed_b,
+                "help_excerpt": response_excerpt(help_text, 2000),
+                "failures": failures,
+            },
+        )
+
+    def test_gate5_calibration_heap_reduction(self):
+        skipped = self._gate5_skip_unless_applicable()
+        if skipped:
+            return skipped
+        before = json.loads(self.http.request("/api/v1/diagnostics").text)
+        page = self.http.request("/settings")
+        after = json.loads(self.http.request("/api/v1/diagnostics").text)
+        http_diag = after.get("http", {})
+        baseline = int(http_diag.get("gate4_calibration_baseline_bytes", 0))
+        last_temp = int(http_diag.get("calibration_page_last_temp_bytes", -1))
+        peak_temp = int(http_diag.get("calibration_page_peak_temp_bytes", -1))
+        before_streamed = int(before.get("http", {}).get("streamed_responses", 0))
+        after_streamed = int(http_diag.get("streamed_responses", 0))
+        streamed_delta = after_streamed - before_streamed
+        limit = baseline * 0.50
+        failures: list[str] = []
+        if page.status != 200 or len(page.body) < 4096:
+            failures.append(f"calibration page unavailable or unexpectedly small: HTTP {page.status}, bytes={len(page.body)}")
+        if baseline <= 0:
+            failures.append(f"invalid Gate 4 calibration baseline: {baseline}")
+        if last_temp < 0 or last_temp > limit:
+            failures.append(f"temporary heap {last_temp} bytes exceeds 50% limit {limit:.0f} bytes")
+        if peak_temp < last_temp:
+            failures.append(f"peak temporary heap {peak_temp} < last {last_temp}")
+        if streamed_delta < 1:
+            failures.append("calibration page did not increment streamed-response counter")
+        reduction_percent = (
+            (baseline - last_temp) / baseline * 100.0 if baseline > 0 else math.nan
+        )
+        return (
+            "PASS" if not failures else "FAIL",
+            f"temp={last_temp} B, baseline={baseline} B, reduction={reduction_percent:.2f}%",
+            {
+                "gate5_calibration_page_bytes": len(page.body),
+                "gate5_calibration_temp_heap_bytes": last_temp,
+                "gate5_calibration_peak_temp_heap_bytes": peak_temp,
+                "gate5_calibration_gate4_baseline_bytes": baseline,
+                "gate5_calibration_heap_reduction_percent": reduction_percent,
+                "gate5_calibration_streamed_response_delta": streamed_delta,
+            },
+            {"before": before, "after": after, "failures": failures},
+        )
+
+    def test_gate5_page_heap_and_state_latency(self):
+        skipped = self._gate5_skip_unless_applicable()
+        if skipped:
+            return skipped
+        baseline, baseline_path = self._gate4_read_only_baseline()
+        baseline_p95 = float(baseline.get("flat_metrics", {}).get("PERF-001.http_state_p95_ms", math.nan))
+        if not math.isfinite(baseline_p95) or baseline_p95 <= 0:
+            raise AssertionError(f"Invalid G4 /state p95 baseline in {baseline_path}: {baseline_p95}")
+        allowed_p95 = baseline_p95 * 1.05
+
+        def heap_samples(count: int = 5) -> list[int]:
+            values: list[int] = []
+            for _ in range(count):
+                payload = json.loads(self.http.request("/api/v1/diagnostics").text)
+                values.append(int(payload.get("heap", {}).get("free_bytes", 0)))
+            return values
+
+        before_heap = heap_samples()
+        page_paths = ("/", "/settings", "/files", "/scpi")
+        page_latencies: list[float] = []
+        failures: list[str] = []
+        iterations = max(1000, int(self.config.stress_iterations))
+        for index in range(iterations):
+            path = page_paths[index % len(page_paths)]
+            response = self.http.request(path)
+            page_latencies.append(response.elapsed_ms)
+            if response.status != 200:
+                failures.append(f"iteration {index + 1} {path}: HTTP {response.status}")
+                break
+        time.sleep(0.1)
+        after_heap = heap_samples()
+        before_free = int(statistics.median(before_heap))
+        after_free = int(statistics.median(after_heap))
+        heap_decline = max(0, before_free - after_free)
+        if heap_decline > self.config.heap_drift_limit_bytes:
+            failures.append(
+                f"persistent heap decline {heap_decline} > {self.config.heap_drift_limit_bytes} bytes"
+            )
+
+        state_latencies: list[float] = []
+        for index in range(100):
+            response = self.http.request("/state")
+            state_latencies.append(response.elapsed_ms)
+            if response.status != 200:
+                failures.append(f"/state latency sample {index + 1}: HTTP {response.status}")
+                break
+        current_p95 = percentile(state_latencies, 0.95) if state_latencies else math.inf
+        regression_percent = (current_p95 - baseline_p95) / baseline_p95 * 100.0
+        if current_p95 > allowed_p95:
+            failures.append(
+                f"/state p95 {current_p95:.3f} ms > {allowed_p95:.3f} ms "
+                f"(G4 {baseline_p95:.3f} ms + 5%)"
+            )
+
+        metrics: dict[str, float | int] = {
+            "gate5_page_request_count": len(page_latencies),
+            "gate5_page_heap_before_bytes": before_free,
+            "gate5_page_heap_after_bytes": after_free,
+            "gate5_page_heap_decline_bytes": heap_decline,
+            "gate5_state_g4_baseline_p95_ms": baseline_p95,
+            "gate5_state_allowed_p95_ms": allowed_p95,
+            "gate5_state_regression_percent": regression_percent,
+        }
+        metrics.update(latency_metrics(page_latencies, "gate5_page"))
+        metrics.update(latency_metrics(state_latencies, "gate5_state"))
+        return (
+            "PASS" if not failures and len(page_latencies) == iterations and len(state_latencies) == 100 else "FAIL",
+            f"pages={len(page_latencies)}/{iterations}, heap_decline={heap_decline} B, /state p95={current_p95:.3f} ms",
+            metrics,
+            {
+                "baseline_path": str(baseline_path),
+                "before_heap_samples": before_heap,
+                "after_heap_samples": after_heap,
+                "page_paths": list(page_paths),
+                "failures": failures,
+            },
+        )
+
+    def _gate5_hil_http_worker(self) -> None:
+        local_http = HttpClient(self.config.host, self.config.http_port, self.config.timeout_s, self.logger)
+        paths = ("/api/v1/state", "/api/v1/diagnostics")
+        index = 0
+        while not self.gate5_hil_stress_stop.is_set():
+            path = paths[index % len(paths)]
+            index += 1
+            try:
+                response = local_http.request(path)
+                if response.status != 200:
+                    raise RuntimeError(f"{path} returned HTTP {response.status}")
+                if path.endswith("/state"):
+                    payload = json.loads(response.text)
+                    if len(payload.get("channels", [])) != 8:
+                        raise RuntimeError("API state did not contain eight channels")
+                self.gate5_hil_http_poll_count += 1
+                self.gate5_hil_http_latencies_ms.append(response.elapsed_ms)
+            except Exception as exc:
+                if len(self.gate5_hil_http_errors) < 50:
+                    self.gate5_hil_http_errors.append(f"{type(exc).__name__}: {exc}")
+            self.gate5_hil_stress_stop.wait(0.02)
+
+    def _stop_gate5_hil_stress(self) -> None:
+        self.gate5_hil_stress_stop.set()
+        thread = self.gate5_hil_stress_thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=max(2.0, self.config.timeout_s + 1.0))
+        self.gate5_hil_stress_thread = None
+        self.gate5_hil_stress_active = False
+
+    def test_gate5_start_hil_service_stress(self):
+        skipped = self._hil_skip_unless_ready()
+        if skipped:
+            return skipped
+        gate_skip = self._gate5_skip_unless_applicable()
+        if gate_skip:
+            return gate_skip
+        self._stop_gate5_hil_stress()
+        self.gate5_hil_stress_stop.clear()
+        self.gate5_hil_http_poll_count = 0
+        self.gate5_hil_http_errors = []
+        self.gate5_hil_http_latencies_ms = []
+        self.gate5_hil_scpi_poll_count = 0
+        self.gate5_hil_scpi_latencies_ms = []
+        self.gate5_hil_stress_active = True
+        self.gate5_hil_stress_thread = threading.Thread(
+            target=self._gate5_hil_http_worker,
+            name="gate5-hil-http-stress",
+            daemon=True,
+        )
+        self.gate5_hil_stress_thread.start()
+        deadline = time.monotonic() + max(3.0, self.config.timeout_s * 2.0)
+        while time.monotonic() < deadline and self.gate5_hil_http_poll_count < 2 and not self.gate5_hil_http_errors:
+            time.sleep(0.02)
+        failures: list[str] = []
+        if self.gate5_hil_http_poll_count < 2:
+            failures.append(f"HTTP stress did not start: {self.gate5_hil_http_errors[:3]}")
+        if failures:
+            self._stop_gate5_hil_stress()
+        return (
+            "PASS" if not failures else "FAIL",
+            f"HTTP polls started={self.gate5_hil_http_poll_count}; SCPI state polling is counted through the active HIL control connection",
+            {"gate5_hil_http_start_poll_count": self.gate5_hil_http_poll_count},
+            {"errors": self.gate5_hil_http_errors, "failures": failures},
+        )
+
+    def test_gate5_stop_hil_service_stress(self):
+        if int(self.config.gate[1:]) < 5:
+            return "SKIP", "Gate 5 HIL service stress requires G5 or later", {}, {}
+        was_active = self.gate5_hil_stress_active
+        self._stop_gate5_hil_stress()
+        failures: list[str] = []
+        if not was_active:
+            failures.append("Gate 5 HIL stress was not active")
+        if self.gate5_hil_http_errors:
+            failures.append(f"HTTP stress errors={self.gate5_hil_http_errors[:5]}")
+        if self.gate5_hil_http_poll_count < 20:
+            failures.append(f"HTTP stress poll count too low: {self.gate5_hil_http_poll_count}")
+        if self.gate5_hil_scpi_poll_count < 20:
+            failures.append(f"SCPI state poll count too low: {self.gate5_hil_scpi_poll_count}")
+        metrics: dict[str, float | int] = {
+            "gate5_hil_http_poll_count": self.gate5_hil_http_poll_count,
+            "gate5_hil_http_error_count": len(self.gate5_hil_http_errors),
+            "gate5_hil_scpi_poll_count": self.gate5_hil_scpi_poll_count,
+        }
+        metrics.update(latency_metrics(self.gate5_hil_http_latencies_ms, "gate5_hil_http"))
+        metrics.update(latency_metrics(self.gate5_hil_scpi_latencies_ms, "gate5_hil_scpi"))
+        return (
+            "PASS" if not failures else "FAIL",
+            f"HTTP polls={self.gate5_hil_http_poll_count}, SCPI polls={self.gate5_hil_scpi_poll_count}, errors={len(self.gate5_hil_http_errors)}",
+            metrics,
+            {"http_errors": self.gate5_hil_http_errors, "failures": failures},
         )
 
     def test_http_latency(self):

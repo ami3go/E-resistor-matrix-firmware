@@ -1,0 +1,21 @@
+{
+  "has_heartbeat_param": true,
+  "has_verbose_switch": true,
+  "has_start_job": true,
+  "incremental_receive": true,
+  "exit_sentinel": true,
+  "no_buffered_native_output": true,
+  "verbose_cli_flag": true,
+  "upload_heartbeat": true,
+  "manifest_script_version": true,
+  "balanced_()": true,
+  "balanced_{}": true,
+  "balanced_[]": true,
+  "build_firmware.bat_exists": true,
+  "build_firmware.bat_crlf": true,
+  "build_firmware_verbose.bat_exists": true,
+  "build_firmware_verbose.bat_crlf": true,
+  "build_and_flash_COM17_verbose.bat_exists": true,
+  "build_and_flash_COM17_verbose.bat_crlf": true,
+  "config_script_version": true
+}

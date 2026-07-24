@@ -1,8 +1,8 @@
 param(
-    [ValidateSet("read_only", "safe_output", "hil_single_channel", "gate3_transport_fault", "gate4_profile", "gate4_profile_fault")]
+    [ValidateSet("read_only", "safe_output", "hil_single_channel", "gate3_transport_fault", "gate4_profile", "gate4_profile_fault", "gate5_service")]
     [string]$Profile = "read_only",
     [ValidateSet("G0", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9")]
-    [string]$Gate = "G4",
+    [string]$Gate = "G5",
     [string]$HostAddress = "192.168.0.55",
     [string]$Output = ".\results\robot",
     [string]$SerialPort = "auto",
