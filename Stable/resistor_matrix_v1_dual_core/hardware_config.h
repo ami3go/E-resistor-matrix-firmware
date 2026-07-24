@@ -23,6 +23,8 @@ inline constexpr uint8_t WS2812_COUNT = 1;
 
 inline constexpr uint32_t ETH_INIT_SPI_HZ    = 1000000UL;
 inline constexpr uint32_t ETH_RUNTIME_SPI_HZ = 4000000UL;
+inline constexpr uint32_t ETH_LINK_POLL_INTERVAL_MS = 1000UL;
+inline constexpr uint32_t ETH_HARDWARE_RETRY_INTERVAL_MS = 5000UL;
 inline constexpr uint16_t SR_CLOCK_HALF_PERIOD_US = 10;
 inline constexpr uint16_t SR_LATCH_PULSE_US       = 10;
 inline constexpr uint16_t BREAK_BEFORE_MAKE_MS    = 2;

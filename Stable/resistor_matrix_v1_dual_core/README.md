@@ -12,6 +12,11 @@ Read `GATE5_RELEASE_STATUS.md`, `G5_BUILD_AND_TEST.md`, and `docs/gate5_architec
 
 This package is the documented version of the dual-core Arduino RP2040 firmware.
 
+
+## Ethernet cable auto-recovery
+
+Gate 5 revision r11 starts the W5500/lwIP interface even when no Ethernet cable is present. The board boots with all outputs OFF, reports `wait_link`, and automatically exposes HTTP port 80 and SCPI port 5025 after a cable is connected. W5500 hardware initialization is retried every 5 seconds if the controller is not detected. See `G5_ETHERNET_AUTO_RECOVERY_v0.8.0-r11.md` for the validation procedure.
+
 ## What is included
 
 - Same pinout as previous firmware.

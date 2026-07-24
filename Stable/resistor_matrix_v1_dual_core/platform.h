@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <W5500lwIP.h>
+#include <LwipEthernet.h>
 #include <WiFiClient.h>
 #include <WiFiServer.h>
 #include <WebServer.h>

@@ -19,7 +19,6 @@ G4_CORE_HASHES = {
     "core1_runtime.cpp": "ac1f8cb2f0757d62d508ff01920db5814257a102ecb8d7b2c90313913eea00e6",
     "shift_registers.cpp": "0b3a96cb51c5b3c4f6d589203f690294783c4e2191fe5e16ca9a65afe7fa10a4",
     "core_command.cpp": "82df52cb6926011d1974548b11da9bf3d7491a3b71c574d65c0a1162ad217d67",
-    "setup_loop.cpp": "71bd42f46392ecf41dd787d5b61dbf391fa1866610748ab3b6368042e6ed52c4",
 }
 
 
@@ -50,6 +49,10 @@ def main() -> int:
     scpi_page = read("http_pages.cpp")
     page_helpers = read("http_page_helpers.cpp")
     http_header = read("http_api.h")
+    ethernet = read("ethernet_startup.cpp")
+    w5500 = read("w5500_registers.cpp")
+    setup_loop = read("setup_loop.cpp")
+    runtime_state = read("runtime_state.h")
 
     required_modules = [
         "http_control.cpp", "http_calibration_page.cpp", "http_maintenance.cpp",
@@ -124,7 +127,17 @@ def main() -> int:
             "core1_ready=", "transport_generation=", "profile_bbm_count=", "ch", "_max_bits=",
         ))),
         check("exact SCPI dispatch precedes String allocation", scpi_server.index("scpiLookupExactCommand") < scpi_server.index("String cmd(normalized)")),
-        check("Core 1 and output engine unchanged from accepted G4", all(sha(ROOT / n) == h for n, h in G4_CORE_HASHES.items())),
+        check("Core 1 transport and output engine unchanged from accepted G4", all(sha(ROOT / n) == h for n, h in G4_CORE_HASHES.items())),
+        check("Ethernet cable absence is recoverable", "DOWN (recoverable; waiting for cable)" in w5500 and 'safeState("Ethernet link DOWN")' not in w5500),
+        check("W5500 hardware probe ignores missing cable", "return true;" in w5500[w5500.index("bool w5500SoftwareResetAndProbe"):]),
+        check("Ethernet interface starts without waiting for link", "if (!eth.begin())" in ethernet and "while (!eth.connected())" not in ethernet),
+        check("HTTP and SCPI listeners start once", "startNetworkServicesOnce" in ethernet and "if (ethernetServicesStarted)" in ethernet),
+        check("link loss retains listeners and closes stale SCPI client", "HTTP/SCPI listeners retained" in ethernet and "closeScpiClientForLinkLoss" in ethernet),
+        check("hardware retry interval is bounded", "ETH_HARDWARE_RETRY_INTERVAL_MS" in ethernet and "ethernetLastRecoveryAttemptMs" in ethernet),
+        check("one initialization attempt per retry interval", ethernet.count("attemptEthernetInitialization();") == 2, ethernet.count("attemptEthernetInitialization();"), 2),
+        check("startup forces all outputs off before Ethernet", setup_loop.index("forceAllOff") < setup_loop.index("ethernetAutoRecoveryBegin")),
+        check("main loop services recovery regardless of current link", "serviceEthernetAutoRecovery();" in setup_loop and "ethernetInterfaceStarted && ethernetServicesStarted" in setup_loop),
+        check("Ethernet recovery telemetry is snapshotted", all(token in runtime_state for token in ("ethernetRecoveryState", "ethernetRecoveryAttemptCount", "ethernetRecoverySuccessCount", "ethernetLinkDownCount"))),
     ]
 
     # The old 8-24 KB whole-response allocation patterns must be absent from the

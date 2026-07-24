@@ -546,11 +546,13 @@ void handleLogDownload() {
   out.printf("Firmware build: %s %s\nExport uptime: %lu s\n", FIRMWARE_BUILD_DATE, FIRMWARE_BUILD_TIME,
              static_cast<unsigned long>(snapshot.uptimeMs / 1000UL));
   out.printf("Status: %s\nLast error: %s\n", snapshot.status, snapshot.error);
-  out.printf("Core 1 engine: %s\nOutputs known safe: %s\nLittleFS: %s\nEthernet fault: %s\nIP address: %s\n\n",
+  out.printf("Core 1 engine: %s\nOutputs known safe: %s\nLittleFS: %s\nEthernet fault: %s\nEthernet state: %s\nEthernet link: %s\nIP address: %s\n\n",
              snapshot.core1EngineReady ? "ready" : "not ready",
              snapshot.outputsKnownSafe ? "yes" : "no",
              snapshot.littleFsReady ? "ready" : "not ready",
-             ethernetFault ? "yes" : "no", snapshot.ip);
+             snapshot.ethernetFault ? "yes" : "no",
+             ethernetRecoveryStateText(snapshot.ethernetRecoveryState),
+             snapshot.ethernetLinkUp ? "up" : "down", snapshot.ip);
   out.write("Event history\n-------------\n");
   for (uint8_t i = 0; i < eventLogCount; ++i) {
     const uint8_t index = (eventLogHead + 32U - eventLogCount + i) % 32U;

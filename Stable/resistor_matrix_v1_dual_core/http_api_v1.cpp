@@ -51,6 +51,16 @@ void handleApiV1State() {
   out.printf(",\"test_mode\":%s,\"uptime_ms\":%lu,\"heap_free_bytes\":%lu,\"core0_load_percent\":%.1f",
              s.testMode ? "true" : "false", static_cast<unsigned long>(s.uptimeMs),
              static_cast<unsigned long>(s.heapFreeBytes), double(s.core0LoadPercent));
+  out.write("},\"network\":{");
+  out.printf("\"interface_started\":%s,\"services_started\":%s,\"link_up\":%s,\"fault\":%s,\"recovery_state\":\"%s\",\"recovery_attempts\":%lu,\"recovery_successes\":%lu,\"link_down_count\":%lu",
+             s.ethernetInterfaceStarted ? "true" : "false",
+             s.ethernetServicesStarted ? "true" : "false",
+             s.ethernetLinkUp ? "true" : "false",
+             s.ethernetFault ? "true" : "false",
+             ethernetRecoveryStateText(s.ethernetRecoveryState),
+             static_cast<unsigned long>(s.ethernetRecoveryAttemptCount),
+             static_cast<unsigned long>(s.ethernetRecoverySuccessCount),
+             static_cast<unsigned long>(s.ethernetLinkDownCount));
   out.write("},\"safety\":{");
   out.printf("\"outputs_known_safe\":%s,\"fatal_safe_state\":%s,\"core1_ready\":%s,\"core1_fault\":%s",
              s.outputsKnownSafe ? "true" : "false", s.fatalSafeStateActive ? "true" : "false",
@@ -99,6 +109,14 @@ void handleApiV1Diagnostics() {
              static_cast<unsigned long>(t.commandTimeoutCount), static_cast<unsigned long>(t.commandExpiredCount),
              static_cast<unsigned long>(t.generationRejectCount), static_cast<unsigned long>(t.commandQueueOverflowCount),
              static_cast<unsigned long>(t.resultQueueOverflowCount), static_cast<unsigned long>(s.core1EventDropCounter));
+  out.printf("\"ethernet\":{\"interface_started\":%s,\"services_started\":%s,\"link_up\":%s,\"fault\":%s,\"recovery_state\":\"%s\",\"recovery_attempts\":%lu,\"recovery_successes\":%lu,\"link_down_count\":%lu,\"last_transition_age_ms\":%lu},",
+             s.ethernetInterfaceStarted ? "true" : "false", s.ethernetServicesStarted ? "true" : "false",
+             s.ethernetLinkUp ? "true" : "false", s.ethernetFault ? "true" : "false",
+             ethernetRecoveryStateText(s.ethernetRecoveryState),
+             static_cast<unsigned long>(s.ethernetRecoveryAttemptCount),
+             static_cast<unsigned long>(s.ethernetRecoverySuccessCount),
+             static_cast<unsigned long>(s.ethernetLinkDownCount),
+             static_cast<unsigned long>(s.ethernetLastTransitionAgeMs));
   out.printf("\"http\":{\"streamed_responses\":%lu,\"calibration_page_last_temp_bytes\":%lu,\"calibration_page_peak_temp_bytes\":%lu,\"gate4_calibration_baseline_bytes\":%lu,\"state_last_temp_bytes\":%lu,\"state_peak_temp_bytes\":%lu,\"method_rejections\":%lu,\"api_v1_requests\":%lu},",
              static_cast<unsigned long>(s.streamedResponseCount), static_cast<unsigned long>(s.calibrationPageLastTempBytes),
              static_cast<unsigned long>(s.calibrationPagePeakTempBytes), static_cast<unsigned long>(GATE4_CALIBRATION_TEMP_HEAP_BASELINE_BYTES),

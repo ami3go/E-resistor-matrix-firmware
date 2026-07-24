@@ -18,6 +18,8 @@ static void appendEventLogSummaryCard(String& html) {
   html += "<tr><td>Outputs known safe</td><td><code>"; html += outputsKnownSafe ? "yes" : "no"; html += "</code></td></tr>";
   html += "<tr><td>LittleFS</td><td><code>"; html += littleFsReady ? "ready" : "not ready"; html += "</code></td></tr>";
   html += "<tr><td>Ethernet fault</td><td><code>"; html += ethernetFault ? "yes" : "no"; html += "</code></td></tr>";
+  html += "<tr><td>Ethernet recovery state</td><td><code>"; html += ethernetRecoveryStateText(ethernetRecoveryState); html += "</code></td></tr>";
+  html += "<tr><td>Ethernet physical link</td><td><code>"; html += ethernetLinkUp ? "up" : "down"; html += "</code></td></tr>";
   html += "<tr><td>IP address</td><td><code>"; html += ipToString(eth.localIP()); html += "</code></td></tr>";
   html += "<tr><td>W5500 VERSIONR</td><td><code>0x"; html += String(w5500Version, HEX); html += "</code></td></tr>";
   html += "<tr><td>WS2812 heartbeat</td><td><code>GP16</code></td></tr>";

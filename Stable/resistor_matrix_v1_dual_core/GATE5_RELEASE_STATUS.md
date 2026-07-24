@@ -3,7 +3,7 @@
 ## Candidate
 
 - Firmware identity: **v0.8.0**
-- Package revision: **r6 Calibration readback layout corrective**
+- Package revision: **r11 Ethernet auto-recovery corrective**
 - Gate: **G5 — HTTP and SCPI restructuring**
 - Accepted baseline: **v0.7.2 / Gate 4**
 - Status: **PENDING ARDUINO-PICO TARGET BUILD AND CONNECTED HIL**
@@ -105,3 +105,16 @@ The r1 corrective moves `CALIBRATION_BUNDLE_MAX_BYTES` from a private `http_main
 - Replaced `/profiles` content with a compatibility notice linking to Control.
 - Removed the redundant Current state table from the former Profiles page.
 - Cache-bust token: `ui=profilecontrol-r9`.
+
+
+## v0.8.0-r11 Ethernet auto-recovery corrective
+
+- An unplugged cable at power-up is no longer treated as a fatal W5500 hardware failure.
+- All outputs are forced OFF before the recoverable Ethernet startup path begins.
+- The static lwIP interface and HTTP/SCPI listeners start while physical link is down.
+- A 1-second PHY monitor automatically transitions to online after cable insertion.
+- Disconnect/reconnect cycles retain listeners and close only the stale SCPI client.
+- Missing W5500 hardware is retried every 5 seconds.
+- Ethernet recovery state and counters are included in Live State, `/state`, API v1 diagnostics, and log export.
+- Offline checks after r11: C/C++ lexical 48/48 PASS, Gate 5 structural 48/48 PASS, Gate 3 and Gate 4 focused host syntax PASS.
+- Arduino-Pico target build and cable-late/reconnect HIL validation remain required.

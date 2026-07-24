@@ -52,6 +52,14 @@ bool captureRuntimeStateSnapshot(RuntimeStateSnapshot& out) {
   out.calibrationLoadedMask = calibrationLoadedMask;
   out.calibrationLoadErrorMask = calibrationLoadErrorMask;
   out.w5500Version = w5500Version;
+  out.ethernetFault = ethernetFault;
+  out.ethernetInterfaceStarted = ethernetInterfaceStarted;
+  out.ethernetServicesStarted = ethernetServicesStarted;
+  out.ethernetLinkUp = ethernetLinkUp;
+  out.ethernetRecoveryState = ethernetRecoveryState;
+  out.ethernetRecoveryAttemptCount = ethernetRecoveryAttemptCount;
+  out.ethernetRecoverySuccessCount = ethernetRecoverySuccessCount;
+  out.ethernetLinkDownCount = ethernetLinkDownCount;
   out.shiftRegistersReady = shiftRegistersReady;
   out.outputsKnownSafe = outputsKnownSafe;
   out.fatalSafeStateActive = fatalSafeStateActive;
@@ -59,6 +67,7 @@ bool captureRuntimeStateSnapshot(RuntimeStateSnapshot& out) {
   out.core1OutputsReady = core1OutputsReady;
   out.core1Fault = core1Fault;
   const uint32_t nowMs = millis();
+  out.ethernetLastTransitionAgeMs = nowMs - ethernetLastTransitionMs;
   out.core1HeartbeatMs = uint32_t(core1HeartbeatMs);
   out.core1HeartbeatAgeMs = nowMs - out.core1HeartbeatMs;
   out.core1LoopCounter = uint32_t(core1LoopCounter);

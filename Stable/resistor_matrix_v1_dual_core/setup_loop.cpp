@@ -109,7 +109,20 @@ void setup() {
   }
   appendLogEvent("Boot: immutable Core 1 calibration/safety policy installed");
 
-  Serial.println("STEP 2: Ethernet CS/INT setup");
+  Serial.println("STEP 2: request all channels OFF via Core 1");
+  Serial.flush();
+
+  char allOffReason[128] = {0};
+  if (!forceAllOff(allOffReason, sizeof(allOffReason))) {
+    safeState(allOffReason[0] ? allOffReason : "Startup all-OFF failed");
+    return;
+  }
+
+  Serial.println("STEP 3: all channels OFF done");
+  Serial.flush();
+  appendLogEvent("Boot: startup all-OFF command completed");
+
+  Serial.println("STEP 4: Ethernet CS/INT setup");
   Serial.flush();
 
   pinMode(ETH_CS, OUTPUT);
@@ -117,7 +130,7 @@ void setup() {
 
   pinMode(ETH_INT, INPUT_PULLUP);
 
-  Serial.println("STEP 3: SPI0 pin setup");
+  Serial.println("STEP 5: SPI0 pin setup");
   Serial.flush();
 
   SPI.setRX(ETH_MISO);
@@ -133,58 +146,31 @@ void setup() {
   Serial.println("  MOSI GP3");
   Serial.flush();
 
-  Serial.println("STEP 4: W5500 probe");
+  Serial.println("STEP 6: start recoverable Ethernet state machine");
   Serial.flush();
+  ethernetAutoRecoveryBegin();
 
-  if (!w5500SoftwareResetAndProbe()) {
-    Serial.println("Ethernet hardware/link failed. HTTP/SCPI servers not started.");
-    Serial.flush();
-    safeState("Ethernet hardware/link failed");
-    return;
+  if (ethernetServicesStarted) {
+    Serial.println();
+    Serial.print("HTTP: http://");
+    Serial.print(ipToString(DEVICE_IP));
+    Serial.println("/");
+
+    Serial.print("SCPI: ");
+    Serial.print(ipToString(DEVICE_IP));
+    Serial.println(":5025");
+  } else {
+    Serial.println("Ethernet hardware unavailable; automatic retry remains active.");
   }
-
-  Serial.println("STEP 5: Ethernet static start");
   Serial.flush();
 
-  if (!startEthernetStatic()) {
-    Serial.println("Ethernet static setup failed. HTTP/SCPI servers not started.");
-    Serial.flush();
-    safeState("Ethernet static setup failed");
-    return;
+  if (ethernetLinkUp) {
+    setLedMode(LED_OK);
+    appendLogEvent("Boot: complete, Ethernet online");
+  } else if (!fatalSafeStateActive) {
+    setLedMode(ethernetInterfaceStarted ? LED_BOOT : LED_FAULT);
+    appendLogEvent("Boot: complete, outputs OFF, Ethernet auto-recovery active");
   }
-
-  Serial.println("STEP 6: HTTP and SCPI server start");
-  Serial.flush();
-
-  setupHttpServer();
-  setupScpiServer();
-  appendLogEvent("Boot: HTTP and SCPI servers started");
-
-  Serial.println();
-  Serial.print("HTTP: http://");
-  Serial.print(ipToString(eth.localIP()));
-  Serial.println("/");
-
-  Serial.print("SCPI: ");
-  Serial.print(ipToString(eth.localIP()));
-  Serial.println(":5025");
-  Serial.flush();
-
-  Serial.println("STEP 7: request all channels OFF via Core 1");
-  Serial.flush();
-
-  char allOffReason[128] = {0};
-  if (!forceAllOff(allOffReason, sizeof(allOffReason))) {
-    safeState(allOffReason[0] ? allOffReason : "Startup all-OFF failed");
-    return;
-  }
-
-  Serial.println("STEP 8: all channels OFF done");
-  Serial.flush();
-  appendLogEvent("Boot: startup all-OFF command completed");
-
-  setLedMode(LED_OK);
-  appendLogEvent("Boot: complete, LED status OK");
 }
 
 /**
@@ -197,8 +183,9 @@ void loop() {
   refreshCore0OutputMirror();
   updateHeartbeat();
   drainCore1Events();
+  serviceEthernetAutoRecovery();
 
-  if (!ethernetFault) {
+  if (ethernetInterfaceStarted && ethernetServicesStarted) {
     server.handleClient();
     handleScpiServer();
   }

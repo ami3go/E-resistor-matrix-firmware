@@ -47,6 +47,17 @@ bool scpiDiscardUntilNewline = false;
 float channelResistorOhms[CHANNEL_COUNT][BIT_COUNT] = {};
 
 bool ethernetFault = false;
+bool ethernetInterfaceStarted = false;
+bool ethernetServicesStarted = false;
+bool ethernetLinkUp = false;
+bool ethernetNetworkErrorActive = false;
+EthernetRecoveryState ethernetRecoveryState = ETHERNET_RECOVERY_UNINITIALIZED;
+uint32_t ethernetRecoveryAttemptCount = 0;
+uint32_t ethernetRecoverySuccessCount = 0;
+uint32_t ethernetLinkDownCount = 0;
+uint32_t ethernetLastProbeMs = 0;
+uint32_t ethernetLastRecoveryAttemptMs = 0;
+uint32_t ethernetLastTransitionMs = 0;
 bool littleFsReady = false;
 uint8_t calibrationSavedMask = 0;
 uint8_t calibrationLoadedMask = 0;

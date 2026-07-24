@@ -439,6 +439,20 @@ void appendRuntimeMonitorInfo(String& html) {
   html += (scpiClient && scpiClient.connected()) ? "connected" : "not connected";
   html += "</code></td></tr>";
 
+  html += "<tr><td>Ethernet recovery state</td><td><code>";
+  html += ethernetRecoveryStateText(ethernetRecoveryState);
+  html += "</code></td></tr>";
+
+  html += "<tr><td>Ethernet physical link</td><td><code>";
+  html += ethernetLinkUp ? "up" : "down";
+  html += "</code></td></tr>";
+
+  html += "<tr><td>Ethernet recovery attempts / successes</td><td><code>";
+  html += String(ethernetRecoveryAttemptCount);
+  html += " / ";
+  html += String(ethernetRecoverySuccessCount);
+  html += "</code></td></tr>";
+
   html += "<tr><td>Core 1 state</td><td><code>";
   html += core1EngineReady ? "ready" : "not ready";
   html += "</code></td></tr>";

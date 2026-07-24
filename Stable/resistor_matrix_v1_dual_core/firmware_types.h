@@ -19,6 +19,13 @@ struct TargetSearchResult {
   bool cancelled;
 };
 
+enum EthernetRecoveryState : uint8_t {
+  ETHERNET_RECOVERY_UNINITIALIZED = 0,
+  ETHERNET_RECOVERY_HARDWARE_RETRY,
+  ETHERNET_RECOVERY_WAIT_LINK,
+  ETHERNET_RECOVERY_ONLINE
+};
+
 enum LedMode : uint8_t {
   LED_BOOT,
   LED_OK,

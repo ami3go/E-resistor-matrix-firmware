@@ -11,6 +11,15 @@ static void writeLegacyState(HttpResponseWriter& out, const RuntimeStateSnapshot
   out.printf("firmware_update_status=%s\nfirmware_update_in_progress=%u\n", s.firmwareUpdateStatus, firmwareUpdateInProgress ? 1U : 0U);
   out.printf("api_version=%s\nip=%s\nw5500_version=0x%02X\nws2812_gp=16\nscpi_port=5025\n",
              API_VERSION, s.ip, unsigned(s.w5500Version));
+  out.printf("ethernet_fault=%u\nethernet_interface_started=%u\nethernet_services_started=%u\nethernet_link_up=%u\n",
+             s.ethernetFault ? 1U : 0U, s.ethernetInterfaceStarted ? 1U : 0U,
+             s.ethernetServicesStarted ? 1U : 0U, s.ethernetLinkUp ? 1U : 0U);
+  out.printf("ethernet_recovery_state=%s\nethernet_recovery_attempts=%lu\nethernet_recovery_successes=%lu\nethernet_link_down_count=%lu\nethernet_last_transition_age_ms=%lu\n",
+             ethernetRecoveryStateText(s.ethernetRecoveryState),
+             static_cast<unsigned long>(s.ethernetRecoveryAttemptCount),
+             static_cast<unsigned long>(s.ethernetRecoverySuccessCount),
+             static_cast<unsigned long>(s.ethernetLinkDownCount),
+             static_cast<unsigned long>(s.ethernetLastTransitionAgeMs));
   out.printf("littlefs=%s\ncalibration_saved_mask=%u\ncalibration_loaded_mask=%u\ncalibration_load_error_mask=%u\ncalibration_all_saved=%u\n",
              s.littleFsReady ? "ready" : "not_ready",
              unsigned(s.calibrationSavedMask), unsigned(s.calibrationLoadedMask),

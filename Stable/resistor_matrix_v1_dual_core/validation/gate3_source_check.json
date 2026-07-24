@@ -1,0 +1,273 @@
+{
+  "gate": "G3",
+  "firmware_version": "0.6.2",
+  "passed": 44,
+  "failed": 0,
+  "total": 44,
+  "checks": [
+    {
+      "name": "firmware version at or above G_ baseline 0.6.2",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core transport starts before setup delay",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "event queue initializes before transport ready",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core1 does not race event queue initialization",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core1 startup wait retries instead of exiting",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core0 startup consumes coherent snapshot flags",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "transport initialization has cross-core memory barrier",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "calibration persistence masks tracked",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "missing calibration is diagnosed",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "SCPI calibration status query",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "SCPI USB diagnostic query",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "HTTP state exposes calibration masks",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "fixed-size command queue",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "fixed-size result queue",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "command sequence field",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "command deadline field",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "command safety generation field",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "numeric result without message buffer",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "result semaphore notification",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "startup handshake synchronization (token-based since G4)",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "atomic output snapshot lock",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "immutable double-buffer policy",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "policy staging requires safe OFF snapshot",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core1 rejects expired commands before dispatch",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core1 rejects invalidated generation before dispatch",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "timeout invalidates generation",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "timeout requests direct all-off",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core0 heartbeat fail-safe",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core1 physical engine isolated",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core1 status globals have a single Core1 writer",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core0-only setup loop",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "no fixed Core1 startup delay",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "HTTP exposes snapshot diagnostics",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "SCPI exposes transport diagnostics",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "SCPI exposes coherent snapshot",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "test hooks compile-time guarded",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "test hooks require outputs OFF",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "test duration is strictly bounded",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "queued-command generation invalidation hook",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "queued invalidation occurs before envelope validation",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "production build is default",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "separate explicit Gate3 test build",
+      "passed": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "Core1 code has no UI/storage/protocol/formatting dependencies",
+      "passed": true,
+      "actual": [],
+      "expected": []
+    },
+    {
+      "name": "legacy command protocol removed",
+      "passed": true,
+      "actual": [],
+      "expected": []
+    }
+  ]
+}

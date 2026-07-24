@@ -2,9 +2,9 @@
   "gate": "G5",
   "firmware_version": "0.8.0",
   "baseline_firmware": "0.7.2",
-  "passed": 38,
+  "passed": 48,
   "failed": 0,
-  "total": 38,
+  "total": 48,
   "checks": [
     {
       "name": "firmware version 0.8.0",
@@ -285,7 +285,67 @@
       "expected": null
     },
     {
-      "name": "Core 1 and output engine unchanged from accepted G4",
+      "name": "Core 1 transport and output engine unchanged from accepted G4",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "Ethernet cable absence is recoverable",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "W5500 hardware probe ignores missing cable",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "Ethernet interface starts without waiting for link",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "HTTP and SCPI listeners start once",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "link loss retains listeners and closes stale SCPI client",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "hardware retry interval is bounded",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "one initialization attempt per retry interval",
+      "passed": true,
+      "actual": 2,
+      "expected": 2
+    },
+    {
+      "name": "startup forces all outputs off before Ethernet",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "main loop services recovery regardless of current link",
+      "passed": true,
+      "actual": null,
+      "expected": null
+    },
+    {
+      "name": "Ethernet recovery telemetry is snapshotted",
       "passed": true,
       "actual": null,
       "expected": null

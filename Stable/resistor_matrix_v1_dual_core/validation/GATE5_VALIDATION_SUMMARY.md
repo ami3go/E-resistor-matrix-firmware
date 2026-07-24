@@ -40,3 +40,14 @@ Offline checks rerun after moving the Calibration file readback workflow from th
 - Gate 5 service oracle: 10/10 PASS
 
 Arduino-Pico target compilation and browser validation must still be performed on the hardware/browser bench.
+
+## r11 Ethernet cable auto-recovery corrective
+
+Offline checks rerun after adding recoverable cable-late startup and link monitoring:
+
+- C/C++ lexical check: 48/48 PASS
+- Gate 5 structural check: 48/48 PASS
+- Gate 3 focused host syntax check: PASS
+- Gate 4 focused host syntax check: PASS
+
+Arduino-Pico target compilation and cable-late/disconnect/reconnect HIL validation remain required.

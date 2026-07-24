@@ -16,6 +16,7 @@ void updateHeartbeat();
 void w5500WriteCommonReg(uint16_t address, uint8_t value, uint32_t spiHz);
 uint8_t w5500ReadCommonReg(uint16_t address, uint32_t spiHz);
 bool w5500SoftwareResetAndProbe();
+bool w5500ReadLinkState(bool& linkUp, uint8_t* phyConfig = nullptr);
 bool waitForCore1Startup(uint32_t timeoutMs = CORE_STARTUP_TIMEOUT_MS);
 bool refreshCore0OutputMirror();
 bool readCoreOutputSnapshot(CoreOutputSnapshot& snapshot);
@@ -39,3 +40,6 @@ void core1TestInvalidateNextCommandGeneration();
 void core1TestFailNextProfileAfterClear();
 #endif
 bool startEthernetStatic();
+void ethernetAutoRecoveryBegin();
+void serviceEthernetAutoRecovery();
+const char* ethernetRecoveryStateText(EthernetRecoveryState state);
